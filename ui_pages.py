@@ -56,6 +56,26 @@ class DashboardPage(tk.Frame):
         grid.grid_columnconfigure(0, weight=1, uniform="g")
         grid.grid_columnconfigure(1, weight=1, uniform="g")
 
+        # IMPLIED RATES SECTION
+        implied_title = tk.Label(self, text="IMPLIED NOK RATES (WEIGHTED)", fg=THEME["muted"], bg=THEME["bg_panel"],
+                                 font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
+        implied_title.pack(anchor="w", padx=pad, pady=(pad, 8))
+
+        implied_chips = tk.Frame(self, bg=THEME["bg_panel"])
+        implied_chips.pack(fill="x", padx=pad, pady=(0, pad))
+        for i in range(4):
+            implied_chips.grid_columnconfigure(i, weight=1, uniform="impl")
+
+        self.chip_impl_1m = MetricChipTK(implied_chips, "1M IMPLIED", "-")
+        self.chip_impl_2m = MetricChipTK(implied_chips, "2M IMPLIED", "-")
+        self.chip_impl_3m = MetricChipTK(implied_chips, "3M IMPLIED", "-")
+        self.chip_impl_6m = MetricChipTK(implied_chips, "6M IMPLIED", "-")
+
+        self.chip_impl_1m.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        self.chip_impl_2m.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        self.chip_impl_3m.grid(row=0, column=2, sticky="ew", padx=(0, 10))
+        self.chip_impl_6m.grid(row=0, column=3, sticky="ew")
+
         title2 = tk.Label(self, text="ACTIVE ALERTS", fg=THEME["muted"], bg=THEME["bg_panel"],
                           font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
         title2.pack(anchor="w", padx=pad, pady=(0, 8))
@@ -137,6 +157,9 @@ class DashboardPage(tk.Frame):
         self._apply_state(self.card_cells, "OK" if self.app.status_cells else "FAIL", gh.get("CELLS", "—"))
         self._apply_state(self.card_weights, self.app.weights_state, gh.get("WEIGHTS", "—"))
 
+        # Update implied rates
+        self._update_implied_rates()
+
         if not self.app.active_alerts:
             self.alert_table.pack_forget()
             self.ok_panel.pack(fill="both", expand=True)
@@ -146,6 +169,101 @@ class DashboardPage(tk.Frame):
             self.alert_table.clear()
             for a in self.app.active_alerts[:250]:
                 self.alert_table.add_row([a["source"], a["msg"], a["val"], a["exp"]], style="bad")
+
+    def _get_ticker_val(self, ticker):
+        """Get price value from cached market data."""
+        data = self.app.cached_market_data or {}
+        inf = data.get(ticker)
+        if inf:
+            return float(inf.get("price", 0.0))
+        return None
+
+    def _get_weights(self):
+        """Get weights from Excel engine or use defaults."""
+        weights = {"USD": 0.45, "EUR": 0.05, "NOK": 0.50}
+        if hasattr(self.app, 'excel_engine') and self.app.excel_engine.weights_ok:
+            parsed = self.app.excel_engine.weights_cells_parsed
+            if parsed.get("USD") is not None:
+                weights["USD"] = parsed["USD"]
+            if parsed.get("EUR") is not None:
+                weights["EUR"] = parsed["EUR"]
+            if parsed.get("NOK") is not None:
+                weights["NOK"] = parsed["NOK"]
+        return weights
+
+    def _update_implied_rates(self):
+        """Calculate and display weighted implied rates."""
+        weights = self._get_weights()
+
+        # Spots
+        usd_spot = self._get_ticker_val("NOK F033 Curncy")
+        eur_spot = self._get_ticker_val("NKEU F033 Curncy")
+
+        # Excel days
+        excel_days_data = self.app.current_days_data or {}
+
+        tenors = [
+            {"tenor": "1M", "key": "1m", "chip": self.chip_impl_1m,
+             "usd_fwd": "NK1M F033 Curncy", "usd_rate": "USCM1M SWET Curncy", "usd_days": "NK1M TPSF Curncy",
+             "eur_fwd": "NKEU1M F033 Curncy", "eur_rate": "EUCM1M SWET Curncy", "eur_days": "EURNOK1M TPSF Curncy",
+             "nok_cm": "NKCM1M SWET Curncy"},
+            {"tenor": "2M", "key": "2m", "chip": self.chip_impl_2m,
+             "usd_fwd": "NK2M F033 Curncy", "usd_rate": "USCM2M SWET Curncy", "usd_days": "NK2M TPSF Curncy",
+             "eur_fwd": "NKEU2M F033 Curncy", "eur_rate": "EUCM2M SWET Curncy", "eur_days": "EURNOK2M TPSF Curncy",
+             "nok_cm": "NKCM2M SWET Curncy"},
+            {"tenor": "3M", "key": "3m", "chip": self.chip_impl_3m,
+             "usd_fwd": "NK3M F033 Curncy", "usd_rate": "USCM3M SWET Curncy", "usd_days": "NK3M TPSF Curncy",
+             "eur_fwd": "NKEU3M F033 Curncy", "eur_rate": "EUCM3M SWET Curncy", "eur_days": "EURNOK3M TPSF Curncy",
+             "nok_cm": "NKCM3M SWET Curncy"},
+            {"tenor": "6M", "key": "6m", "chip": self.chip_impl_6m,
+             "usd_fwd": "NK6M F033 Curncy", "usd_rate": "USCM6M SWET Curncy", "usd_days": "NK6M TPSF Curncy",
+             "eur_fwd": "NKEU6M F033 Curncy", "eur_rate": "EUCM6M SWET Curncy", "eur_days": "EURNOK6M TPSF Curncy",
+             "nok_cm": "NKCM6M SWET Curncy"},
+        ]
+
+        fallback_days = {"1m": 30, "2m": 58, "3m": 90, "6m": 181}
+
+        for t in tenors:
+            # Get days
+            bbg_days = self._get_ticker_val(t["usd_days"])
+            if bbg_days is None:
+                bbg_days = fallback_days.get(t["key"])
+
+            excel_days = safe_float(excel_days_data.get(t["key"]), None)
+            if excel_days is None:
+                excel_days = bbg_days
+
+            # Get pips
+            usd_fwd = self._get_ticker_val(t["usd_fwd"])
+            eur_fwd = self._get_ticker_val(t["eur_fwd"])
+            pips_usd = (usd_fwd - usd_spot) * 10000 if usd_fwd and usd_spot else None
+            pips_eur = (eur_fwd - eur_spot) * 10000 if eur_fwd and eur_spot else None
+
+            # Adjust pips for Excel days
+            if pips_usd is not None and bbg_days and excel_days:
+                pips_usd = (pips_usd / bbg_days) * excel_days
+            if pips_eur is not None and bbg_days and excel_days:
+                pips_eur = (pips_eur / bbg_days) * excel_days
+
+            # Get rates
+            usd_rate = self._get_ticker_val(t["usd_rate"])
+            eur_rate = self._get_ticker_val(t["eur_rate"])
+            nok_cm = self._get_ticker_val(t["nok_cm"])
+
+            # Calculate implied
+            impl_usd = calc_implied_yield(usd_spot, pips_usd, usd_rate, excel_days) if excel_days else None
+            impl_eur = calc_implied_yield(eur_spot, pips_eur, eur_rate, excel_days) if excel_days else None
+
+            # Calculate weighted total
+            w_usd = impl_usd * weights["USD"] if impl_usd else None
+            w_eur = impl_eur * weights["EUR"] if impl_eur else None
+            w_nok = nok_cm * weights["NOK"] if nok_cm else None
+
+            if w_usd is not None and w_eur is not None and w_nok is not None:
+                total = w_usd + w_eur + w_nok
+                t["chip"].set_value(f"{total:.4f}%")
+            else:
+                t["chip"].set_value("-")
 
 
 class ReconPage(tk.Frame):
