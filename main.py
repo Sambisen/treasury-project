@@ -196,6 +196,11 @@ class OnyxTerminalTK(tk.Tk):
         if key == "recon" and focus:
             self._pages["recon"].set_focus_mode(focus)
 
+        # Auto-refresh NOK Implied page when shown (if data is available)
+        if key == "nok_implied":
+            # Delay to ensure page is visible before updating
+            self.after(100, lambda: self._pages["nok_implied"].update())
+
         self.refresh_ui()
 
     def open_history_folder(self):
@@ -224,7 +229,16 @@ class OnyxTerminalTK(tk.Tk):
         threading.Thread(target=self._worker_refresh_excel_then_bbg, daemon=True).start()
 
     def _worker_refresh_excel_then_bbg(self):
+        print("\n[Main] ===== REFRESH DATA WORKER STARTED =====")
+        print("[Main] Loading Excel data...")
         excel_ok, excel_msg = self.excel_engine.load_recon_direct()
+        print(f"[Main] Excel load result: success={excel_ok}, msg={excel_msg}")
+        
+        if excel_ok:
+            print(f"[Main] Excel engine recon_data has {len(self.excel_engine.recon_data)} entries")
+        else:
+            print(f"[Main] [ERROR] Excel load FAILED: {excel_msg}")
+        
         self.after(0, self._apply_excel_result, excel_ok, excel_msg)
 
         if blpapi:
@@ -267,13 +281,22 @@ class OnyxTerminalTK(tk.Tk):
         }
 
     def _apply_excel_result(self, excel_ok: bool, excel_msg: str):
+        print(f"\n[Main._apply_excel_result] Called with excel_ok={excel_ok}, msg={excel_msg}")
+        
         if excel_ok:
             self.cached_excel_data = dict(self.excel_engine.recon_data)
+            print(f"[Main._apply_excel_result] [OK] Excel data cached: {len(self.cached_excel_data)} cells")
+            
+            # Print sample cells to verify data
+            sample_cells = list(self.cached_excel_data.items())[:5]
+            print(f"[Main._apply_excel_result] Sample cached cells: {sample_cells}")
+            
             self.excel_last_ok_ts = datetime.now()
             self.card_excel.set_status(True, self.excel_last_ok_ts, detail_text=f"Last updated: {fmt_ts(self.excel_last_ok_ts)}")
             self.run_status.configure(text="● EXCEL OK (BBG PENDING)", fg=THEME["warn"])
         else:
             self.cached_excel_data = {}
+            print(f"[Main._apply_excel_result] [ERROR] Excel failed, cached_excel_data cleared")
             self.card_excel.set_status(False, None, detail_text="Last updated: -")
             self.run_status.configure(text="● EXCEL ERROR", fg=THEME["bad"])
 
@@ -786,8 +809,9 @@ def generate_alerts_report():
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
-    run_terminal_mode()
+    # För att köra i terminal-läge (utan GUI):
+    # run_terminal_mode()
 
-    # Original GUI-kod (avaktiverad för terminal-körning):
-    # app = OnyxTerminalTK()
-    # app.mainloop()
+    # För att köra i GUI-läge:
+    app = OnyxTerminalTK()
+    app.mainloop()

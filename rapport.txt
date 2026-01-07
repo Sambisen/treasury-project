@@ -1,8 +1,8 @@
 ============================================================
   ONYX TERMINAL - ALERT RAPPORT
 ============================================================
-Genererad: 2026-01-06 19:53:42
-Data-katalog: /workspaces/codespaces-blank/data
+Genererad: 2026-01-07 08:15:16
+Data-katalog: C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Samba\Samba\Gitnewnew\data
 
 ⚠ ANTAL AKTIVA ALERTS: 7
 ------------------------------------------------------------
