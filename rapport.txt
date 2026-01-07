@@ -1,0 +1,53 @@
+============================================================
+  ONYX TERMINAL - ALERT RAPPORT
+============================================================
+Genererad: 2026-01-06 19:53:42
+Data-katalog: /workspaces/codespaces-blank/data
+
+⚠ ANTAL AKTIVA ALERTS: 7
+------------------------------------------------------------
+
+Alert #1
+  Källa:     Rule 12: C7
+  Meddelande: Cell Mismatch
+  Värde:     33
+  Förväntat: 32
+
+Alert #2
+  Källa:     Rule 66: O6
+  Meddelande: Cell Mismatch
+  Värde:     58.32
+  Förväntat: 64.152
+
+Alert #3
+  Källa:     Rule 67: O7
+  Meddelande: Cell Mismatch
+  Värde:     196.26
+  Förväntat: 202.393125
+
+Alert #4
+  Källa:     Rule 70: O10
+  Meddelande: Cell Mismatch
+  Värde:     1148.3
+  Förväntat: 1129.678918918919
+
+Alert #5
+  Källa:     Rule 81: T6
+  Meddelande: Cell Mismatch
+  Värde:     1
+  Förväntat: 1.1
+
+Alert #6
+  Källa:     Rule 82: T7
+  Meddelande: Cell Mismatch
+  Värde:     -1.12
+  Förväntat: -1.155
+
+Alert #7
+  Källa:     Rule 85: T10
+  Meddelande: Cell Mismatch
+  Värde:     105.09
+  Förväntat: 103.38583783783784
+
+------------------------------------------------------------
+Slut på rapport

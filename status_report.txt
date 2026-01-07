@@ -1,0 +1,80 @@
+======================================================================
+  ONYX TERMINAL - REFACTORING VERIFICATION REPORT
+======================================================================
+Generated: 2026-01-06 19:31:47
+Platform: Linux (Linux-6.8.0-1030-azure-x86_64-with-glibc2.39)
+Python: 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0]
+
+----------------------------------------------------------------------
+TEST 1: CONFIG & DYNAMIC PATH DETECTION
+----------------------------------------------------------------------
+[OK] Config module loaded successfully
+  - APP_DIR:       /workspaces/codespaces-blank
+  - BASE_DIR:      /workspaces/codespaces-blank/data
+  - DATA_DIR:      /workspaces/codespaces-blank/data
+  - USE_MOCK_DATA: True
+[OK] Linux detected -> USE_MOCK_DATA=True (correct)
+
+----------------------------------------------------------------------
+TEST 2: BLPAPI IMPORT (TRY-EXCEPT BLOCK)
+----------------------------------------------------------------------
+[OK] blpapi is None (import failed gracefully - expected on Linux)
+
+----------------------------------------------------------------------
+TEST 3: CALCULATIONS MODULE (NOK IMPLIED YIELD)
+----------------------------------------------------------------------
+[OK] calc_implied_yield imported from calculations.py
+
+  Test calculations:
+    USDNOK 1M                 -> 6.7203%
+    EURNOK 1M                 -> 5.0364%
+    USDNOK 3M                 -> 6.3641%
+    Invalid (None spot)       -> None (expected for invalid input)
+    Invalid (0 days)          -> None (expected for invalid input)
+
+[OK] All calculation tests passed
+
+----------------------------------------------------------------------
+TEST 4: BLOOMBERG ENGINE (MOCK MODE)
+----------------------------------------------------------------------
+[OK] BloombergEngine created
+  - Mock mode active: True
+
+  Fetching mock market data...
+  - Tickers requested: 5
+  - Tickers received:  5
+  - Mock mode:         True
+  - Duration:          50 ms
+
+  Mock prices received:
+    NOK F033 Curncy           -> price=10.2055, chg=+0.0000
+    NKEU F033 Curncy          -> price=11.9568, chg=+0.0000
+    NK1M F033 Curncy          -> price=10.2054, chg=+0.0000
+    EUCM3M SWET Curncy        -> price=2.0200, chg=+0.0000
+    NKCM3M SWET Curncy        -> price=4.5000, chg=+0.0000
+
+[OK] Mock Bloomberg data fetched successfully
+
+----------------------------------------------------------------------
+TEST 5: MODULE IMPORTS (ALL COMPONENTS)
+----------------------------------------------------------------------
+[OK] config          - Configuration module
+[OK] calculations    - Calculations module
+[OK] engines         - Data engines module
+[OK] utils           - Utility functions
+
+[OK] All module imports successful
+
+======================================================================
+  VERIFICATION COMPLETE
+======================================================================
+
+Refactoring status: All critical tests passed
+
+Changes verified:
+  1. [OK] Dynamic config with Path.home() detection
+  2. [OK] blpapi import wrapped in try-except
+  3. [OK] calc_implied_yield moved to calculations.py
+  4. [OK] BloombergEngine uses mock data when USE_MOCK_DATA=True
+  5. [OK] All modules import without errors
+
