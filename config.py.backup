@@ -5,23 +5,10 @@ Contains theme, paths, rules, and mappings.
 import platform
 from pathlib import Path
 
-# ============================================================================
-# DEVELOPMENT MODE
-# ============================================================================
-DEVELOPMENT_MODE = False  # Set True for testing without Bloomberg/Excel
-
-FUNDING_SPREADS = {
-    "1w": 0.15,  # 15 bps
-    "1m": 0.20,  # 20 bps
-    "2m": 0.20,
-    "3m": 0.20,
-    "6m": 0.20
-}
-
 # ==============================================================================
 #  APP META
 # ==============================================================================
-APP_VERSION = "3.8.1-tk"
+APP_VERSION = "3.8.0-tk"
 
 # ==============================================================================
 #  THEME (ONYX PRIME)
@@ -107,7 +94,6 @@ BASE_DIR, USE_MOCK_DATA = _detect_environment()
 # ==============================================================================
 APP_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = APP_DIR / "assets"
-
 DATA_DIR = BASE_DIR  # Use dynamically detected path
 
 # Skapa data-mappen om den inte finns
@@ -126,14 +112,14 @@ BBG_LOGO_CANDIDATES = [
     ASSETS_DIR / "Bloomberg.jpg",
 ]
 
-BASE_HISTORY_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor"
-STIBOR_GRSS_PATH = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
+BASE_HISTORY_PATH = DATA_DIR / "Nibor" / "Historik"
+STIBOR_GRSS_PATH = DATA_DIR / "Stibor" / "GRSS"
 
 DAY_FILES = [
-    DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2025.xlsx",
-    DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2026.xlsx"
+    DATA_DIR / "Stibor" / "GRSS" / "Nibor days 2025.xlsx",
+    DATA_DIR / "Stibor" / "GRSS" / "Nibor days 2026.xlsx"
 ]
-RECON_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
+RECON_FILE = DATA_DIR / "Nibor" / "Historik" / "2025" / "Nibor fixing Testing Workbook.xlsx"
 
 # WEIGHTS (Monthly control)
 WEIGHTS_FILE = DATA_DIR / "Nibor" / "Vikter" / "Weights.xlsx"
@@ -255,27 +241,6 @@ EXCEL_CM_RATES_MAPPING = {
     "USD_1M": "R30", "USD_2M": "R31", "USD_3M": "R32", "USD_6M": "R33",
 }
 
-# ============================================================================
-# CALCULATION MODELS
-# ============================================================================
-# Calculation model options
-CALC_MODEL_NORE = "nore"  # Nore Calculation (Bloomberg CM rates)
-CALC_MODEL_NIBOR = "nibor"  # Nibor Contribution (Excel Internal Basket rates) - DEFAULT
-
-# Nibor Contribution calculation model - Internal Basket Rates
-NIBOR_WORKBOOK_PATH = BASE_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
-
-INTERNAL_BASKET_MAPPING = {
-    "EUR_1M": "M30",
-    "EUR_2M": "M31",
-    "EUR_3M": "M32",
-    "EUR_6M": "M33",
-    "USD_1M": "R30",
-    "USD_2M": "R31",
-    "USD_3M": "R32",
-    "USD_6M": "R33"
-}
-
 MARKET_STRUCTURE = {
     "SPOT RATES": [
         ("NOK F033 Curncy", "USDNOK Spot"),
@@ -310,20 +275,6 @@ MARKET_STRUCTURE = {
         ("NKCM2M SWET Curncy", "NOK CM 2M"),
         ("NKCM3M SWET Curncy", "NOK CM 3M"),
         ("NKCM6M SWET Curncy", "NOK CM 6M"),
-    ],
-    "USDNOK DAYS (TPSF)": [
-        ("NK1W TPSF Curncy", "USDNOK 1W Days"),
-        ("NK1M TPSF Curncy", "USDNOK 1M Days"),
-        ("NK2M TPSF Curncy", "USDNOK 2M Days"),
-        ("NK3M TPSF Curncy", "USDNOK 3M Days"),
-        ("NK6M TPSF Curncy", "USDNOK 6M Days"),
-    ],
-    "EURNOK DAYS (TPSF)": [
-        ("EURNOK1W TPSF Curncy", "EURNOK 1W Days"),
-        ("EURNOK1M TPSF Curncy", "EURNOK 1M Days"),
-        ("EURNOK2M TPSF Curncy", "EURNOK 2M Days"),
-        ("EURNOK3M TPSF Curncy", "EURNOK 3M Days"),
-        ("EURNOK6M TPSF Curncy", "EURNOK 6M Days"),
     ]
 }
 

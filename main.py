@@ -351,6 +351,15 @@ class OnyxTerminalTK(tk.Tk):
         else:
             self.run_status.configure(text="● PARTIAL", fg=THEME["warn"])
 
+        # Update NokImpliedPage FIRST to populate impl_calc_data
+        if "nok_implied" in self._pages:
+            try:
+                print("[Main] Updating NokImpliedPage to populate impl_calc_data...")
+                self._pages["nok_implied"].update()
+                print(f"[Main] impl_calc_data populated with {len(getattr(self, 'impl_calc_data', {}))} entries")
+            except Exception as e:
+                print(f"[Main] Error updating NokImpliedPage: {e}")
+
         self.set_busy(False)
         self.refresh_ui()
 

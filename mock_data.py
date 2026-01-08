@@ -23,14 +23,16 @@ MOCK_MARKET_DATA = {
     "NKCM2M SWET Curncy": 3.86,
     "NKCM3M SWET Curncy": 3.93,
     "NKCM6M SWET Curncy": 4.08,
+    "NK1W TPSF Curncy": 7,
     "NK1M TPSF Curncy": 30,
     "NK2M TPSF Curncy": 58,
     "NK3M TPSF Curncy": 90,
     "NK6M TPSF Curncy": 181,
+    "EURNOK1W TPSF Curncy": 7,
     "EURNOK1M TPSF Curncy": 30,
     "EURNOK2M TPSF Curncy": 58,
     "EURNOK3M TPSF Curncy": 90,
     "EURNOK6M TPSF Curncy": 181,
 }
 
-MOCK_WEIGHTS = {"USD": 0.45, "EUR": 0.05, "NOK": 0.50}
+MOCK_WEIGHTS = {"USD": 0.445, "EUR": 0.055, "NOK": 0.500}

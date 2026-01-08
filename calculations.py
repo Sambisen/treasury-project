@@ -7,11 +7,23 @@ Separates mathematical logic from GUI code for portability.
 def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) -> float | None:
     """
     Calculate implied NOK yield from FX forward points.
+    
+    EXACT Excel formula from user:
+    =((($P$3+(R7/10000))*(1+(Q7*P7/36000)))-($P$3))/(($P$3*Q7)/36000)
+    
+    Where:
+    - P3 = Spot (e.g., 9.225)
+    - R7 = Pips (e.g., -437)
+    - Q7 = Days (e.g., 90)
+    - P7 = CM rate (e.g., 3.70)
+    
+    Example verification:
+    Spot=9.225, Pips=-437, Days=90, CM_Rate=3.70 → Result=1.787622%
 
     Args:
         spot: Spot FX rate (e.g., USDNOK or EURNOK)
-        pips: Forward points in pips (will be divided by 10000)
-        base_rate: Base currency rate (e.g., USD or EUR rate) IN PERCENTAGE FORM (e.g., 3.65 for 3.65%)
+        pips: Forward points in pips
+        base_rate: Base currency rate (USD or EUR CM rate) IN PERCENTAGE FORM (e.g., 3.70 for 3.70%)
         days: Number of days to maturity
 
     Returns:
@@ -30,34 +42,45 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
     if spot is None or pips is None or base_rate is None:
         print(f"[calc_implied_yield] [ERROR] None value in inputs")
         return None
-
-    # Check if base_rate is in decimal form (< 1.0) and convert to percentage
-    original_base_rate = base_rate
-    if base_rate < 1.0 and base_rate > 0:
-        base_rate = base_rate * 100.0
-        print(f"[calc_implied_yield] [WARNING] Converted base_rate from decimal to percentage: {original_base_rate} -> {base_rate}%")
-
-    fwd_price = spot + (pips / 10000.0)
-    print(f"[calc_implied_yield] STEP 1: fwd_price = {spot} + ({pips}/10000) = {fwd_price}")
-    
-    base_factor = 1.0 + (base_rate * days) / 36000.0
-    print(f"[calc_implied_yield] STEP 2: base_factor = 1.0 + ({base_rate}*{days})/36000 = {base_factor}")
+    if spot <= 0:
+        print(f"[calc_implied_yield] [ERROR] Invalid spot={spot} (must be > 0)")
+        return None
 
     try:
-        term_factor = (fwd_price / spot) * base_factor
-        print(f"[calc_implied_yield] STEP 3: term_factor = ({fwd_price}/{spot}) * {base_factor} = {term_factor}")
+        # EXACT EXCEL FORMULA:
+        # =((($P$3+(R7/10000))*(1+(Q7*P7/36000)))-($P$3))/(($P$3*Q7)/36000)
         
-        r_nok = (term_factor - 1.0) * (36000.0 / days)
-        print(f"[calc_implied_yield] STEP 4: r_nok = ({term_factor}-1.0) * (36000/{days}) = {r_nok}%")
+        # Step 1: Forward price = Spot + (Pips/10000)
+        fwd = spot + (pips / 10000.0)
+        print(f"[calc_implied_yield] STEP 1: fwd = {spot} + ({pips}/10000) = {fwd}")
+        
+        # Step 2: Base factor = 1 + (Days * CM_Rate / 36000)
+        base_factor = 1 + (days * base_rate / 36000.0)
+        print(f"[calc_implied_yield] STEP 2: base_factor = 1 + ({days}*{base_rate}/36000) = {base_factor}")
+        
+        # Step 3: Numerator = (Fwd * Base_factor) - Spot
+        numerator = (fwd * base_factor) - spot
+        print(f"[calc_implied_yield] STEP 3: numerator = ({fwd}*{base_factor}) - {spot} = {numerator}")
+        
+        # Step 4: Denominator = (Spot * Days) / 36000
+        denominator = (spot * days) / 36000.0
+        print(f"[calc_implied_yield] STEP 4: denominator = ({spot}*{days})/36000 = {denominator}")
+        
+        # Step 5: Implied rate = Numerator / Denominator
+        r_nok = numerator / denominator
+        print(f"[calc_implied_yield] STEP 5: r_nok = {numerator}/{denominator} = {r_nok}%")
         
         # Sanity check
-        if r_nok < -50.0 or r_nok > 100.0:
-            print(f"[calc_implied_yield] [ERROR] Result {r_nok}% is out of reasonable range! Likely data format issue.")
+        if abs(r_nok) > 20.0:
+            print(f"[calc_implied_yield] [WARNING] Result {r_nok}% is outside normal range! Check input data.")
         
         print(f"[calc_implied_yield] ========== RESULT: {r_nok}% ==========\n")
-        return r_nok  # Already in percent form (e.g., 6.36 for 6.36%)
+        return r_nok  # Already in percent form (e.g., 1.787622 for 1.787622%)
     except ZeroDivisionError:
         print(f"[calc_implied_yield] [ERROR] Division by zero")
+        return None
+    except Exception as e:
+        print(f"[calc_implied_yield] [ERROR] Exception: {e}")
         return None
 
 
