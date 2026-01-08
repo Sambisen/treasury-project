@@ -59,3 +59,43 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
     except ZeroDivisionError:
         print(f"[calc_implied_yield] [ERROR] Division by zero")
         return None
+
+
+def calc_funding_rate(eur_implied: float, usd_implied: float, nok_cm: float, 
+                     weights: dict) -> float | None:
+    """
+    Calculate weighted funding rate.
+    
+    Formula: (EUR_IMPLIED × EUR_WEIGHT) + (USD_IMPLIED × USD_WEIGHT) + (NOK_CM × NOK_WEIGHT)
+    
+    Args:
+        eur_implied: EUR implied NOK rate in percentage form
+        usd_implied: USD implied NOK rate in percentage form
+        nok_cm: NOK CM rate in percentage form
+        weights: Dictionary with keys 'EUR', 'USD', 'NOK' containing weight values (0-1)
+    
+    Returns:
+        Weighted funding rate as percentage, or None if calculation fails
+    """
+    print(f"\n[calc_funding_rate] CALCULATION:")
+    print(f"  eur={eur_implied}, usd={usd_implied}, nok={nok_cm}")
+    
+    if None in [eur_implied, usd_implied, nok_cm]:
+        print(f"[calc_funding_rate] ERROR: None value")
+        return None
+    
+    if not all(k in weights for k in ['EUR', 'USD', 'NOK']):
+        print(f"[calc_funding_rate] ERROR: Missing weights")
+        return None
+    
+    try:
+        funding_rate = (
+            eur_implied * weights['EUR'] +
+            usd_implied * weights['USD'] +
+            nok_cm * weights['NOK']
+        )
+        print(f"  Result: {funding_rate:.4f}%")
+        return funding_rate
+    except Exception as e:
+        print(f"[calc_funding_rate] ERROR: {e}")
+        return None

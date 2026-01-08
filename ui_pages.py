@@ -56,39 +56,63 @@ class DashboardPage(tk.Frame):
         grid.grid_columnconfigure(0, weight=1, uniform="g")
         grid.grid_columnconfigure(1, weight=1, uniform="g")
 
-        # IMPLIED RATES INTERACTIVE TABLE
-        implied_title = tk.Label(self, text="IMPLIED NOK RATES (LIVE)", fg=THEME["muted"], bg=THEME["bg_panel"],
-                                 font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
-        implied_title.pack(anchor="w", padx=pad, pady=(pad, 8))
+        # FUNDING RATES TABLE
+        funding_title = tk.Label(self, text="FUNDING RATES", fg=THEME["muted"], 
+                                bg=THEME["bg_panel"], 
+                                font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
+        funding_title.pack(anchor="w", padx=pad, pady=(pad, 8))
 
-        # Create table frame
-        self.implied_table_frame = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
-        self.implied_table_frame.pack(fill="x", padx=pad, pady=(0, pad))
+        self.funding_table_frame = tk.Frame(self, bg=THEME["bg_card"], 
+                                            highlightthickness=1, 
+                                            highlightbackground=THEME["border"])
+        self.funding_table_frame.pack(fill="x", padx=pad, pady=(0, pad))
 
-        # Store cell references for updating
-        self.impl_cells = {"eur": {}, "usd": {}, "nok": {}}
+        # Table structure
+        headers = ["TENOR", "FUNDING RATE", "SPREAD", "FINAL RATE"]
+        header_frame = tk.Frame(self.funding_table_frame, bg=THEME["bg_card_2"])
+        header_frame.grid(row=0, column=0, columnspan=4, sticky="ew", padx=10, pady=(10, 5))
 
-        # Header row
-        tk.Label(self.implied_table_frame, text="", bg=THEME["bg_card"], width=15).grid(row=0, column=0, padx=10, pady=(10, 5))
-        tenors_display = ["1M", "2M", "3M", "6M"]
-        for i, tenor in enumerate(tenors_display):
-            tk.Label(
-                self.implied_table_frame, 
-                text=tenor, 
-                fg=THEME["muted"], 
-                bg=THEME["bg_card"],
-                font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                width=10
-            ).grid(row=0, column=i+1, padx=5, pady=(10, 5))
+        for i, text in enumerate(headers):
+            tk.Label(header_frame, text=text, fg=THEME["muted"], bg=THEME["bg_card_2"],
+                    font=("Segoe UI", CURRENT_MODE["body"], "bold"),
+                    width=15 if i == 0 else 18).grid(row=0, column=i, padx=5,
+                                                     sticky="w" if i == 0 else "e")
 
-        # EUR IMPLIED row
-        self._create_impl_row(1, "EUR IMPLIED", "eur")
+        # Create rows
+        self.funding_cells = {}
+        tenors = [
+            {"key": "1w", "label": "1W"},
+            {"key": "1m", "label": "1M"},
+            {"key": "2m", "label": "2M"},
+            {"key": "3m", "label": "3M"},
+            {"key": "6m", "label": "6M"}
+        ]
 
-        # USD IMPLIED row
-        self._create_impl_row(2, "USD IMPLIED", "usd")
-
-        # NOK CM row (not clickable, just display)
-        self._create_nok_cm_row(3)
+        for row_idx, tenor in enumerate(tenors, start=1):
+            tk.Label(self.funding_table_frame, text=tenor["label"], fg=THEME["text"],
+                    bg=THEME["bg_card"], font=("Segoe UI", CURRENT_MODE["body"], "bold"),
+                    width=15, anchor="w").grid(row=row_idx, column=0, padx=10, pady=8, sticky="w")
+            
+            cells = {}
+            for col_idx, cell_type in enumerate(["funding", "spread", "final"], start=1):
+                lbl = tk.Label(self.funding_table_frame, text="-",
+                              fg=THEME["accent"] if cell_type == "final" else THEME["text"],
+                              bg=THEME["chip"] if cell_type != "spread" else THEME["bg_card_2"],
+                              font=("Consolas", CURRENT_MODE["body"], "bold"),
+                              width=18, anchor="e",
+                              cursor="hand2" if cell_type != "spread" else "arrow",
+                              relief="raised" if cell_type != "spread" else "flat",
+                              bd=1 if cell_type != "spread" else 0)
+                lbl.grid(row=row_idx, column=col_idx, padx=5, pady=8, sticky="e")
+                
+                if cell_type != "spread":
+                    lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
+                    lbl.bind("<Enter>", lambda e, l=lbl: l.configure(bg=THEME["chip2"]) if l["bg"]==THEME["chip"] else None)
+                    lbl.bind("<Leave>", lambda e, l=lbl: l.configure(bg=THEME["chip"]) if l["bg"]==THEME["chip2"] else None)
+                
+                cells[cell_type] = lbl
+            
+            self.funding_cells[tenor["key"]] = cells
 
         title2 = tk.Label(self, text="ACTIVE ALERTS", fg=THEME["muted"], bg=THEME["bg_panel"],
                           font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
@@ -135,137 +159,176 @@ class DashboardPage(tk.Frame):
         card._sub = lbl_sub
         return card
 
-    def _create_impl_row(self, row_num, label_text, currency):
-        """Create a row of implied rate cells with click handlers."""
-        # Row label
-        tk.Label(
-            self.implied_table_frame,
-            text=label_text,
-            fg=THEME["text"],
-            bg=THEME["bg_card"],
-            font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-            width=15,
-            anchor="w"
-        ).grid(row=row_num, column=0, padx=10, pady=5, sticky="w")
-        
-        # Create clickable cells for each tenor
-        tenors_keys = ["1m", "2m", "3m", "6m"]
-        for i, tenor_key in enumerate(tenors_keys):
-            # Create clickable label
-            cell_label = tk.Label(
-                self.implied_table_frame,
-                text="-",
-                fg=THEME["accent"],
-                bg=THEME["chip"],
-                font=("Consolas", CURRENT_MODE["body"], "bold"),
-                width=10,
-                cursor="hand2",  # Hand cursor on hover
-                relief="raised",
-                bd=1
-            )
-            cell_label.grid(row=row_num, column=i+1, padx=5, pady=5)
-            
-            # Bind click event
-            cell_label.bind("<Button-1>", lambda e, c=currency, t=tenor_key: self._show_impl_details(c, t))
-            
-            # Hover effects
-            cell_label.bind("<Enter>", lambda e, lbl=cell_label: lbl.configure(bg=THEME["chip2"]))
-            cell_label.bind("<Leave>", lambda e, lbl=cell_label: lbl.configure(bg=THEME["chip"]))
-            
-            # Store reference
-            self.impl_cells[currency][tenor_key] = cell_label
-
-    def _create_nok_cm_row(self, row_num):
-        """Create NOK CM row (not clickable)."""
-        tk.Label(
-            self.implied_table_frame,
-            text="NOK CM",
-            fg=THEME["text"],
-            bg=THEME["bg_card"],
-            font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-            width=15,
-            anchor="w"
-        ).grid(row=row_num, column=0, padx=10, pady=(5, 10), sticky="w")
-        
-        tenors_keys = ["1m", "2m", "3m", "6m"]
-        for i, tenor_key in enumerate(tenors_keys):
-            cell_label = tk.Label(
-                self.implied_table_frame,
-                text="-",
-                fg=THEME["good"],
-                bg=THEME["bg_card"],
-                font=("Consolas", CURRENT_MODE["body"], "bold"),
-                width=10
-            )
-            cell_label.grid(row=row_num, column=i+1, padx=5, pady=(5, 10))
-            
-            self.impl_cells["nok"][tenor_key] = cell_label
-
-    def _show_impl_details(self, currency, tenor_key):
-        """Show detailed calculation breakdown in a popup window."""
-        # Get calculation data from app
-        if not hasattr(self.app, 'impl_calc_data') or not self.app.impl_calc_data:
-            print(f"[Dashboard] No calculation data available for {currency} {tenor_key}")
+    def _show_funding_details(self, tenor_key):
+        """Show detailed breakdown popup for funding rate calculation."""
+        if not hasattr(self.app, 'funding_calc_data'):
+            print(f"[Dashboard] No funding calculation data available")
             return
         
-        data = self.app.impl_calc_data.get(f"{currency}_{tenor_key}")
+        data = self.app.funding_calc_data.get(tenor_key)
         if not data:
-            print(f"[Dashboard] No data found for {currency}_{tenor_key}")
+            print(f"[Dashboard] No funding data found for {tenor_key}")
             return
         
-        # Create popup window
         popup = tk.Toplevel(self)
-        popup.title(f"Calculation Details - {currency.upper()} {tenor_key.upper()}")
-        popup.geometry("600x450")
+        popup.title(f"Funding Rate Breakdown - {tenor_key.upper()}")
+        popup.geometry("700x650")
         popup.configure(bg=THEME["bg_panel"])
+        popup.transient(self)
+        popup.grab_set()
         
         # Title
-        tk.Label(
-            popup,
-            text=f"{currency.upper()} IMPLIED RATE - {tenor_key.upper()}",
-            fg=THEME["accent"],
-            bg=THEME["bg_panel"],
-            font=("Segoe UI", 18, "bold")
-        ).pack(pady=20)
+        tk.Label(popup, text=f"{tenor_key.upper()} TENOR - DETAILED BREAKDOWN",
+                fg=THEME["accent"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 18, "bold")).pack(pady=20)
         
-        # Details frame
-        details_frame = tk.Frame(popup, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
-        details_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        # Main content frame
+        content = tk.Frame(popup, bg=THEME["bg_card"], highlightthickness=1,
+                          highlightbackground=THEME["border"])
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
-        # Display calculation data
-        row = 0
-        for label, value in [
-            ("Spot Rate:", f"{data.get('spot', 'N/A'):.4f}" if data.get('spot') else "N/A"),
-            ("Forward Pips:", f"{data.get('pips', 'N/A'):.2f}" if data.get('pips') else "N/A"),
-            (f"{currency.upper()} CM Rate:", f"{data.get('rate', 'N/A'):.2f}%" if data.get('rate') else "N/A"),
-            ("Days:", f"{data.get('days', 'N/A')}" if data.get('days') else "N/A"),
-            ("", ""),  # Spacer
-            ("IMPLIED NOK RATE:", f"{data.get('implied', 'N/A'):.4f}%" if data.get('implied') else "N/A"),
-        ]:
-            if label:
-                tk.Label(
-                    details_frame,
-                    text=label,
-                    fg=THEME["muted"],
-                    bg=THEME["bg_card"],
-                    font=("Segoe UI", 12),
-                    anchor="w"
-                ).grid(row=row, column=0, padx=20, pady=10, sticky="w")
-                
-                tk.Label(
-                    details_frame,
-                    text=value,
-                    fg=THEME["text"] if "IMPLIED" not in label else THEME["accent"],
-                    bg=THEME["bg_card"],
-                    font=("Consolas", 14 if "IMPLIED" in label else 12, "bold" if "IMPLIED" in label else "normal"),
-                    anchor="e"
-                ).grid(row=row, column=1, padx=20, pady=10, sticky="e")
-            row += 1
+        # Scrollable frame
+        canvas = tk.Canvas(content, bg=THEME["bg_card"], highlightthickness=0)
+        scrollbar = tk.Scrollbar(content, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=THEME["bg_card"])
         
-        details_frame.grid_columnconfigure(1, weight=1)
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        
+        # Section: EUR IMPLIED
+        tk.Label(scroll_frame, text="EUR IMPLIED NOK RATE", fg=THEME["good"],
+                bg=THEME["bg_card"], font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=20, pady=(15, 5))
+        
+        eur_frame = tk.Frame(scroll_frame, bg=THEME["bg_card_2"])
+        eur_frame.pack(fill="x", padx=20, pady=5)
+        
+        for i, (lbl, val) in enumerate([
+            ("Spot:", f"{data.get('eur_spot'):.4f}" if data.get('eur_spot') else "N/A"),
+            ("Pips:", f"{data.get('eur_pips'):.2f}" if data.get('eur_pips') else "N/A"),
+            ("EUR CM Rate:", f"{data.get('eur_rate'):.2f}%" if data.get('eur_rate') else "N/A"),
+            ("Days:", f"{int(data.get('eur_days'))}" if data.get('eur_days') else "N/A"),
+            ("→ IMPLIED:", f"{data.get('eur_impl'):.4f}%" if data.get('eur_impl') else "N/A"),
+        ]):
+            tk.Label(eur_frame, text=lbl, fg=THEME["muted"], bg=THEME["bg_card_2"],
+                    font=("Segoe UI", 10), anchor="w", width=15).grid(row=i, column=0, padx=10, pady=3, sticky="w")
+            tk.Label(eur_frame, text=val, fg=THEME["accent"] if "IMPLIED" in lbl else THEME["text"],
+                    bg=THEME["bg_card_2"], font=("Consolas", 10, "bold" if "IMPLIED" in lbl else "normal"),
+                    anchor="e").grid(row=i, column=1, padx=10, pady=3, sticky="e")
+        
+        # Section: USD IMPLIED
+        tk.Label(scroll_frame, text="USD IMPLIED NOK RATE", fg=THEME["good"],
+                bg=THEME["bg_card"], font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=20, pady=(15, 5))
+        
+        usd_frame = tk.Frame(scroll_frame, bg=THEME["bg_card_2"])
+        usd_frame.pack(fill="x", padx=20, pady=5)
+        
+        for i, (lbl, val) in enumerate([
+            ("Spot:", f"{data.get('usd_spot'):.4f}" if data.get('usd_spot') else "N/A"),
+            ("Pips:", f"{data.get('usd_pips'):.2f}" if data.get('usd_pips') else "N/A"),
+            ("USD CM Rate:", f"{data.get('usd_rate'):.2f}%" if data.get('usd_rate') else "N/A"),
+            ("Days:", f"{int(data.get('usd_days'))}" if data.get('usd_days') else "N/A"),
+            ("→ IMPLIED:", f"{data.get('usd_impl'):.4f}%" if data.get('usd_impl') else "N/A"),
+        ]):
+            tk.Label(usd_frame, text=lbl, fg=THEME["muted"], bg=THEME["bg_card_2"],
+                    font=("Segoe UI", 10), anchor="w", width=15).grid(row=i, column=0, padx=10, pady=3, sticky="w")
+            tk.Label(usd_frame, text=val, fg=THEME["accent"] if "IMPLIED" in lbl else THEME["text"],
+                    bg=THEME["bg_card_2"], font=("Consolas", 10, "bold" if "IMPLIED" in lbl else "normal"),
+                    anchor="e").grid(row=i, column=1, padx=10, pady=3, sticky="e")
+        
+        # Section: NOK CM
+        tk.Label(scroll_frame, text="NOK CM RATE", fg=THEME["good"],
+                bg=THEME["bg_card"], font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=20, pady=(15, 5))
+        
+        nok_frame = tk.Frame(scroll_frame, bg=THEME["bg_card_2"])
+        nok_frame.pack(fill="x", padx=20, pady=5)
+        
+        tk.Label(nok_frame, text="NOK CM:", fg=THEME["muted"], bg=THEME["bg_card_2"],
+                font=("Segoe UI", 10), anchor="w", width=15).grid(row=0, column=0, padx=10, pady=3, sticky="w")
+        tk.Label(nok_frame, text=f"{data.get('nok_cm'):.4f}%" if data.get('nok_cm') else "N/A",
+                fg=THEME["text"], bg=THEME["bg_card_2"], font=("Consolas", 10),
+                anchor="e").grid(row=0, column=1, padx=10, pady=3, sticky="e")
+        
+        # Section: WEIGHTED CALCULATION
+        tk.Label(scroll_frame, text="FUNDING RATE CALCULATION", fg=THEME["accent"],
+                bg=THEME["bg_card"], font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=20, pady=(15, 5))
+        
+        weights = data.get('weights', {})
+        calc_frame = tk.Frame(scroll_frame, bg=THEME["bg_card_2"])
+        calc_frame.pack(fill="x", padx=20, pady=5)
+        
+        row_idx = 0
+        # EUR component
+        eur_contrib = data.get('eur_impl', 0) * weights.get('EUR', 0) if data.get('eur_impl') else None
+        tk.Label(calc_frame, text=f"EUR IMPLIED × {weights.get('EUR', 0)*100:.0f}%:",
+                fg=THEME["muted"], bg=THEME["bg_card_2"], font=("Segoe UI", 10), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=3, sticky="w")
+        tk.Label(calc_frame, text=f"{eur_contrib:.4f}%" if eur_contrib is not None else "N/A",
+                fg=THEME["text"], bg=THEME["bg_card_2"], font=("Consolas", 10), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=3, sticky="e")
+        row_idx += 1
+        
+        # USD component
+        usd_contrib = data.get('usd_impl', 0) * weights.get('USD', 0) if data.get('usd_impl') else None
+        tk.Label(calc_frame, text=f"USD IMPLIED × {weights.get('USD', 0)*100:.0f}%:",
+                fg=THEME["muted"], bg=THEME["bg_card_2"], font=("Segoe UI", 10), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=3, sticky="w")
+        tk.Label(calc_frame, text=f"{usd_contrib:.4f}%" if usd_contrib is not None else "N/A",
+                fg=THEME["text"], bg=THEME["bg_card_2"], font=("Consolas", 10), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=3, sticky="e")
+        row_idx += 1
+        
+        # NOK component
+        nok_contrib = data.get('nok_cm', 0) * weights.get('NOK', 0) if data.get('nok_cm') else None
+        tk.Label(calc_frame, text=f"NOK CM × {weights.get('NOK', 0)*100:.0f}%:",
+                fg=THEME["muted"], bg=THEME["bg_card_2"], font=("Segoe UI", 10), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=3, sticky="w")
+        tk.Label(calc_frame, text=f"{nok_contrib:.4f}%" if nok_contrib is not None else "N/A",
+                fg=THEME["text"], bg=THEME["bg_card_2"], font=("Consolas", 10), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=3, sticky="e")
+        row_idx += 1
+        
+        # Separator
+        tk.Frame(calc_frame, bg=THEME["border"], height=1).grid(row=row_idx, column=0, columnspan=2,
+                                                                 sticky="ew", padx=10, pady=5)
+        row_idx += 1
+        
+        # Funding Rate
+        tk.Label(calc_frame, text="= FUNDING RATE:",
+                fg=THEME["accent"], bg=THEME["bg_card_2"], font=("Segoe UI", 11, "bold"), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(calc_frame, text=f"{data.get('funding_rate'):.4f}%" if data.get('funding_rate') else "N/A",
+                fg=THEME["accent"], bg=THEME["bg_card_2"], font=("Consolas", 12, "bold"), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=5, sticky="e")
+        row_idx += 1
+        
+        # Spread
+        tk.Label(calc_frame, text="+ SPREAD:",
+                fg=THEME["muted"], bg=THEME["bg_card_2"], font=("Segoe UI", 10), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=3, sticky="w")
+        tk.Label(calc_frame, text=f"{data.get('spread'):.2f}%" if data.get('spread') is not None else "N/A",
+                fg=THEME["text"], bg=THEME["bg_card_2"], font=("Consolas", 10), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=3, sticky="e")
+        row_idx += 1
+        
+        # Separator
+        tk.Frame(calc_frame, bg=THEME["border"], height=2).grid(row=row_idx, column=0, columnspan=2,
+                                                                 sticky="ew", padx=10, pady=5)
+        row_idx += 1
+        
+        # Final Rate
+        tk.Label(calc_frame, text="= FINAL RATE:",
+                fg=THEME["accent"], bg=THEME["bg_card_2"], font=("Segoe UI", 12, "bold"), anchor="w", width=22).grid(
+                    row=row_idx, column=0, padx=10, pady=8, sticky="w")
+        tk.Label(calc_frame, text=f"{data.get('final_rate'):.4f}%" if data.get('final_rate') else "N/A",
+                fg=THEME["accent"], bg=THEME["bg_card_2"], font=("Consolas", 14, "bold"), anchor="e").grid(
+                    row=row_idx, column=1, padx=10, pady=8, sticky="e")
         
         # Close button
-        OnyxButtonTK(popup, "Close", command=popup.destroy, variant="default").pack(pady=10)
+        OnyxButtonTK(popup, "Close", command=popup.destroy, variant="default").pack(pady=15)
 
     def _apply_state(self, card, state: str, subtext: str = "—"):
         s = (state or "WAIT").upper()
@@ -338,101 +401,48 @@ class DashboardPage(tk.Frame):
         return weights
 
     def _update_implied_rates(self):
-        """Calculate and display implied rates in interactive table."""
-        weights = self._get_weights()
-
-        # Spots
-        usd_spot = self._get_ticker_val("NOK F033 Curncy")
-        eur_spot = self._get_ticker_val("NKEU F033 Curncy")
-
-        # Excel days
-        excel_days_data = self.app.current_days_data or {}
-
-        tenors = [
-            {"tenor": "1M", "key": "1m",
-             "usd_fwd": "NK1M F033 Curncy", "usd_rate": "USCM1M SWET Curncy", "usd_days": "NK1M TPSF Curncy",
-             "eur_fwd": "NKEU1M F033 Curncy", "eur_rate": "EUCM1M SWET Curncy", "eur_days": "EURNOK1M TPSF Curncy",
-             "nok_cm": "NKCM1M SWET Curncy"},
-            {"tenor": "2M", "key": "2m",
-             "usd_fwd": "NK2M F033 Curncy", "usd_rate": "USCM2M SWET Curncy", "usd_days": "NK2M TPSF Curncy",
-             "eur_fwd": "NKEU2M F033 Curncy", "eur_rate": "EUCM2M SWET Curncy", "eur_days": "EURNOK2M TPSF Curncy",
-             "nok_cm": "NKCM2M SWET Curncy"},
-            {"tenor": "3M", "key": "3m",
-             "usd_fwd": "NK3M F033 Curncy", "usd_rate": "USCM3M SWET Curncy", "usd_days": "NK3M TPSF Curncy",
-             "eur_fwd": "NKEU3M F033 Curncy", "eur_rate": "EUCM3M SWET Curncy", "eur_days": "EURNOK3M TPSF Curncy",
-             "nok_cm": "NKCM3M SWET Curncy"},
-            {"tenor": "6M", "key": "6m",
-             "usd_fwd": "NK6M F033 Curncy", "usd_rate": "USCM6M SWET Curncy", "usd_days": "NK6M TPSF Curncy",
-             "eur_fwd": "NKEU6M F033 Curncy", "eur_rate": "EUCM6M SWET Curncy", "eur_days": "EURNOK6M TPSF Curncy",
-             "nok_cm": "NKCM6M SWET Curncy"},
-        ]
-
-        fallback_days = {"1m": 30, "2m": 58, "3m": 90, "6m": 181}
-
-        # Initialize calculation data storage for popups
+        """Calculate and display funding rates in interactive table."""
+        from config import FUNDING_SPREADS
+        from calculations import calc_funding_rate
+        
         if not hasattr(self.app, 'impl_calc_data'):
-            self.app.impl_calc_data = {}
-
-        for t in tenors:
-            # Get days
-            bbg_days = self._get_ticker_val(t["usd_days"])
-            if bbg_days is None:
-                bbg_days = fallback_days.get(t["key"])
-
-            excel_days = safe_float(excel_days_data.get(t["key"]), None)
-            if excel_days is None:
-                excel_days = bbg_days
-
-            # Get pips from Bloomberg
-            # NOTE: Bloomberg forward tickers (NK1M F033 Curncy, NKEU1M F033 Curncy) 
-            # return PIPS directly, NOT forward prices!
-            # So we use them directly without calculation
-            pips_usd = self._get_ticker_val(t["usd_fwd"])  # Already in pips
-            pips_eur = self._get_ticker_val(t["eur_fwd"])  # Already in pips
-
-            # Adjust pips for Excel days
-            pips_usd_adj = pips_usd
-            pips_eur_adj = pips_eur
-            if pips_usd is not None and bbg_days and excel_days:
-                pips_usd_adj = (pips_usd / bbg_days) * excel_days
-            if pips_eur is not None and bbg_days and excel_days:
-                pips_eur_adj = (pips_eur / bbg_days) * excel_days
-
-            # Get rates
-            usd_rate = self._get_ticker_val(t["usd_rate"])
-            eur_rate = self._get_ticker_val(t["eur_rate"])
-            nok_cm = self._get_ticker_val(t["nok_cm"])
-
-            # Calculate implied
-            impl_usd = calc_implied_yield(usd_spot, pips_usd_adj, usd_rate, excel_days) if excel_days else None
-            impl_eur = calc_implied_yield(eur_spot, pips_eur_adj, eur_rate, excel_days) if excel_days else None
-
-            # Store calculation data for popups
-            self.app.impl_calc_data[f"usd_{t['key']}"] = {
-                "spot": usd_spot, "pips": pips_usd_adj, "rate": usd_rate, "days": excel_days, "implied": impl_usd, "nok_cm": nok_cm
+            return
+        
+        weights = self._get_weights()
+        self.app.funding_calc_data = {}
+        
+        for tenor_key in ["1w", "1m", "2m", "3m", "6m"]:
+            eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
+            usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
+            
+            eur_impl = eur_data.get('implied')
+            usd_impl = usd_data.get('implied')
+            nok_cm = eur_data.get('nok_cm')  # Both EUR and USD have same nok_cm
+            
+            funding_rate = None
+            if all(x is not None for x in [eur_impl, usd_impl, nok_cm]):
+                funding_rate = calc_funding_rate(eur_impl, usd_impl, nok_cm, weights)
+            
+            spread = FUNDING_SPREADS.get(tenor_key, 0.20)
+            final_rate = funding_rate + spread if funding_rate else None
+            
+            cells = self.funding_cells.get(tenor_key, {})
+            if "funding" in cells:
+                cells["funding"].config(text=f"{funding_rate:.2f}%" if funding_rate else "N/A")
+            if "spread" in cells:
+                cells["spread"].config(text=f"{spread:.2f}%")
+            if "final" in cells:
+                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
+            
+            self.app.funding_calc_data[tenor_key] = {
+                'eur_impl': eur_impl, 'usd_impl': usd_impl, 'nok_cm': nok_cm,
+                'eur_spot': eur_data.get('spot'), 'eur_pips': eur_data.get('pips'),
+                'eur_rate': eur_data.get('rate'), 'eur_days': eur_data.get('days'),
+                'usd_spot': usd_data.get('spot'), 'usd_pips': usd_data.get('pips'),
+                'usd_rate': usd_data.get('rate'), 'usd_days': usd_data.get('days'),
+                'weights': weights, 'funding_rate': funding_rate,
+                'spread': spread, 'final_rate': final_rate
             }
-            self.app.impl_calc_data[f"eur_{t['key']}"] = {
-                "spot": eur_spot, "pips": pips_eur_adj, "rate": eur_rate, "days": excel_days, "implied": impl_eur, "nok_cm": nok_cm
-            }
-            self.app.impl_calc_data[f"nok_{t['key']}"] = {
-                "nok_cm": nok_cm
-            }
-
-            # Update table cells
-            if impl_usd is not None:
-                self.impl_cells["usd"][t["key"]].configure(text=f"{impl_usd:.2f}%")
-            else:
-                self.impl_cells["usd"][t["key"]].configure(text="-")
-
-            if impl_eur is not None:
-                self.impl_cells["eur"][t["key"]].configure(text=f"{impl_eur:.2f}%")
-            else:
-                self.impl_cells["eur"][t["key"]].configure(text="-")
-
-            if nok_cm is not None:
-                self.impl_cells["nok"][t["key"]].configure(text=f"{nok_cm:.2f}%")
-            else:
-                self.impl_cells["nok"][t["key"]].configure(text="-")
 
 
 class ReconPage(tk.Frame):
@@ -891,6 +901,10 @@ class NokImpliedPage(tk.Frame):
         # Store implied values for weighted calculations
         implied_data_bbg = []
         implied_data_exc = []
+        
+        # Initialize calculation data storage for Dashboard
+        if not hasattr(self.app, 'impl_calc_data'):
+            self.app.impl_calc_data = {}
 
         for t in tenors:
             # Bloomberg days
@@ -976,6 +990,16 @@ class NokImpliedPage(tk.Frame):
             implied_data_bbg.append({
                 "tenor": t["tenor"], "impl_usd": impl_usd_bbg, "impl_eur": impl_eur_bbg, "nok_cm": nok_cm
             })
+            
+            # Store calculation data for Dashboard funding rates
+            self.app.impl_calc_data[f"usd_{t['key']}"] = {
+                "spot": usd_spot, "pips": pips_exc_usd, "rate": usd_rate_bbg, 
+                "days": excel_days, "implied": impl_usd_bbg, "nok_cm": nok_cm
+            }
+            self.app.impl_calc_data[f"eur_{t['key']}"] = {
+                "spot": eur_spot, "pips": pips_exc_eur, "rate": eur_rate_bbg, 
+                "days": excel_days, "implied": impl_eur_bbg, "nok_cm": nok_cm
+            }
 
             # ============ SECTION 2: Excel CM + Bloomberg Days ============
             # Use Bloomberg days and pips directly (no adjustment)

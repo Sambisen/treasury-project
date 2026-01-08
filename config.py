@@ -5,6 +5,19 @@ Contains theme, paths, rules, and mappings.
 import platform
 from pathlib import Path
 
+# ============================================================================
+# DEVELOPMENT MODE
+# ============================================================================
+DEVELOPMENT_MODE = False  # Set True for testing without Bloomberg/Excel
+
+FUNDING_SPREADS = {
+    "1w": 0.15,  # 15 bps
+    "1m": 0.20,  # 20 bps
+    "2m": 0.20,
+    "3m": 0.20,
+    "6m": 0.20
+}
+
 # ==============================================================================
 #  APP META
 # ==============================================================================
