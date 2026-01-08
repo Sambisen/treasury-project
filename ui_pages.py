@@ -56,25 +56,74 @@ class DashboardPage(tk.Frame):
         grid.grid_columnconfigure(0, weight=1, uniform="g")
         grid.grid_columnconfigure(1, weight=1, uniform="g")
 
-        # IMPLIED RATES SECTION
-        implied_title = tk.Label(self, text="IMPLIED NOK RATES (WEIGHTED)", fg=THEME["muted"], bg=THEME["bg_panel"],
-                                 font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
-        implied_title.pack(anchor="w", padx=pad, pady=(pad, 8))
+        # ============================================================================
+        # FUNDING RATES TABLE
+        # ============================================================================
+        funding_title = tk.Label(self, text="FUNDING RATES", fg=THEME["muted"],
+                                bg=THEME["bg_panel"],
+                                font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
+        funding_title.pack(anchor="w", padx=pad, pady=(pad, 8))
 
-        implied_chips = tk.Frame(self, bg=THEME["bg_panel"])
-        implied_chips.pack(fill="x", padx=pad, pady=(0, pad))
-        for i in range(4):
-            implied_chips.grid_columnconfigure(i, weight=1, uniform="impl")
+        self.funding_table_frame = tk.Frame(self, bg=THEME["bg_card"],
+                                           highlightthickness=1,
+                                           highlightbackground=THEME["border"])
+        self.funding_table_frame.pack(fill="x", padx=pad, pady=(0, pad))
 
-        self.chip_impl_1m = MetricChipTK(implied_chips, "1M IMPLIED", "-")
-        self.chip_impl_2m = MetricChipTK(implied_chips, "2M IMPLIED", "-")
-        self.chip_impl_3m = MetricChipTK(implied_chips, "3M IMPLIED", "-")
-        self.chip_impl_6m = MetricChipTK(implied_chips, "6M IMPLIED", "-")
+        # Headers
+        headers = ["TENOR", "FUNDING RATE", "SPREAD", "FINAL RATE"]
+        header_frame = tk.Frame(self.funding_table_frame, bg=THEME["bg_card_2"])
+        header_frame.grid(row=0, column=0, columnspan=4, sticky="ew", padx=10, pady=(10, 5))
 
-        self.chip_impl_1m.grid(row=0, column=0, sticky="ew", padx=(0, 10))
-        self.chip_impl_2m.grid(row=0, column=1, sticky="ew", padx=(0, 10))
-        self.chip_impl_3m.grid(row=0, column=2, sticky="ew", padx=(0, 10))
-        self.chip_impl_6m.grid(row=0, column=3, sticky="ew")
+        for i, header_text in enumerate(headers):
+            tk.Label(header_frame, text=header_text, fg=THEME["muted"],
+                    bg=THEME["bg_card_2"],
+                    font=("Segoe UI", CURRENT_MODE["body"], "bold"),
+                    width=15 if i == 0 else 18).grid(row=0, column=i, padx=5,
+                                                     sticky="w" if i == 0 else "e")
+
+        # Create rows
+        self.funding_cells = {}
+        tenors = [
+            {"key": "1w", "label": "1W"},
+            {"key": "1m", "label": "1M"},
+            {"key": "2m", "label": "2M"},
+            {"key": "3m", "label": "3M"},
+            {"key": "6m", "label": "6M"}
+        ]
+
+        for row_idx, tenor in enumerate(tenors, start=1):
+            tk.Label(self.funding_table_frame, text=tenor["label"],
+                    fg=THEME["text"], bg=THEME["bg_card"],
+                    font=("Segoe UI", CURRENT_MODE["body"], "bold"),
+                    width=15, anchor="w").grid(row=row_idx, column=0,
+                                               padx=10, pady=8, sticky="w")
+
+            cells = {}
+            for col_idx, cell_type in enumerate(["funding", "spread", "final"], start=1):
+                cell_label = tk.Label(self.funding_table_frame, text="-",
+                                    fg=THEME["accent"] if cell_type == "final" else THEME["text"],
+                                    bg=THEME["chip"] if cell_type != "spread" else THEME["bg_card_2"],
+                                    font=("Consolas", CURRENT_MODE["body"], "bold"),
+                                    width=18,
+                                    cursor="hand2" if cell_type != "spread" else "arrow",
+                                    relief="raised" if cell_type != "spread" else "flat",
+                                    bd=1 if cell_type != "spread" else 0,
+                                    anchor="e")
+                cell_label.grid(row=row_idx, column=col_idx, padx=5, pady=8, sticky="e")
+
+                if cell_type != "spread":
+                    cell_label.bind("<Button-1>",
+                                  lambda e, t=tenor["key"]: self._show_funding_details(t))
+                    cell_label.bind("<Enter>",
+                                  lambda e, lbl=cell_label: lbl.configure(bg=THEME["chip2"])
+                                  if lbl["bg"] == THEME["chip"] else None)
+                    cell_label.bind("<Leave>",
+                                  lambda e, lbl=cell_label: lbl.configure(bg=THEME["chip"])
+                                  if lbl["bg"] == THEME["chip2"] else None)
+
+                cells[cell_type] = cell_label
+
+            self.funding_cells[tenor["key"]] = cells
 
         title2 = tk.Label(self, text="ACTIVE ALERTS", fg=THEME["muted"], bg=THEME["bg_panel"],
                           font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
@@ -147,6 +196,93 @@ class DashboardPage(tk.Frame):
 
         card._sub.configure(text=subtext)
 
+    def _show_funding_details(self, tenor_key):
+        """Show detailed breakdown popup for selected tenor."""
+        if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data:
+            return
+
+        data = self.app.funding_calc_data.get(tenor_key)
+        if not data:
+            return
+
+        # Create popup
+        popup = tk.Toplevel(self)
+        popup.title(f"Funding Rate Breakdown - {tenor_key.upper()}")
+        popup.geometry("750x600")
+        popup.configure(bg=THEME["bg_panel"])
+        popup.transient(self)
+        popup.grab_set()
+
+        # Title
+        tk.Label(popup, text=f"{tenor_key.upper()} TENOR - DETAILED BREAKDOWN",
+                fg=THEME["accent"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 18, "bold")).pack(pady=20)
+
+        # Content frame with all details
+        content = tk.Frame(popup, bg=THEME["bg_card"],
+                          highlightthickness=1, highlightbackground=THEME["border"])
+        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+
+        # Helper function to add section
+        def add_section(title, items, y_offset):
+            tk.Label(content, text=title, fg=THEME["accent"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 12, "bold")).place(x=20, y=y_offset)
+
+            for i, (label, value) in enumerate(items):
+                y = y_offset + 30 + (i * 25)
+                tk.Label(content, text=label, fg=THEME["muted"], bg=THEME["bg_card"],
+                        font=("Segoe UI", 10)).place(x=40, y=y)
+                tk.Label(content, text=value, fg=THEME["text"], bg=THEME["bg_card"],
+                        font=("Consolas", 10, "bold")).place(x=250, y=y)
+
+        # EUR IMPLIED section
+        eur_items = [
+            ("Spot Rate:", f"{data.get('eur_spot', 0):.4f}" if data.get('eur_spot') is not None else "N/A"),
+            ("Forward Pips:", f"{data.get('eur_pips', 0):.3f}" if data.get('eur_pips') is not None else "N/A"),
+            ("EUR Rate:", f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') is not None else "N/A"),
+            ("Days:", str(int(data.get('eur_days', 0))) if data.get('eur_days') is not None else "N/A"),
+            ("IMPLIED:", f"{data.get('eur_impl', 0):.4f}%" if data.get('eur_impl') is not None else "N/A"),
+        ]
+        add_section("EUR IMPLIED", eur_items, 20)
+
+        # USD IMPLIED section
+        usd_items = [
+            ("Spot Rate:", f"{data.get('usd_spot', 0):.4f}" if data.get('usd_spot') is not None else "N/A"),
+            ("Forward Pips:", f"{data.get('usd_pips', 0):.3f}" if data.get('usd_pips') is not None else "N/A"),
+            ("USD Rate:", f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') is not None else "N/A"),
+            ("Days:", str(int(data.get('usd_days', 0))) if data.get('usd_days') is not None else "N/A"),
+            ("IMPLIED:", f"{data.get('usd_impl', 0):.4f}%" if data.get('usd_impl') is not None else "N/A"),
+        ]
+        add_section("USD IMPLIED", usd_items, 180)
+
+        # NOK CM section
+        nok_items = [
+            ("NOK CM Rate:", f"{data.get('nok_cm', 0):.2f}%" if data.get('nok_cm') is not None else "N/A"),
+        ]
+        add_section("NOK CM", nok_items, 340)
+
+        # Weights section
+        weights = data.get('weights', {})
+        weight_items = [
+            ("USD Weight:", f"{weights.get('USD', 0)*100:.0f}%"),
+            ("EUR Weight:", f"{weights.get('EUR', 0)*100:.0f}%"),
+            ("NOK Weight:", f"{weights.get('NOK', 0)*100:.0f}%"),
+        ]
+        add_section("WEIGHTS", weight_items, 390)
+
+        # Calculation section
+        calc_items = [
+            ("Funding Rate:", f"{data.get('funding_rate', 0):.4f}%" if data.get('funding_rate') is not None else "N/A"),
+            ("Spread:", f"{data.get('spread', 0):.2f}%"),
+            ("Final Rate:", f"{data.get('final_rate', 0):.4f}%" if data.get('final_rate') is not None else "N/A"),
+        ]
+        add_section("CALCULATION", calc_items, 480)
+
+        # Close button
+        from ui_components import OnyxButtonTK
+        OnyxButtonTK(popup, "Close", command=popup.destroy,
+                    variant="default").pack(pady=15)
+
     def update(self):
         gh = self.app.group_health or {}
 
@@ -157,8 +293,8 @@ class DashboardPage(tk.Frame):
         self._apply_state(self.card_cells, "OK" if self.app.status_cells else "FAIL", gh.get("CELLS", "—"))
         self._apply_state(self.card_weights, self.app.weights_state, gh.get("WEIGHTS", "—"))
 
-        # Update implied rates
-        self._update_implied_rates()
+        # Update funding rates table
+        self._update_funding_rates()
 
         if not self.app.active_alerts:
             self.alert_table.pack_forget()
@@ -191,79 +327,70 @@ class DashboardPage(tk.Frame):
                 weights["NOK"] = parsed["NOK"]
         return weights
 
-    def _update_implied_rates(self):
-        """Calculate and display weighted implied rates."""
+    def _update_funding_rates(self):
+        """Calculate and display funding rates table."""
+        from config import FUNDING_SPREADS
+        from calculations import calc_funding_rate
+
+        # Check if we have impl_calc_data from NokImpliedPage
+        if not hasattr(self.app, 'impl_calc_data'):
+            # Initialize empty funding data
+            self.app.funding_calc_data = {}
+            for tenor_key in ["1w", "1m", "2m", "3m", "6m"]:
+                cells = self.funding_cells.get(tenor_key, {})
+                if "funding" in cells:
+                    cells["funding"].config(text="N/A")
+                if "spread" in cells:
+                    spread = FUNDING_SPREADS.get(tenor_key, 0.20)
+                    cells["spread"].config(text=f"{spread:.2f}%")
+                if "final" in cells:
+                    cells["final"].config(text="N/A")
+            return
+
         weights = self._get_weights()
+        self.app.funding_calc_data = {}
 
-        # Spots
-        usd_spot = self._get_ticker_val("NOK F033 Curncy")
-        eur_spot = self._get_ticker_val("NKEU F033 Curncy")
+        for tenor_key in ["1w", "1m", "2m", "3m", "6m"]:
+            # Get data from impl_calc_data
+            eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
+            usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
 
-        # Excel days
-        excel_days_data = self.app.current_days_data or {}
+            eur_impl = eur_data.get('implied')
+            usd_impl = usd_data.get('implied')
+            nok_cm = eur_data.get('nok_cm')  # Same for both USD and EUR
 
-        tenors = [
-            {"tenor": "1M", "key": "1m", "chip": self.chip_impl_1m,
-             "usd_fwd": "NK1M F033 Curncy", "usd_rate": "USCM1M SWET Curncy", "usd_days": "NK1M TPSF Curncy",
-             "eur_fwd": "NKEU1M F033 Curncy", "eur_rate": "EUCM1M SWET Curncy", "eur_days": "EURNOK1M TPSF Curncy",
-             "nok_cm": "NKCM1M SWET Curncy"},
-            {"tenor": "2M", "key": "2m", "chip": self.chip_impl_2m,
-             "usd_fwd": "NK2M F033 Curncy", "usd_rate": "USCM2M SWET Curncy", "usd_days": "NK2M TPSF Curncy",
-             "eur_fwd": "NKEU2M F033 Curncy", "eur_rate": "EUCM2M SWET Curncy", "eur_days": "EURNOK2M TPSF Curncy",
-             "nok_cm": "NKCM2M SWET Curncy"},
-            {"tenor": "3M", "key": "3m", "chip": self.chip_impl_3m,
-             "usd_fwd": "NK3M F033 Curncy", "usd_rate": "USCM3M SWET Curncy", "usd_days": "NK3M TPSF Curncy",
-             "eur_fwd": "NKEU3M F033 Curncy", "eur_rate": "EUCM3M SWET Curncy", "eur_days": "EURNOK3M TPSF Curncy",
-             "nok_cm": "NKCM3M SWET Curncy"},
-            {"tenor": "6M", "key": "6m", "chip": self.chip_impl_6m,
-             "usd_fwd": "NK6M F033 Curncy", "usd_rate": "USCM6M SWET Curncy", "usd_days": "NK6M TPSF Curncy",
-             "eur_fwd": "NKEU6M F033 Curncy", "eur_rate": "EUCM6M SWET Curncy", "eur_days": "EURNOK6M TPSF Curncy",
-             "nok_cm": "NKCM6M SWET Curncy"},
-        ]
+            # Calculate funding rate
+            funding_rate = None
+            if all(x is not None for x in [eur_impl, usd_impl, nok_cm]):
+                funding_rate = calc_funding_rate(eur_impl, usd_impl, nok_cm, weights)
 
-        fallback_days = {"1m": 30, "2m": 58, "3m": 90, "6m": 181}
+            # Get spread
+            spread = FUNDING_SPREADS.get(tenor_key, 0.20)
 
-        for t in tenors:
-            # Get days
-            bbg_days = self._get_ticker_val(t["usd_days"])
-            if bbg_days is None:
-                bbg_days = fallback_days.get(t["key"])
+            # Calculate final rate
+            final_rate = None
+            if funding_rate is not None:
+                final_rate = funding_rate + spread
 
-            excel_days = safe_float(excel_days_data.get(t["key"]), None)
-            if excel_days is None:
-                excel_days = bbg_days
+            # Update UI cells
+            cells = self.funding_cells.get(tenor_key, {})
+            if "funding" in cells:
+                cells["funding"].config(text=f"{funding_rate:.2f}%" if funding_rate is not None else "N/A")
+            if "spread" in cells:
+                cells["spread"].config(text=f"{spread:.2f}%")
+            if "final" in cells:
+                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate is not None else "N/A")
 
-            # Get pips
-            usd_fwd = self._get_ticker_val(t["usd_fwd"])
-            eur_fwd = self._get_ticker_val(t["eur_fwd"])
-            pips_usd = (usd_fwd - usd_spot) * 10000 if usd_fwd and usd_spot else None
-            pips_eur = (eur_fwd - eur_spot) * 10000 if eur_fwd and eur_spot else None
-
-            # Adjust pips for Excel days
-            if pips_usd is not None and bbg_days and excel_days:
-                pips_usd = (pips_usd / bbg_days) * excel_days
-            if pips_eur is not None and bbg_days and excel_days:
-                pips_eur = (pips_eur / bbg_days) * excel_days
-
-            # Get rates
-            usd_rate = self._get_ticker_val(t["usd_rate"])
-            eur_rate = self._get_ticker_val(t["eur_rate"])
-            nok_cm = self._get_ticker_val(t["nok_cm"])
-
-            # Calculate implied
-            impl_usd = calc_implied_yield(usd_spot, pips_usd, usd_rate, excel_days) if excel_days else None
-            impl_eur = calc_implied_yield(eur_spot, pips_eur, eur_rate, excel_days) if excel_days else None
-
-            # Calculate weighted total
-            w_usd = impl_usd * weights["USD"] if impl_usd else None
-            w_eur = impl_eur * weights["EUR"] if impl_eur else None
-            w_nok = nok_cm * weights["NOK"] if nok_cm else None
-
-            if w_usd is not None and w_eur is not None and w_nok is not None:
-                total = w_usd + w_eur + w_nok
-                t["chip"].set_value(f"{total:.4f}%")
-            else:
-                t["chip"].set_value("-")
+            # Store for popup
+            self.app.funding_calc_data[tenor_key] = {
+                'eur_impl': eur_impl, 'usd_impl': usd_impl, 'nok_cm': nok_cm,
+                'eur_spot': eur_data.get('spot'), 'eur_pips': eur_data.get('pips'),
+                'eur_rate': eur_data.get('rate'), 'eur_days': eur_data.get('days'),
+                'usd_spot': usd_data.get('spot'), 'usd_pips': usd_data.get('pips'),
+                'usd_rate': usd_data.get('rate'), 'usd_days': usd_data.get('days'),
+                'weights': weights, 'funding_rate': funding_rate,
+                'spread': spread, 'final_rate': final_rate
+            }
 
 
 class ReconPage(tk.Frame):
@@ -630,6 +757,10 @@ class NokImpliedPage(tk.Frame):
         self.eur_table_exc.clear()
         self.weighted_table_exc.clear()
 
+        # Initialize impl_calc_data storage for DashboardPage
+        if not hasattr(self.app, 'impl_calc_data'):
+            self.app.impl_calc_data = {}
+
         # Get weights
         weights = self._get_weights()
         self.weights_label.config(
@@ -743,6 +874,17 @@ class NokImpliedPage(tk.Frame):
             implied_data_bbg.append({
                 "tenor": t["tenor"], "impl_usd": impl_usd_bbg, "impl_eur": impl_eur_bbg, "nok_cm": nok_cm
             })
+
+            # Store data for DashboardPage funding rate table
+            self.app.impl_calc_data[f"usd_{t['key']}"] = {
+                'implied': impl_usd_bbg, 'spot': usd_spot, 'pips': pips_exc_usd,
+                'rate': usd_rate_bbg, 'days': excel_days, 'nok_cm': nok_cm
+            }
+
+            self.app.impl_calc_data[f"eur_{t['key']}"] = {
+                'implied': impl_eur_bbg, 'spot': eur_spot, 'pips': pips_exc_eur,
+                'rate': eur_rate_bbg, 'days': excel_days, 'nok_cm': nok_cm
+            }
 
             # ============ SECTION 2: Excel CM + Bloomberg Days ============
             # Use Bloomberg days and pips directly (no adjustment)

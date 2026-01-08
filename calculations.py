@@ -31,3 +31,41 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
         return r_nok  # Already in percent form (e.g., 6.36 for 6.36%)
     except ZeroDivisionError:
         return None
+
+
+def calc_funding_rate(eur_implied: float, usd_implied: float, nok_cm: float,
+                     weights: dict) -> float | None:
+    """
+    Calculate weighted funding rate from implied yields.
+
+    Args:
+        eur_implied: EUR implied NOK yield (percent)
+        usd_implied: USD implied NOK yield (percent)
+        nok_cm: NOK CM rate (percent)
+        weights: Dict with 'EUR', 'USD', 'NOK' keys (as decimals)
+
+    Returns:
+        Weighted funding rate in percent, or None if calculation fails
+    """
+    print(f"\n[calc_funding_rate] ========== CALCULATION STARTED ==========")
+    print(f"  eur_implied={eur_implied}, usd_implied={usd_implied}, nok_cm={nok_cm}")
+
+    if eur_implied is None or usd_implied is None or nok_cm is None:
+        print(f"[calc_funding_rate] [ERROR] None value in inputs")
+        return None
+
+    if not all(k in weights for k in ['EUR', 'USD', 'NOK']):
+        print(f"[calc_funding_rate] [ERROR] Missing weight keys")
+        return None
+
+    try:
+        funding_rate = (
+            eur_implied * weights['EUR'] +
+            usd_implied * weights['USD'] +
+            nok_cm * weights['NOK']
+        )
+        print(f"  = {funding_rate:.4f}%")
+        return funding_rate
+    except Exception as e:
+        print(f"[calc_funding_rate] [ERROR] {e}")
+        return None

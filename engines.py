@@ -16,7 +16,7 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING
+    EXCEL_CM_RATES_MAPPING, DEVELOPMENT_MODE
 )
 from utils import copy_to_cache_fast, safe_float, to_date
 
@@ -384,7 +384,7 @@ class BloombergEngine:
         self._last_meta: dict = {}
 
         # Determine if we should use mock mode
-        self._use_mock = (blpapi is None) or USE_MOCK_DATA
+        self._use_mock = (blpapi is None) or USE_MOCK_DATA or DEVELOPMENT_MODE
 
         # Load mock prices from Excel file (used in mock mode)
         self._mock_prices = _load_mock_defaults_from_excel() if self._use_mock else {}

@@ -6,9 +6,23 @@ import platform
 from pathlib import Path
 
 # ==============================================================================
+#  DEVELOPMENT MODE - Enable when running without Bloomberg/Excel
+# ==============================================================================
+DEVELOPMENT_MODE = False  # Set to True for development without data sources
+
+# Fixed spreads for funding rate calculation (in percent)
+FUNDING_SPREADS = {
+    "1w": 0.15,  # 15 bps for 1 week
+    "1m": 0.20,  # 20 bps for all other tenors
+    "2m": 0.20,
+    "3m": 0.20,
+    "6m": 0.20
+}
+
+# ==============================================================================
 #  APP META
 # ==============================================================================
-APP_VERSION = "3.8.0-tk"
+APP_VERSION = "3.8.1-tk"
 
 # ==============================================================================
 #  THEME (ONYX PRIME)
