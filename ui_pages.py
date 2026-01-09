@@ -337,10 +337,13 @@ class DashboardPage(tk.Frame):
         
         popup = tk.Toplevel(self)
         popup.title(f"NIBOR Calculation - {tenor_key.upper()}")
-        popup.geometry("950x700")
+        popup.geometry("1100x800")  # Större fönster: 1100x800 (från 950x700)
         popup.configure(bg=THEME["bg_panel"])
         popup.transient(self)
         popup.grab_set()
+        
+        # Gör fönstret resizable så användaren kan justera om nödvändigt
+        popup.resizable(True, True)
         
         # Title - CHANGED to "NIBOR CALCULATION"
         tk.Label(popup, text=f"{tenor_key.upper()} TENOR - NIBOR CALCULATION",
