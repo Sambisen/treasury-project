@@ -356,6 +356,204 @@ class ExcelEngine:
         except Exception as e:
             print(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
             return None
+
+    def get_latest_weights(self, weights_path):
+        """
+        Get latest weights from Wheights.xlsx file.
+        
+        Always use the row with the latest date in column A.
+        Uses columns F (USD), G (EUR), H (NOK).
+        
+        Args:
+            weights_path: Path to Wheights.xlsx
+        
+        Returns:
+            dict: {"USD": 0.88, "EUR": 0.12, "NOK": 0.00, "date": datetime} or None if failed
+        """
+        print(f"\n[ExcelEngine] Loading latest weights from file...")
+        print(f"[ExcelEngine] Weights file: {weights_path}")
+        
+        if not weights_path.exists():
+            print(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
+            return None
+        
+        try:
+            wb = None
+            try:
+                wb = load_workbook(weights_path, data_only=True, read_only=True)
+            except Exception:
+                temp_path = copy_to_cache_fast(weights_path)
+                wb = load_workbook(temp_path, data_only=True, read_only=True)
+            
+            ws = wb.active  # Use first/active sheet
+            
+            print(f"[ExcelEngine] Sheet: {ws.title}")
+            
+            # Find all rows with dates
+            from config import WEIGHTS_COLS
+            date_col = WEIGHTS_COLS["Date"]   # Column A
+            usd_col = WEIGHTS_COLS["USD"]     # Column F
+            eur_col = WEIGHTS_COLS["EUR"]     # Column G
+            nok_col = WEIGHTS_COLS["NOK"]     # Column H
+            
+            dated_rows = []
+            
+            # Scan rows starting from row 2 (assume row 1 is header)
+            for row in range(2, ws.max_row + 1):
+                date_cell = ws.cell(row=row, column=date_col).value
+                
+                if date_cell:
+                    try:
+                        # Try to parse as date
+                        if isinstance(date_cell, datetime):
+                            date_val = date_cell
+                        else:
+                            # Try to parse string
+                            date_val = datetime.strptime(str(date_cell), "%Y-%m-%d")
+                        
+                        dated_rows.append((date_val, row))
+                    except (ValueError, TypeError):
+                        continue
+            
+            if not dated_rows:
+                print(f"[ExcelEngine] [ERROR] No valid dates found in column A")
+                wb.close()
+                return None
+            
+            # Sort by date, get latest
+            dated_rows.sort(reverse=True)
+            latest_date, latest_row = dated_rows[0]
+            
+            print(f"[ExcelEngine] Latest date: {latest_date.date()} (row {latest_row})")
+            
+            # Read weights from this row
+            usd_weight = ws.cell(row=latest_row, column=usd_col).value
+            eur_weight = ws.cell(row=latest_row, column=eur_col).value
+            nok_weight = ws.cell(row=latest_row, column=nok_col).value
+            
+            print(f"[ExcelEngine]   USD (F{latest_row}): {usd_weight}")
+            print(f"[ExcelEngine]   EUR (G{latest_row}): {eur_weight}")
+            print(f"[ExcelEngine]   NOK (H{latest_row}): {nok_weight}")
+            
+            try:
+                usd = float(usd_weight) if usd_weight is not None else 0.0
+                eur = float(eur_weight) if eur_weight is not None else 0.0
+                nok = float(nok_weight) if nok_weight is not None else (1.0 - usd - eur)
+                
+                weights = {"USD": usd, "EUR": eur, "NOK": nok, "date": latest_date}
+                
+                print(f"[ExcelEngine] Weights: USD={usd:.2%}, EUR={eur:.2%}, NOK={nok:.2%}")
+                print(f"[ExcelEngine] Sum check: {usd + eur + nok:.4f} (should be 1.0)")
+                
+                wb.close()
+                return weights
+                
+            except (ValueError, TypeError) as e:
+                print(f"[ExcelEngine] [ERROR] Cannot convert weights to float: {e}")
+                wb.close()
+                return None
+            
+        except Exception as e:
+            print(f"[ExcelEngine] [ERROR] Failed to load weights: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def get_all_weights_history(self, weights_path):
+        """
+        Get ALL weights history from Wheights.xlsx file.
+        
+        Returns list of all weights sorted by date (newest first).
+        Uses columns: A (Date), F (USD), G (EUR), H (NOK).
+        
+        Args:
+            weights_path: Path to Wheights.xlsx
+        
+        Returns:
+            list of dicts: [{"date": datetime, "USD": 0.88, "EUR": 0.12, "NOK": 0.00}, ...]
+            Returns empty list if failed
+        """
+        print(f"\n[ExcelEngine] Loading ALL weights history from file...")
+        print(f"[ExcelEngine] Weights file: {weights_path}")
+        
+        if not weights_path.exists():
+            print(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
+            return []
+        
+        try:
+            wb = None
+            try:
+                wb = load_workbook(weights_path, data_only=True, read_only=True)
+            except Exception:
+                temp_path = copy_to_cache_fast(weights_path)
+                wb = load_workbook(temp_path, data_only=True, read_only=True)
+            
+            ws = wb.active  # Use first/active sheet
+            
+            print(f"[ExcelEngine] Sheet: {ws.title}")
+            
+            # Get column mappings
+            from config import WEIGHTS_COLS
+            date_col = WEIGHTS_COLS["Date"]   # Column A
+            usd_col = WEIGHTS_COLS["USD"]     # Column F
+            eur_col = WEIGHTS_COLS["EUR"]     # Column G
+            nok_col = WEIGHTS_COLS["NOK"]     # Column H
+            
+            weights_history = []
+            
+            # Scan all rows starting from row 2 (assume row 1 is header)
+            for row in range(2, ws.max_row + 1):
+                date_cell = ws.cell(row=row, column=date_col).value
+                
+                if not date_cell:
+                    continue
+                
+                try:
+                    # Try to parse as date
+                    if isinstance(date_cell, datetime):
+                        date_val = date_cell
+                    else:
+                        # Try to parse string
+                        date_val = datetime.strptime(str(date_cell), "%Y-%m-%d")
+                    
+                    # Read weights from this row
+                    usd_weight = ws.cell(row=row, column=usd_col).value
+                    eur_weight = ws.cell(row=row, column=eur_col).value
+                    nok_weight = ws.cell(row=row, column=nok_col).value
+                    
+                    # Convert to float
+                    usd = float(usd_weight) if usd_weight is not None else 0.0
+                    eur = float(eur_weight) if eur_weight is not None else 0.0
+                    nok = float(nok_weight) if nok_weight is not None else (1.0 - usd - eur)
+                    
+                    weights_history.append({
+                        "date": date_val,
+                        "USD": usd,
+                        "EUR": eur,
+                        "NOK": nok,
+                        "row": row
+                    })
+                    
+                except (ValueError, TypeError) as e:
+                    print(f"[ExcelEngine] [WARN] Could not parse row {row}: {e}")
+                    continue
+            
+            # Sort by date (newest first)
+            weights_history.sort(key=lambda x: x["date"], reverse=True)
+            
+            print(f"[ExcelEngine] Loaded {len(weights_history)} weight entries")
+            if weights_history:
+                latest = weights_history[0]
+                print(f"[ExcelEngine] Latest: {latest['date'].date()} - USD={latest['USD']:.2%}, EUR={latest['EUR']:.2%}, NOK={latest['NOK']:.2%}")
+            
+            wb.close()
+            return weights_history
+            
+        except Exception as e:
+            print(f"[ExcelEngine] [ERROR] Failed to load weights history: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
     def resolve_latest_path(self):
         if RECON_FILE.exists():
             self.current_folder_path = RECON_FILE.parent

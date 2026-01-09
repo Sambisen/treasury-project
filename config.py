@@ -24,43 +24,95 @@ FUNDING_SPREADS = {
 APP_VERSION = "3.8.1-tk"
 
 # ==============================================================================
-#  THEME (ONYX PRIME)
+#  SWEDBANK PROFESSIONAL NORDIC THEME
 # ==============================================================================
 THEME = {
-    "bg_main": "#050505",
-    "bg_panel": "#0A0A0A",
-    "bg_card": "#141414",
-    "bg_card_2": "#1F1F1F",
-    "bg_nav": "#050505",
-    "bg_nav_sel": "#141414",
-    "border": "#333333",
-    "border_2": "#3A3A3A",
-    "text": "#E6E8EC",
-    "muted": "#9AA3AF",
-    "muted2": "#6B7280",
-    "accent": "#FF9F1C",
-    "accent2": "#FFB75A",
-    "good": "#10B981",
-    "bad": "#EF4444",
+    # Backgrounds - Light & airy
+    "bg_panel": "#F8F9FA",           # Main background - light grey
+    "bg_card": "#FFFFFF",            # Card/container background - white
+    "bg_card_2": "#F8F9FA",          # Alternate row background
+    "bg_hover": "#F1F3F5",           # Hover state
+    
+    # Swedbank Brand Colors
+    "accent": "#FF6600",             # Swedbank orange - primary actions
+    "accent_secondary": "#003D5C",   # Swedbank dark blue - secondary
+    "accent_hover": "#FF8533",       # Lighter orange for hover
+    
+    # Text - Dark on light
+    "text": "#1A1A1A",               # Primary text - almost black
+    "muted": "#6B7280",              # Secondary text - grey
+    "text_light": "#9CA3AF",         # Tertiary text - light grey
+    
+    # Status Colors (softer, professional)
+    "good": "#10B981",               # Success green
+    "warning": "#F59E0B",            # Amber warning
+    "bad": "#EF4444",                # Error red (softer)
+    "pending": "#F59E0B",            # Pending amber
+    
+    # UI Elements
+    "border": "#E5E7EB",             # Light border
+    "border_focus": "#FF6600",       # Focused border (Swedbank orange)
+    "chip": "#F3F4F6",               # Chip/badge background
+    "chip2": "#E5E7EB",              # Hover chip background
+    
+    # Shadows (CSS-style strings for reference)
+    "shadow_sm": "0 1px 2px rgba(0,0,0,0.05)",
+    "shadow_md": "0 2px 8px rgba(0,0,0,0.08)",
+    "shadow_lg": "0 4px 16px rgba(0,0,0,0.12)",
+    
+    # Legacy/compatibility (mapped to new colors)
+    "bg_main": "#F8F9FA",
+    "bg_nav": "#FFFFFF",
+    "bg_nav_sel": "#F8F9FA",
+    "border_2": "#D1D5DB",
+    "text_secondary": "#6B7280",
+    "muted2": "#9CA3AF",
+    "accent2": "#FF8533",
     "warn": "#F59E0B",
     "yellow": "#FCD34D",
-    "chip": "#141414",
-    "chip2": "#1F1F1F",
     "shadow": "#000000",
-    "row_even": "#0F0F0F",
-    "row_odd": "#121212",
-    "row_hover": "#1B1B1B",
-    "tree_sel_bg": "#2B2B2B",
+    "row_even": "#FFFFFF",
+    "row_odd": "#F8F9FA",
+    "row_hover": "#F1F3F5",
+    "tree_sel_bg": "#E5E7EB",
+    
+    # Badge colors for status indicators
+    "badge_ok": "#10B981",
+    "badge_fail": "#EF4444",
+    "badge_warn": "#F59E0B",
+    "badge_pend": "#6B7280",
 }
 
-CURRENT_MODE = {"type": "OFFICE", "pad": 18, "hpad": 26, "title": 22, "h2": 14, "body": 12, "small": 10}
+# ==============================================================================
+#  TYPOGRAPHY SYSTEM
+# ==============================================================================
+FONTS = {
+    # Headers - Segoe UI Semibold for impact
+    "h1": ("Segoe UI Semibold", 24),
+    "h2": ("Segoe UI Semibold", 18),
+    "h3": ("Segoe UI Semibold", 14),
+    
+    # Body text - Segoe UI Regular
+    "body": ("Segoe UI", 11),
+    "body_small": ("Segoe UI", 9),
+    
+    # Numeric data - Consolas monospace for perfect alignment
+    "numeric": ("Consolas", 11),
+    "numeric_large": ("Consolas", 14),
+    "numeric_small": ("Consolas", 9),
+    
+    # Status text - slightly heavier
+    "status": ("Segoe UI Semibold", 10),
+}
+
+CURRENT_MODE = {"type": "OFFICE", "pad": 20, "hpad": 30, "title": 24, "h2": 18, "body": 11, "small": 9}
 
 
 def set_mode(mode: str):
     if mode == "OFFICE":
-        CURRENT_MODE.update({"type": "OFFICE", "pad": 18, "hpad": 26, "title": 22, "h2": 14, "body": 12, "small": 10})
+        CURRENT_MODE.update({"type": "OFFICE", "pad": 20, "hpad": 30, "title": 24, "h2": 18, "body": 11, "small": 9})
     else:
-        CURRENT_MODE.update({"type": "LAPTOP", "pad": 12, "hpad": 18, "title": 18, "h2": 13, "body": 11, "small": 9})
+        CURRENT_MODE.update({"type": "LAPTOP", "pad": 15, "hpad": 20, "title": 20, "h2": 16, "body": 10, "small": 8})
 
 
 # ==============================================================================
@@ -136,7 +188,39 @@ DAY_FILES = [
 RECON_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
 
 # WEIGHTS (Monthly control)
-WEIGHTS_FILE = DATA_DIR / "Nibor" / "Vikter" / "Weights.xlsx"
+WEIGHTS_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Wheights.xlsx"
+
+# ============================================================================
+# CALCULATION MODEL PATHS & MAPPINGS
+# ============================================================================
+
+# Nibor fixing workbook for Swedbank Calc Model
+NIBOR_FIXING_WORKBOOK_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
+
+# Weights file for dynamic weight loading
+WEIGHTS_FILE_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Weights.xlsx"
+
+# Column mappings for CM rates in Nibor fixing workbook (Swedbank Calc Model)
+NIBOR_FIXING_CM_COLS = {
+    "EUR": 13,  # Column M
+    "USD": 18,  # Column R
+}
+
+# Row mappings for tenors in Nibor fixing workbook
+NIBOR_FIXING_CM_ROWS = {
+    "1m": 30,
+    "2m": 31,
+    "3m": 32,
+    "6m": 33
+}
+
+# Column mappings in Wheights.xlsx
+WEIGHTS_COLS = {
+    "Date": 1,   # Column A
+    "USD": 6,    # Column F
+    "EUR": 7,    # Column G
+    "NOK": 8,    # Column H
+}
 
 CACHE_DIR = DATA_DIR / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -243,9 +327,12 @@ DAYS_MAPPING = [
     ("C9", "Days (3m)", "3m"), ("C10", "Days (6m)", "6m")
 ]
 
-# WEIGHTS mapping (EXACT cells)
+# WEIGHTS mapping (OLD - for backwards compatibility with validation)
 WEIGHTS_FILE_CELLS = {"H3": "H3", "H4": "H4", "H5": "H5", "H6": "H6", "USD": "I3", "EUR": "J3", "NOK": "K3"}
 WEIGHTS_MODEL_CELLS = {"DATE": "A41", "USD": "B43", "EUR": "B44", "NOK": "B45"}
+
+# WEIGHTS file path (NEW - correct path)
+WEIGHTS_FILE_PATH_NEW = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Wheights.xlsx"
 
 # Excel CM rates mapping (from Nibor fixing Testing Workbook.xlsx)
 # EUR CM: M30-M33 (1M, 2M, 3M, 6M)

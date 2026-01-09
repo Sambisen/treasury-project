@@ -13,7 +13,7 @@ import tkinter as tk
 from openpyxl.utils import coordinate_to_tuple
 
 from config import (
-    APP_VERSION, THEME, CURRENT_MODE, set_mode,
+    APP_VERSION, THEME, FONTS, CURRENT_MODE, set_mode,
     APP_DIR, DATA_DIR, BASE_HISTORY_PATH, STIBOR_GRSS_PATH,
     DAY_FILES, RECON_FILE, WEIGHTS_FILE, CACHE_DIR,
     EXCEL_LOGO_CANDIDATES, BBG_LOGO_CANDIDATES,
@@ -30,7 +30,7 @@ from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    NiborDaysPage, NokImpliedPage, NiborMetaDataPage
+    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage
 )
 
 
@@ -74,6 +74,10 @@ class OnyxTerminalTK(tk.Tk):
         self.last_bbg_meta: dict = {}
         self.group_health: dict[str, str] = {}
 
+        # Store for Dashboard to access
+        self.bbg_ok = False
+        self.excel_ok = False
+
         self._nav_buttons = {}
         self._pages = {}
         self._current_page = None
@@ -89,62 +93,233 @@ class OnyxTerminalTK(tk.Tk):
     def build_ui(self):
         hpad = CURRENT_MODE["hpad"]
 
-        self.header = tk.Frame(self, bg=THEME["bg_main"])
-        self.header.pack(fill="x", padx=hpad, pady=(hpad, 10))
+        # ====================================================================
+        # GLOBAL HEADER - Visible on ALL pages
+        # ====================================================================
+        from PIL import Image, ImageTk
+        
+        global_header = tk.Frame(self, bg=THEME["bg_main"])
+        global_header.pack(fill="x", padx=hpad, pady=(hpad, 10))
 
-        title_box = tk.Frame(self.header, bg=THEME["bg_main"])
-        title_box.pack(side="left")
+        # LEFT: Swedbank header image (250px)
+        header_left = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_left.pack(side="left")
 
-        self.lbl_title = tk.Label(title_box, text="ONYX TERMINAL", fg=THEME["text"], bg=THEME["bg_main"],
-                                  font=("Segoe UI", CURRENT_MODE["title"], "bold"))
-        self.lbl_title.pack(anchor="w")
+        image_path = r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Swed.png"
 
-        right_box = tk.Frame(self.header, bg=THEME["bg_main"])
-        right_box.pack(side="right")
+        if os.path.exists(image_path):
+            try:
+                img = Image.open(image_path)
+                target_width = 250
+                aspect_ratio = img.height / img.width
+                target_height = int(target_width * aspect_ratio)
+                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                
+                photo = ImageTk.PhotoImage(img)
+                img_label = tk.Label(header_left, image=photo, bg=THEME["bg_main"])
+                img_label.image = photo
+                img_label.pack()
+                print(f"[Main] Global Swedbank header loaded: {target_width}x{target_height}px")
+            except Exception as e:
+                print(f"[Main] Failed to load Swedbank header: {e}")
+                tk.Label(header_left, text="ONYX TERMINAL",
+                        fg=THEME["text"], bg=THEME["bg_main"],
+                        font=("Segoe UI", 24, "bold")).pack()
+        else:
+            print(f"[Main] Image not found: {image_path}")
+            tk.Label(header_left, text="ONYX TERMINAL",
+                    fg=THEME["text"], bg=THEME["bg_main"],
+                    font=("Segoe UI", 24, "bold")).pack()
 
-        self.card_excel = SourceCardTK(right_box, "Excel", self.logo_pipeline, EXCEL_LOGO_CANDIDATES, kind="excel")
-        self.card_excel.pack(side="left", padx=(0, 12))
+        # RIGHT: Compact status indicators + UPDATE button
+        header_right = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_right.pack(side="right")
 
-        self.card_bbg = SourceCardTK(right_box, "Bloomberg", self.logo_pipeline, BBG_LOGO_CANDIDATES, kind="bloomberg")
-        self.card_bbg.pack(side="left", padx=(0, 16))
+        # Status bar frame with border
+        status_frame = tk.Frame(header_right, bg=THEME["bg_card"],
+                               highlightthickness=2,
+                               highlightbackground=THEME["border"],
+                               relief="solid")
+        status_frame.pack(side="left", padx=(0, 15))
 
-        self.run_status = tk.Label(right_box, text="● INIT", fg=THEME["muted"], bg=THEME["bg_main"],
-                                   font=("Segoe UI", CURRENT_MODE["body"], "bold"))
-        self.run_status.pack(side="left")
+        # Excel status
+        excel_status = tk.Frame(status_frame, bg=THEME["bg_card"])
+        excel_status.pack(side="left", padx=15, pady=10)
+        
+        tk.Label(excel_status, text="EXCEL:", fg=THEME["muted"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
+        
+        self.excel_status_dot = tk.Label(excel_status, text="●",
+                                         fg=THEME["good"],
+                                         bg=THEME["bg_card"],
+                                         font=("Segoe UI", 14, "bold"))
+        self.excel_status_dot.pack(side="left", padx=(0, 5))
+        
+        self.excel_conn_lbl = tk.Label(excel_status, text="OK",
+                                       fg=THEME["good"],
+                                       bg=THEME["bg_card"],
+                                       font=("Segoe UI", 10, "bold"))
+        self.excel_conn_lbl.pack(side="left")
 
+        # Separator
+        tk.Frame(status_frame, bg=THEME["border"], width=2).pack(side="left", fill="y", padx=5)
+
+        # Bloomberg status
+        bbg_status = tk.Frame(status_frame, bg=THEME["bg_card"])
+        bbg_status.pack(side="left", padx=15, pady=10)
+        
+        tk.Label(bbg_status, text="BLOOMBERG:", fg=THEME["muted"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
+        
+        self.bbg_status_dot = tk.Label(bbg_status, text="●",
+                                       fg=THEME["good"],
+                                       bg=THEME["bg_card"],
+                                       font=("Segoe UI", 14, "bold"))
+        self.bbg_status_dot.pack(side="left", padx=(0, 5))
+        
+        self.bbg_conn_lbl = tk.Label(bbg_status, text="OK",
+                                     fg=THEME["good"],
+                                     bg=THEME["bg_card"],
+                                     font=("Segoe UI", 10, "bold"))
+        self.bbg_conn_lbl.pack(side="left")
+
+        # Separator
+        tk.Frame(status_frame, bg=THEME["border"], width=2).pack(side="left", fill="y", padx=5)
+
+        # Alerts
+        alerts_status = tk.Frame(status_frame, bg=THEME["bg_card"])
+        alerts_status.pack(side="left", padx=15, pady=10)
+        
+        tk.Label(alerts_status, text="ALERTS:", fg=THEME["muted"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
+        
+        self.alerts_count_lbl = tk.Label(alerts_status, text="0",
+                                        fg=THEME["good"],
+                                        bg=THEME["bg_card"],
+                                        font=("Segoe UI", 10, "bold"))
+        self.alerts_count_lbl.pack(side="left")
+
+        # UPDATE SYSTEM button (in top-right corner)
+        from ui_components import OnyxButtonTK
+        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE SYSTEM",
+                                             command=self.refresh_data,
+                                             variant="primary")
+        self.header_update_btn.pack(side="left", padx=(0, 10))
+        self.register_update_button(self.header_update_btn)
+
+        # ====================================================================
+        # BODY with Command Center Sidebar + Content
+        # ====================================================================
         self.body = tk.Frame(self, bg=THEME["bg_main"])
         self.body.pack(fill="both", expand=True, padx=hpad, pady=(0, hpad))
-        self.body.grid_columnconfigure(1, weight=1)
+
+        # Configure grid layout: sidebar (0) | separator (1) | content (2)
+        self.body.grid_columnconfigure(0, weight=0, minsize=220)  # Sidebar fixed
+        self.body.grid_columnconfigure(1, weight=0, minsize=3)    # Separator fixed
+        self.body.grid_columnconfigure(2, weight=1)               # Content expandable
         self.body.grid_rowconfigure(0, weight=1)
 
-        self.nav = tk.Frame(self.body, bg=THEME["bg_nav"], highlightthickness=1, highlightbackground=THEME["border"])
-        self.nav.grid(row=0, column=0, sticky="nsw", padx=(0, 14), pady=0)
+        # ====================================================================
+        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE
+        # ====================================================================
+        sidebar = tk.Frame(self.body, bg=THEME["bg_panel"], width=220,
+                          highlightthickness=2,
+                          highlightbackground=THEME["border"])
+        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar.grid_propagate(False)
 
-        nav_pad = 14
-        tk.Label(self.nav, text="COMMAND CENTER", fg=THEME["muted2"], bg=THEME["bg_nav"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=nav_pad, pady=(nav_pad, 8))
+        # Sidebar title
+        tk.Label(sidebar, text="COMMAND CENTER",
+                fg=THEME["muted"],
+                bg=THEME["bg_panel"],
+                font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(20, 15))
 
+        # Navigation buttons
         self.PAGES_CONFIG = [
             ("dashboard", "Dashboard", DashboardPage),
-            ("recon", "Nibor Recon", ReconPage),
+            ("nibor_recon", "Nibor Recon", ReconPage),
             ("nok_implied", "NOK Implied", NokImpliedPage),
-            ("metadata", "NIBOR Meta Data", NiborMetaDataPage),
-            ("rules", "Rules & Logic", RulesPage),
+            ("weights", "Weights", WeightsPage),
+            ("nibor_meta", "NIBOR Meta Data", NiborMetaDataPage),
+            ("rules_logic", "Rules & Logic", RulesPage),
             ("bloomberg", "Bloomberg", BloombergPage),
-            ("days", "Nibor Days", NiborDaysPage),
+            ("nibor_days", "Nibor Days", NiborDaysPage),
         ]
 
-        for key, label, _ in self.PAGES_CONFIG:
-            self._add_nav(key, label)
+        for page_key, page_name in [(k, n) for k, n, _ in self.PAGES_CONFIG]:
+            btn = tk.Button(sidebar,
+                          text=page_name,
+                          command=lambda pk=page_key: self.show_page(pk),
+                          bg=THEME["bg_panel"],
+                          fg=THEME["text"],
+                          font=FONTS["body"],
+                          relief="flat",
+                          anchor="w",
+                          padx=15,
+                          pady=10,
+                          cursor="hand2")
+            btn.pack(fill="x", padx=12, pady=3)
+            self._nav_buttons[page_key] = btn
 
-        self.nav_footer = tk.Frame(self.nav, bg=THEME["bg_nav"])
-        self.nav_footer.pack(side="bottom", fill="x", padx=nav_pad, pady=(10, nav_pad))
-        self.lbl_nav_footer = tk.Label(self.nav_footer, text=f"Onyx v{APP_VERSION} — Fast Mode",
-                                       fg=THEME["muted2"], bg=THEME["bg_nav"], font=("Segoe UI", CURRENT_MODE["small"]))
-        self.lbl_nav_footer.pack(anchor="w")
+            # Hover effects
+            btn.bind("<Enter>", lambda e, b=btn: b.config(bg=THEME["bg_hover"]))
+            btn.bind("<Leave>", lambda e, b=btn: b.config(bg=THEME["bg_panel"]))
 
-        self.content = tk.Frame(self.body, bg=THEME["bg_panel"], highlightthickness=1, highlightbackground=THEME["border"])
-        self.content.grid(row=0, column=1, sticky="nsew")
+        # Divider
+        tk.Frame(sidebar, bg=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
+
+        # Quick Access
+        tk.Label(sidebar, text="QUICK ACCESS",
+                fg=THEME["muted"],
+                bg=THEME["bg_panel"],
+                font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+
+        # History folder
+        history_label = tk.Label(sidebar,
+                                text="📂 History",
+                                fg=THEME["muted"],
+                                bg=THEME["bg_panel"],
+                                font=("Segoe UI", 10),
+                                anchor="w",
+                                cursor="hand2",
+                                padx=15,
+                                pady=5)
+        history_label.pack(fill="x", padx=12)
+        history_label.bind("<Enter>", lambda e: history_label.config(fg=THEME["accent"], bg=THEME["bg_hover"]))
+        history_label.bind("<Leave>", lambda e: history_label.config(fg=THEME["muted"], bg=THEME["bg_panel"]))
+        history_label.bind("<Button-1>", lambda e: self.open_history_folder())
+
+        # GRSS folder
+        grss_label = tk.Label(sidebar,
+                             text="📂 GRSS",
+                             fg=THEME["muted"],
+                             bg=THEME["bg_panel"],
+                             font=("Segoe UI", 10),
+                             anchor="w",
+                             cursor="hand2",
+                             padx=15,
+                             pady=5)
+        grss_label.pack(fill="x", padx=12)
+        grss_label.bind("<Enter>", lambda e: grss_label.config(fg=THEME["accent"], bg=THEME["bg_hover"]))
+        grss_label.bind("<Leave>", lambda e: grss_label.config(fg=THEME["muted"], bg=THEME["bg_panel"]))
+        grss_label.bind("<Button-1>", lambda e: self.open_stibor_folder())
+
+        # Spacer
+        tk.Frame(sidebar, bg=THEME["bg_panel"]).pack(fill="both", expand=True)
+
+        # Visual separator line
+        separator = tk.Frame(self.body, bg=THEME["accent"], width=3)
+        separator.grid(row=0, column=1, sticky="ns")
+
+        # ====================================================================
+        # CONTENT AREA
+        # ====================================================================
+        self.content = tk.Frame(self.body, bg=THEME["bg_panel"],
+                               highlightthickness=0)
+        self.content.grid(row=0, column=2, sticky="nsew")
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
@@ -175,11 +350,6 @@ class OnyxTerminalTK(tk.Tk):
             except Exception:
                 pass
 
-    def _add_nav(self, key, label):
-        btn = NavButtonTK(self.nav, text=label, command=lambda k=key: self.show_page(k))
-        btn.pack(fill="x", padx=10, pady=6)
-        self._nav_buttons[key] = btn
-
     def show_page(self, key: str, focus: str | None = None):
         if key not in self._pages:
             return
@@ -190,11 +360,15 @@ class OnyxTerminalTK(tk.Tk):
         self._current_page = key
         self._pages[key].grid()
 
-        for k, b in self._nav_buttons.items():
-            b.set_selected(k == key)
+        # Update navigation button highlighting
+        for btn_key, btn in self._nav_buttons.items():
+            if btn_key == key:
+                btn.config(fg=THEME["accent"], font=("Segoe UI", 11, "bold"))
+            else:
+                btn.config(fg=THEME["text"], font=FONTS["body"])
 
-        if key == "recon" and focus:
-            self._pages["recon"].set_focus_mode(focus)
+        if key == "nibor_recon" and focus:
+            self._pages["nibor_recon"].set_focus_mode(focus)
 
         # Auto-refresh NOK Implied page when shown (if data is available)
         if key == "nok_implied":
@@ -221,7 +395,6 @@ class OnyxTerminalTK(tk.Tk):
             return
 
         self.set_busy(True, text="FETCHING…")
-        self.run_status.configure(text="● UPDATING…", fg=THEME["accent"])
 
         today = datetime.now().strftime("%Y-%m-%d")
         self.update_days_from_date(today)
@@ -292,13 +465,20 @@ class OnyxTerminalTK(tk.Tk):
             print(f"[Main._apply_excel_result] Sample cached cells: {sample_cells}")
             
             self.excel_last_ok_ts = datetime.now()
-            self.card_excel.set_status(True, self.excel_last_ok_ts, detail_text=f"Last updated: {fmt_ts(self.excel_last_ok_ts)}")
-            self.run_status.configure(text="● EXCEL OK (BBG PENDING)", fg=THEME["warn"])
+            self.excel_ok = True
+            self.excel_last_update = fmt_ts(self.excel_last_ok_ts)
+            
+            # Update Excel status in global header (compact format)
+            self.excel_status_dot.config(fg=THEME["good"])
+            self.excel_conn_lbl.config(text="OK", fg=THEME["good"])
         else:
             self.cached_excel_data = {}
+            self.excel_ok = False
             print(f"[Main._apply_excel_result] [ERROR] Excel failed, cached_excel_data cleared")
-            self.card_excel.set_status(False, None, detail_text="Last updated: -")
-            self.run_status.configure(text="● EXCEL ERROR", fg=THEME["bad"])
+            
+            # Update Excel status (compact format)
+            self.excel_status_dot.config(fg=THEME["bad"])
+            self.excel_conn_lbl.config(text="FAIL", fg=THEME["bad"])
 
         self.active_alerts = []
         self.status_spot = True
@@ -310,6 +490,14 @@ class OnyxTerminalTK(tk.Tk):
         self.weights_state = "WAIT"
 
         _ = self.build_recon_rows(view="ALL")
+        
+        # Update alerts count in global header (compact format)
+        alert_count = len(self.active_alerts)
+        if alert_count > 0:
+            self.alerts_count_lbl.config(text=str(alert_count), fg=THEME["bad"])
+        else:
+            self.alerts_count_lbl.config(text="0", fg=THEME["good"])
+        
         self.refresh_ui()
 
     def _apply_bbg_result(self, bbg_data: dict, bbg_meta: dict, bbg_err: str | None):
@@ -318,20 +506,23 @@ class OnyxTerminalTK(tk.Tk):
         if bbg_data and not bbg_err and blpapi:
             self.cached_market_data = dict(bbg_data)
             self.bbg_last_ok_ts = datetime.now()
+            self.bbg_ok = True
+            self.bbg_last_update = fmt_ts(self.bbg_last_ok_ts)
 
             gh = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
             self.group_health = dict(gh)
 
-            req = self.last_bbg_meta.get("requested_count", "-")
-            resp = self.last_bbg_meta.get("responded_count", "-")
-            dur = self.last_bbg_meta.get("duration_ms", "-")
-            src = "cache" if self.last_bbg_meta.get("from_cache") else f"{dur}ms"
-            detail = f"Last updated: {fmt_ts(self.bbg_last_ok_ts)} | {resp}/{req} | {src}"
-            self.card_bbg.set_status(True, self.bbg_last_ok_ts, detail_text=detail)
+            # Update Bloomberg status in global header (compact format)
+            self.bbg_status_dot.config(fg=THEME["good"])
+            self.bbg_conn_lbl.config(text="OK", fg=THEME["good"])
         else:
             self.cached_market_data = dict(bbg_data) if bbg_data else {}
+            self.bbg_ok = False
             self.group_health = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
-            self.card_bbg.set_status(False, None, detail_text="Last updated: -")
+            
+            # Update Bloomberg status (compact format)
+            self.bbg_status_dot.config(fg=THEME["bad"])
+            self.bbg_conn_lbl.config(text="FAIL", fg=THEME["bad"])
 
         self.active_alerts = []
         self.status_spot = True
@@ -343,13 +534,6 @@ class OnyxTerminalTK(tk.Tk):
         self.weights_state = "WAIT"
 
         _ = self.build_recon_rows(view="ALL")
-
-        if self.cached_excel_data and (self.cached_market_data or not blpapi) and not self.active_alerts:
-            self.run_status.configure(text="● VALIDATED", fg=THEME["good"])
-        elif self.active_alerts:
-            self.run_status.configure(text=f"● ALERTS ({len(self.active_alerts)})", fg=THEME["bad"])
-        else:
-            self.run_status.configure(text="● PARTIAL", fg=THEME["warn"])
 
         # Update NokImpliedPage FIRST to populate impl_calc_data
         if "nok_implied" in self._pages:
@@ -824,3 +1008,4 @@ if __name__ == "__main__":
     # För att köra i GUI-läge:
     app = OnyxTerminalTK()
     app.mainloop()
+    # run_terminal_mode()

@@ -5,7 +5,7 @@ Contains all specific page views.
 import tkinter as tk
 from tkinter import ttk
 
-from config import THEME, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree
 from utils import safe_float
 from calculations import calc_implied_yield
@@ -48,124 +48,98 @@ class ToolTip:
 
 
 class DashboardPage(tk.Frame):
-    """Main dashboard with sidebar layout and Excel validation."""
+    """Main dashboard with Command Center sidebar and clean layout."""
 
     def __init__(self, master, app):
         super().__init__(master, bg=THEME["bg_panel"])
         self.app = app
-        pad = CURRENT_MODE["pad"]
+        
+        # Initialize blink tracking
+        self._blink_widgets = {}
 
-        # Main container with grid layout (sidebar | main area)
-        main_container = tk.Frame(self, bg=THEME["bg_panel"])
-        main_container.pack(fill="both", expand=True)
+        # ====================================================================
+        # NAVIGATION REMOVED - Now in main.py (visible on ALL pages)
+        # ====================================================================
+        # The Command Center sidebar has been moved to main.py so it's
+        # always visible across all pages. DashboardPage now only contains
+        # the dashboard content itself.
+        # ====================================================================
 
-        # Configure grid: 1 row, 2 columns
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=0, minsize=220)  # Sidebar fixed width
-        main_container.grid_columnconfigure(1, weight=1)  # Main area flexible
-
-        # ===================================================================
-        # LEFT SIDEBAR - SYSTEM STATUS
-        # ===================================================================
-        sidebar = tk.Frame(main_container, bg=THEME["bg_card"],
-                          highlightthickness=1, highlightbackground=THEME["border"])
-        sidebar.grid(row=0, column=0, sticky="nsew", padx=(pad, pad//2), pady=pad)
-
-        # Sidebar title
-        tk.Label(sidebar, text="SYSTEM STATUS", fg=THEME["muted"],
-                bg=THEME["bg_card"],
-                font=("Segoe UI", CURRENT_MODE["body"], "bold")).pack(pady=(15, 10))
-
-        # Status items (6 indicators)
-        self.status_items = {}
-        status_configs = [
-            {"key": "bbg", "label": "Bloomberg"},
-            {"key": "excel", "label": "Excel"},
-            {"key": "spot", "label": "Spot Rates"},
-            {"key": "fx", "label": "FX Forwards"},
-            {"key": "days", "label": "Days Check"},
-            {"key": "weights", "label": "Weights"}
-        ]
-
-        for cfg in status_configs:
-            item_frame = tk.Frame(sidebar, bg=THEME["bg_card"])
-            item_frame.pack(fill="x", padx=15, pady=5)
-
-            # Status indicator (✓ or ✗)
-            status_lbl = tk.Label(item_frame, text="○", fg=THEME["muted"],
-                                 bg=THEME["bg_card"],
-                                 font=("Segoe UI", 14), width=2)
-            status_lbl.pack(side="left")
-
-            # Label
-            text_lbl = tk.Label(item_frame, text=cfg["label"],
-                               fg=THEME["text"], bg=THEME["bg_card"],
-                               font=("Segoe UI", CURRENT_MODE["body"]),
-                               anchor="w")
-            text_lbl.pack(side="left", fill="x", expand=True)
-
-            self.status_items[cfg["key"]] = status_lbl
-
-        # ===================================================================
-        # RIGHT MAIN AREA
-        # ===================================================================
-        main_area = tk.Frame(main_container, bg=THEME["bg_panel"])
-        main_area.grid(row=0, column=1, sticky="nsew", padx=(pad//2, pad), pady=pad)
-
-        # Top bar with title and icon buttons
-        top_bar = tk.Frame(main_area, bg=THEME["bg_panel"])
-        top_bar.pack(fill="x", pady=(0, 15))
-
-        tk.Label(top_bar, text="ONYX TERMINAL", fg=THEME["text"],
+        # ====================================================================
+        # DASHBOARD CONTENT
+        # ====================================================================
+        content = tk.Frame(self, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # ====================================================================
+        # NIBOR CALCULATION SECTION
+        # ====================================================================
+        tk.Label(content, text="NIBOR CALCULATION",
+                fg=THEME["muted"],
                 bg=THEME["bg_panel"],
-                font=("Segoe UI", CURRENT_MODE["title"], "bold")).pack(side="left")
+                font=FONTS["h3"]).pack(anchor="center", pady=(15, 5))
+        
+        # Radio buttons for calculation model
+        model_selection_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        model_selection_frame.pack(anchor="center", pady=(0, 15))
 
-        # Button container
-        btn_container = tk.Frame(top_bar, bg=THEME["bg_panel"])
-        btn_container.pack(side="right")
+        self.calc_model_var = tk.StringVar(value="swedbank")
 
-        # History button (🕒 icon)
-        history_btn = OnyxButtonTK(btn_container, "🕒",
-                                  command=self.app.open_history_folder,
-                                  variant="secondary")
-        history_btn.pack(side="left", padx=5)
+        swedbank_radio = tk.Radiobutton(
+            model_selection_frame,
+            text="Swedbank Calc",
+            variable=self.calc_model_var,
+            value="swedbank",
+            command=self._on_dashboard_model_change,
+            bg=THEME["bg_panel"],
+            fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=FONTS["body"]
+        )
+        swedbank_radio.pack(side="left", padx=10)
 
-        # GRSS button (📋 icon)
-        grss_btn = OnyxButtonTK(btn_container, "📋",
-                               command=self.app.open_stibor_folder,
-                               variant="secondary")
-        grss_btn.pack(side="left", padx=5)
+        nore_radio = tk.Radiobutton(
+            model_selection_frame,
+            text="Nore Calc",
+            variable=self.calc_model_var,
+            value="nore",
+            command=self._on_dashboard_model_change,
+            bg=THEME["bg_panel"],
+            fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=FONTS["body"]
+        )
+        nore_radio.pack(side="left", padx=10)
+        
+        # ====================================================================
+        # NIBOR RATES TABLE with Norway flag 🇳🇴
+        # ====================================================================
+        tk.Label(content, text="🇳🇴 NIBOR RATES (LIVE)",
+                fg=THEME["accent_secondary"],
+                bg=THEME["bg_panel"],
+                font=FONTS["h2"]).pack(anchor="center", pady=(10, 15))
 
-        # UPDATE button
-        self.btn_update = OnyxButtonTK(btn_container, "UPDATE SYSTEM",
-                                      command=self.app.refresh_data,
-                                      variant="accent")
-        self.btn_update.pack(side="left", padx=5)
-        self.app.register_update_button(self.btn_update)
+        # Container for centering
+        table_container = tk.Frame(content, bg=THEME["bg_panel"])
+        table_container.pack(fill="both", expand=True, pady=(0, 20))
 
-        # ===================================================================
-        # FUNDING RATES TABLE WITH EXCEL VALIDATION
-        # ===================================================================
-        funding_title = tk.Label(main_area, text="📊 NIBOR",
-                                fg=THEME["accent"], bg=THEME["bg_panel"],
-                                font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
-        funding_title.pack(anchor="w", pady=(0, 10))
-
-        # Center container for table
-        center_container = tk.Frame(main_area, bg=THEME["bg_panel"])
-        center_container.pack(fill="x", pady=(0, 20))
-
-        funding_frame = tk.Frame(center_container, bg=THEME["bg_card"],
-                                highlightthickness=1,
-                                highlightbackground=THEME["border"])
-        funding_frame.pack(anchor="center")  # CENTERED!
+        # Actual table (larger, centered)
+        funding_frame = tk.Frame(table_container, bg=THEME["bg_card"],
+                                highlightthickness=2,
+                                highlightbackground=THEME["accent_secondary"],
+                                relief="flat")
+        funding_frame.pack(anchor="center")
 
         # Table headers (5 columns: TENOR, FUNDING, SPREAD, NIBOR, MATCH)
         headers = ["TENOR", "FUNDING RATE", "SPREAD", "NIBOR", "MATCH"]
+        widths = [12, 18, 12, 18, 12]
+        
         header_frame = tk.Frame(funding_frame, bg=THEME["bg_card_2"])
-        header_frame.grid(row=0, column=0, columnspan=5, sticky="ew", padx=10, pady=(10, 5))
-
-        widths = [8, 15, 10, 15, 8]
+        header_frame.grid(row=0, column=0, columnspan=5, sticky="ew")
         for i, (header, width) in enumerate(zip(headers, widths)):
             tk.Label(header_frame, text=header, fg=THEME["muted"],
                     bg=THEME["bg_card_2"],
@@ -187,61 +161,97 @@ class DashboardPage(tk.Frame):
             tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
                     bg=THEME["bg_card"],
                     font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                    width=8, anchor="w").grid(row=row_idx, column=0,
-                                             padx=10, pady=8, sticky="w")
+                    width=8, anchor="center").grid(row=row_idx, column=0,
+                                             padx=5, pady=6, sticky="ew")
 
             cells = {}
 
-            # Funding Rate
+            # Funding Rate - Clean table style, centered
             funding_lbl = tk.Label(funding_frame, text="-",
-                                  fg=THEME["text"], bg=THEME["chip"],
-                                  font=("Consolas", CURRENT_MODE["body"], "bold"),
-                                  width=15, cursor="hand2", relief="raised", bd=1,
-                                  anchor="e")
-            funding_lbl.grid(row=row_idx, column=1, padx=5, pady=8, sticky="e")
+                                  fg=THEME["text"], bg=THEME["bg_card"],
+                                  font=("Consolas", CURRENT_MODE["body"]),
+                                  width=15, cursor="hand2", relief="flat",
+                                  anchor="center")
+            funding_lbl.grid(row=row_idx, column=1, padx=5, pady=6, sticky="ew")
             funding_lbl.bind("<Button-1>",
                             lambda e, t=tenor["key"]: self._show_funding_details(t))
+            funding_lbl.bind("<Enter>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_card_2"]))
+            funding_lbl.bind("<Leave>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_card"]))
             cells["funding"] = funding_lbl
 
-            # Spread
+            # Spread - Clean table style, centered, NO %
             spread_lbl = tk.Label(funding_frame, text="-",
-                                 fg=THEME["text"], bg=THEME["bg_card_2"],
-                                 font=("Consolas", CURRENT_MODE["body"], "bold"),
-                                 width=10, anchor="e")
-            spread_lbl.grid(row=row_idx, column=2, padx=5, pady=8, sticky="e")
+                                 fg=THEME["text"], bg=THEME["bg_card"],
+                                 font=("Consolas", CURRENT_MODE["body"]),
+                                 width=10, anchor="center")
+            spread_lbl.grid(row=row_idx, column=2, padx=5, pady=6, sticky="ew")
             cells["spread"] = spread_lbl
 
-            # Final Rate
+            # Final Rate (NIBOR) - Swedbank blue, clean table style, centered
             final_lbl = tk.Label(funding_frame, text="-",
-                                fg=THEME["accent"], bg=THEME["chip"],
+                                fg=THEME["accent_secondary"], bg=THEME["bg_card"],
                                 font=("Consolas", CURRENT_MODE["body"], "bold"),
-                                width=15, cursor="hand2", relief="raised", bd=1,
-                                anchor="e")
-            final_lbl.grid(row=row_idx, column=3, padx=5, pady=8, sticky="e")
+                                width=15, cursor="hand2", relief="flat",
+                                anchor="center")
+            final_lbl.grid(row=row_idx, column=3, padx=5, pady=6, sticky="ew")
             final_lbl.bind("<Button-1>",
                           lambda e, t=tenor["key"]: self._show_funding_details(t))
+            final_lbl.bind("<Enter>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card_2"]))
+            final_lbl.bind("<Leave>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card"]))
             cells["final"] = final_lbl
 
-            # Match indicator (✓ or ✗)
-            match_lbl = tk.Label(funding_frame, text="○",
-                                fg=THEME["muted"], bg=THEME["bg_card"],
-                                font=("Segoe UI", 16), width=8)
-            match_lbl.grid(row=row_idx, column=4, padx=5, pady=8)
+            # Match indicator - Professional text badge
+            match_lbl = tk.Label(funding_frame, text="PEND",
+                                fg=THEME["badge_pend"], bg=THEME["bg_card_2"],
+                                font=("Segoe UI", 9, "bold"), width=8, anchor="center")
+            match_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
             cells["match"] = match_lbl
             cells["excel_row"] = tenor["excel_row"]
             cells["excel_col"] = tenor["excel_col"]
 
             self.funding_cells[tenor["key"]] = cells
 
+        # ====================================================================
+        # DATA SOURCES BAR - Moved here (after table, before alerts)
+        # ====================================================================
+        status_bar = tk.Frame(content, bg=THEME["bg_card_2"],
+                             highlightthickness=1,
+                             highlightbackground=THEME["border"])
+        status_bar.pack(fill="x", pady=(15, 0))
+        
+        tk.Label(status_bar, text="Data Sources:",
+                fg=THEME["muted"],
+                bg=THEME["bg_card_2"],
+                font=FONTS["body"]).pack(side="left", padx=(20, 15), pady=12)
+        
+        self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card_2"])
+        self.status_badges_frame.pack(side="left", fill="x", expand=True)
+        
+        self.status_badges = {}
+        
+        self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
+                                          fg=THEME["muted"],
+                                          bg=THEME["bg_card_2"],
+                                          font=FONTS["body"])
+        self.status_summary_lbl.pack(side="right", padx=20, pady=12)
+
         # ===================================================================
         # ACTIVE ALERTS - ALWAYS VISIBLE
         # ===================================================================
-        alerts_container = tk.Frame(main_area, bg=THEME["bg_panel"])
+        alerts_container = tk.Frame(content, bg=THEME["bg_panel"])
         alerts_container.pack(fill="x", pady=(15, 10))
 
-        tk.Label(alerts_container, text="⚠ ACTIVE ALERTS",
-                fg=THEME["accent"], bg=THEME["bg_panel"],
-                font=("Segoe UI", CURRENT_MODE["body"], "bold")).pack(anchor="w", pady=(0, 5))
+        # Alert header with icon
+        alerts_header = tk.Frame(alerts_container, bg=THEME["bg_panel"])
+        alerts_header.pack(fill="x", pady=(0, 10))
+
+        tk.Label(alerts_header, text="⚠", fg=THEME["warning"],
+                bg=THEME["bg_panel"],
+                font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
+
+        tk.Label(alerts_header, text="ACTIVE ALERTS", fg=THEME["text"],
+                bg=THEME["bg_panel"],
+                font=FONTS["h3"]).pack(side="left")
 
         # Fixed height scrollable box (~150px for ~5 rows)
         self.alerts_box = tk.Frame(alerts_container, bg=THEME["bg_card"],
@@ -270,22 +280,23 @@ class DashboardPage(tk.Frame):
         # ===================================================================
         # FOOTER - EXPLANATION
         # ===================================================================
-        footer_frame = tk.Frame(main_area, bg=THEME["bg_panel"])
-        footer_frame.pack(side="bottom", fill="x", pady=(10, 0))
+        footer_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        footer_frame.pack(side="bottom", fill="x", pady=(15, 10))
 
         tk.Label(footer_frame,
                 text="✓ = Excel NIBOR level matches Python calculated NIBOR level",
-                fg=THEME["muted"], bg=THEME["bg_panel"],
-                font=("Segoe UI", 9, "italic")).pack(anchor="w")
+                fg=THEME["text_light"], bg=THEME["bg_panel"],
+                font=FONTS["body_small"],
+                anchor="w").pack(padx=20)
 
-    def _on_model_change(self):
-        """Handle calculation model change."""
+    def _on_dashboard_model_change(self):
+        """Handle calculation model change on Dashboard."""
         model = self.calc_model_var.get()
         print(f"[Dashboard] Calculation model changed to: {model}")
         # Store selected model in app
         self.app.selected_calc_model = model
-        # Trigger re-calculation of funding rates
-        self._update_implied_rates()
+        # Trigger re-update of funding rates table
+        self._update_funding_rates_with_validation()
     
     def _status_card(self, master, title, details_cmd):
         card = tk.Frame(master, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
@@ -528,39 +539,192 @@ class DashboardPage(tk.Frame):
         card._sub.configure(text=subtext)
 
     def update(self):
-        """Update all dashboard elements with new sidebar layout."""
-        # Update sidebar status indicators
-        self._update_status_sidebar()
+        """Update all dashboard elements."""
+        # Populate horizontal status bar
+        self._populate_status_badges()
         
-        # Update funding rates with Excel validation
+        # Update funding rates with Excel validation (cards are in global header, updated by main.py)
         self._update_funding_rates_with_validation()
     
-    def _update_status_sidebar(self):
-        """Update sidebar status indicators based on system state."""
-        statuses = {
-            "bbg": self.app.bbg_ok if hasattr(self.app, 'bbg_ok') else False,
-            "excel": self.app.excel_ok if hasattr(self.app, 'excel_ok') else False,
-            "spot": self.app.status_spot if hasattr(self.app, 'status_spot') else False,
-            "fx": self.app.status_fwds if hasattr(self.app, 'status_fwds') else False,
-            "days": self.app.status_days if hasattr(self.app, 'status_days') else False,
-            "weights": getattr(self.app, 'weights_state', 'WAIT') == 'OK'
-        }
+    def _populate_status_badges(self):
+        """Populate horizontal status bar with current system status."""
+        # Clear existing badges
+        for widget in self.status_badges_frame.winfo_children():
+            widget.destroy()
         
-        for key, is_ok in statuses.items():
-            if key in self.status_items:
-                lbl = self.status_items[key]
-                if is_ok:
-                    lbl.config(text="✓", fg=THEME["good"])
-                else:
-                    lbl.config(text="✗", fg=THEME["bad"])
+        self.status_badges = {}
+        
+        statuses = [
+            ("Bloomberg", "bbg"),
+            ("Excel", "excel"),
+            ("Spot", "spot"),
+            ("FX", "fx"),
+            ("Days", "days"),
+            ("Weights", "weights")
+        ]
+        
+        ok_count = 0
+        
+        for name, key in statuses:
+            # Check status
+            if key == "bbg":
+                is_ok = self.app.bbg_ok if hasattr(self.app, 'bbg_ok') else False
+            elif key == "excel":
+                is_ok = self.app.excel_ok if hasattr(self.app, 'excel_ok') else False
+            elif key == "spot":
+                is_ok = self.app.status_spot if hasattr(self.app, 'status_spot') else False
+            elif key == "fx":
+                is_ok = self.app.status_fwds if hasattr(self.app, 'status_fwds') else False
+            elif key == "days":
+                is_ok = self.app.status_days if hasattr(self.app, 'status_days') else False
+            elif key == "weights":
+                is_ok = getattr(self.app, 'weights_state', 'WAIT') == 'OK'
+            else:
+                is_ok = False
+            
+            if is_ok:
+                ok_count += 1
+            
+            # Badge frame
+            badge = tk.Frame(self.status_badges_frame, bg=THEME["bg_card_2"],
+                            cursor="hand2")
+            badge.pack(side="left", padx=8, pady=6)
+            
+            # Icon
+            icon = "✓" if is_ok else "✗"
+            color = THEME["good"] if is_ok else THEME["bad"]
+            
+            icon_lbl = tk.Label(badge, text=icon, fg=color,
+                               bg=THEME["bg_card_2"],
+                               font=("Segoe UI", 14, "bold"))
+            icon_lbl.pack(side="left")
+            
+            # Name
+            name_lbl = tk.Label(badge, text=name, fg=THEME["text"],
+                               bg=THEME["bg_card_2"],
+                               font=FONTS["body"])
+            name_lbl.pack(side="left", padx=(5, 0))
+            
+            # Hover effect
+            badge.bind("<Enter>",
+                      lambda e, b=badge: b.config(bg=THEME["bg_hover"]))
+            badge.bind("<Leave>",
+                      lambda e, b=badge: b.config(bg=THEME["bg_card_2"]))
+            
+            # Store reference
+            self.status_badges[key] = (icon_lbl, name_lbl, badge)
+        
+        # Update summary
+        total = len(statuses)
+        color = THEME["good"] if ok_count == total else (
+            THEME["warning"] if ok_count > total // 2 else THEME["bad"]
+        )
+        self.status_summary_lbl.config(
+            text=f"({ok_count}/{total} OK)",
+            fg=color
+        )
+    
+    def _update_connection_cards(self):
+        """Update Excel and Bloomberg connection status in top-right cards."""
+        # Excel
+        if hasattr(self.app, 'excel_ok') and self.app.excel_ok:
+            self.excel_conn_lbl.config(text="CONNECTED", fg=THEME["good"])
+            if hasattr(self.app, 'excel_last_update'):
+                self.excel_time_lbl.config(text=f"Last updated: {self.app.excel_last_update}")
+        else:
+            self.excel_conn_lbl.config(text="DISCONNECTED", fg=THEME["bad"])
+            self.excel_time_lbl.config(text="Last updated: --")
+        
+        # Bloomberg
+        if hasattr(self.app, 'bbg_ok') and self.app.bbg_ok:
+            self.bbg_conn_lbl.config(text="CONNECTED", fg=THEME["good"])
+            if hasattr(self.app, 'bbg_last_update'):
+                self.bbg_time_lbl.config(text=f"Last updated: {self.app.bbg_last_update}")
+        else:
+            self.bbg_conn_lbl.config(text="DISCONNECTED", fg=THEME["bad"])
+            self.bbg_time_lbl.config(text="Last updated: --")
+    
+    def _update_alerts_count(self):
+        """Update alerts count indicator."""
+        alert_count = 0
+        
+        # System status alerts
+        for key in ["bbg", "excel", "spot", "fx", "days", "weights"]:
+            if key == "bbg":
+                is_ok = self.app.bbg_ok if hasattr(self.app, 'bbg_ok') else False
+            elif key == "excel":
+                is_ok = self.app.excel_ok if hasattr(self.app, 'excel_ok') else False
+            elif key == "spot":
+                is_ok = self.app.status_spot if hasattr(self.app, 'status_spot') else False
+            elif key == "fx":
+                is_ok = self.app.status_fwds if hasattr(self.app, 'status_fwds') else False
+            elif key == "days":
+                is_ok = self.app.status_days if hasattr(self.app, 'status_days') else False
+            elif key == "weights":
+                is_ok = getattr(self.app, 'weights_state', 'WAIT') == 'OK'
+            else:
+                is_ok = False
+            
+            if not is_ok:
+                alert_count += 1
+        
+        if alert_count > 0:
+            self.alerts_count_lbl.config(
+                text=f"● ALERTS ({alert_count})",
+                fg=THEME["bad"]
+            )
+        else:
+            self.alerts_count_lbl.config(
+                text="✓ ALL OK",
+                fg=THEME["good"]
+            )
+    
+    def _start_blink(self, widget):
+        """Start blinking animation for failed widget."""
+        if widget not in self._blink_widgets:
+            self._blink_widgets[widget] = {
+                "colors": [THEME["badge_fail"], THEME["accent"]],  # Red <-> Orange
+                "index": 0,
+                "active": True
+            }
+            self._animate_blink(widget)
+    
+    def _animate_blink(self, widget):
+        """Animate widget color toggle."""
+        if widget not in self._blink_widgets:
+            return
+        
+        data = self._blink_widgets[widget]
+        if not data["active"]:
+            return
+        
+        try:
+            color = data["colors"][data["index"]]
+            widget.config(fg=color)
+            data["index"] = (data["index"] + 1) % 2
+            self.after(800, lambda: self._animate_blink(widget))
+        except tk.TclError:
+            # Widget destroyed, remove from tracking
+            if widget in self._blink_widgets:
+                del self._blink_widgets[widget]
+    
+    def _stop_blink(self, widget):
+        """Stop blinking when fixed."""
+        if widget in self._blink_widgets:
+            self._blink_widgets[widget]["active"] = False
+            del self._blink_widgets[widget]
     
     def _update_funding_rates_with_validation(self):
-        """Update funding rates table with Excel validation."""
+        """Update funding rates table with Excel validation - USES SELECTED MODEL."""
         from config import FUNDING_SPREADS
         from calculations import calc_funding_rate
         
         if not hasattr(self.app, 'impl_calc_data'):
             return
+        
+        # Get selected calculation model (default: swedbank)
+        selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
+        print(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
         
         weights = self._get_weights()
         self.app.funding_calc_data = {}
@@ -568,8 +732,17 @@ class DashboardPage(tk.Frame):
         alert_messages = []
         
         for tenor_key in ["1m", "2m", "3m", "6m"]:
-            eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
-            usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
+            # Select data based on model choice
+            if selected_model == "swedbank":
+                # Use Internal Basket Rates (Excel CM - nibor suffix)
+                eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}_nibor", {})
+                usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}_nibor", {})
+                print(f"[Dashboard] {tenor_key}: Using Swedbank Calc (Excel CM)")
+            else:
+                # Use Bloomberg CM Rates (nore model - no suffix)
+                eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
+                usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
+                print(f"[Dashboard] {tenor_key}: Using Nore Calc (Bloomberg CM)")
             
             eur_impl = eur_data.get('implied')
             usd_impl = usd_data.get('implied')
@@ -588,7 +761,8 @@ class DashboardPage(tk.Frame):
             if "funding" in cells:
                 cells["funding"].config(text=f"{funding_rate:.2f}%" if funding_rate else "N/A")
             if "spread" in cells:
-                cells["spread"].config(text=f"{spread:.2f}%")
+                # NO % sign in spread column
+                cells["spread"].config(text=f"{spread:.2f}")
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
             
@@ -610,26 +784,28 @@ class DashboardPage(tk.Frame):
                             is_match = (final_rate_rounded == excel_value_rounded)
                             
                             if is_match:
-                                cells["match"].config(text="✓", fg=THEME["good"])
+                                cells["match"].config(text="OK", fg=THEME["badge_ok"], bg=THEME["bg_card_2"])
                             else:
-                                cells["match"].config(text="✗", fg=THEME["bad"])
+                                cells["match"].config(text="FAIL", fg=THEME["badge_fail"], bg=THEME["bg_card_2"])
                                 alert_messages.append(f"{tenor_key.upper()}: GUI {final_rate:.4f}% ≠ Excel {excel_value:.4f}%")
                         except (ValueError, TypeError):
-                            cells["match"].config(text="?", fg=THEME["warn"])
+                            cells["match"].config(text="WARN", fg=THEME["badge_warn"], bg=THEME["bg_card_2"])
                     else:
-                        cells["match"].config(text="○", fg=THEME["muted"])
+                        cells["match"].config(text="—", fg=THEME["muted"], bg=THEME["bg_card"])
                 else:
-                    cells["match"].config(text="○", fg=THEME["muted"])
+                    cells["match"].config(text="—", fg=THEME["muted"], bg=THEME["bg_card"])
             
-            # Store for popup
+            # Store for popup with model information
             self.app.funding_calc_data[tenor_key] = {
                 'eur_impl': eur_impl, 'usd_impl': usd_impl, 'nok_cm': nok_cm,
                 'eur_spot': eur_data.get('spot'), 'eur_pips': eur_data.get('pips'),
                 'eur_rate': eur_data.get('rate'), 'eur_days': eur_data.get('days'),
+                'rate_label': eur_data.get('rate_label', 'Unknown'),
                 'usd_spot': usd_data.get('spot'), 'usd_pips': usd_data.get('pips'),
                 'usd_rate': usd_data.get('rate'), 'usd_days': usd_data.get('days'),
                 'weights': weights, 'funding_rate': funding_rate,
-                'spread': spread, 'final_rate': final_rate
+                'spread': spread, 'final_rate': final_rate,
+                'model': selected_model
             }
         
         # Show/hide alerts
@@ -662,6 +838,13 @@ class DashboardPage(tk.Frame):
                         font=("Segoe UI", 10), anchor="w",
                         wraplength=650).pack(side="left", fill="x", expand=True, pady=8)
 
+    def _on_model_change(self):
+        """Called when calculation model selection changes."""
+        model = self.calc_model.get()
+        print(f"[NOK Implied] Calculation model changed to: {model}")
+        # Note: Recalculation is triggered manually via Recalculate button
+        # This allows user to change model without auto-recalculating
+    
     def _get_ticker_val(self, ticker):
         """Get price value from cached market data."""
         data = self.app.cached_market_data or {}
@@ -671,16 +854,25 @@ class DashboardPage(tk.Frame):
         return None
 
     def _get_weights(self):
-        """Get weights from Excel engine or use defaults."""
+        """Get weights from Excel engine or use defaults - ALWAYS USE LATEST."""
+        from config import WEIGHTS_FILE
+        
+        # Default fallback weights
         weights = {"USD": 0.445, "EUR": 0.055, "NOK": 0.500}
-        if hasattr(self.app, 'excel_engine') and self.app.excel_engine.weights_ok:
-            parsed = self.app.excel_engine.weights_cells_parsed
-            if parsed.get("USD") is not None:
-                weights["USD"] = parsed["USD"]
-            if parsed.get("EUR") is not None:
-                weights["EUR"] = parsed["EUR"]
-            if parsed.get("NOK") is not None:
-                weights["NOK"] = parsed["NOK"]
+        
+        # Try to get latest weights from Wheights.xlsx file
+        if hasattr(self.app, 'excel_engine'):
+            latest_weights = self.app.excel_engine.get_latest_weights(WEIGHTS_FILE)
+            if latest_weights:
+                weights = {
+                    "USD": latest_weights.get("USD", 0.445),
+                    "EUR": latest_weights.get("EUR", 0.055),
+                    "NOK": latest_weights.get("NOK", 0.500)
+                }
+                print(f"[_get_weights] Using latest weights: USD={weights['USD']:.2%}, EUR={weights['EUR']:.2%}, NOK={weights['NOK']:.2%}")
+            else:
+                print(f"[_get_weights] Could not load weights, using defaults")
+        
         return weights
 
     def _update_implied_rates(self):
@@ -992,6 +1184,50 @@ class NokImpliedPage(tk.Frame):
 
         OnyxButtonTK(top, "Recalculate", command=self.update, variant="default").pack(side="right")
 
+        # ============================================================================
+        # CALCULATION MODEL SELECTION
+        # ============================================================================
+        model_frame = tk.Frame(container, bg=THEME["bg_panel"])
+        model_frame.pack(fill="x", padx=pad, pady=(10, 15))
+
+        tk.Label(model_frame, text="CALCULATION MODEL:", fg=THEME["muted"],
+                bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["body"], "bold")).pack(side="left", padx=(0, 15))
+
+        self.calc_model = tk.StringVar(value="swedbank")  # Default: Swedbank Calc Model
+
+        # Swedbank Calc Model (default) - uses Excel CM rates
+        swedbank_radio = tk.Radiobutton(
+            model_frame,
+            text="Swedbank Calc Model (Excel CM Rates)",
+            variable=self.calc_model,
+            value="swedbank",
+            command=self._on_model_change,
+            bg=THEME["bg_panel"],
+            fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=("Segoe UI", CURRENT_MODE["body"])
+        )
+        swedbank_radio.pack(side="left", padx=10)
+
+        # Nore Calc Model - uses Bloomberg CM rates
+        nore_radio = tk.Radiobutton(
+            model_frame,
+            text="Nore Calc Model (Bloomberg CM)",
+            variable=self.calc_model,
+            value="nore",
+            command=self._on_model_change,
+            bg=THEME["bg_panel"],
+            fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=("Segoe UI", CURRENT_MODE["body"])
+        )
+        nore_radio.pack(side="left", padx=10)
+
         # Weights display
         self.weights_frame = tk.Frame(container, bg=THEME["bg_panel"])
         self.weights_frame.pack(fill="x", padx=pad, pady=(0, 10))
@@ -1063,6 +1299,12 @@ class NokImpliedPage(tk.Frame):
         ], col_widths=[50, 70, 60, 70, 60, 70, 60, 80], height=4)
         self.weighted_table_exc.pack(fill="x", padx=pad, pady=(0, pad))
 
+    def _on_model_change(self):
+        """Called when calculation model selection changes."""
+        model = self.calc_model.get()
+        print(f"[NOK Implied] Calculation model changed to: {model}")
+        # Note: Recalculation is triggered manually via Recalculate button
+    
     def _get_ticker_val(self, ticker):
         """Get price value from cached market data."""
         data = self.app.cached_market_data or {}
@@ -1347,6 +1589,81 @@ class NokImpliedPage(tk.Frame):
             ], style="normal")
 
 
+class WeightsPage(tk.Frame):
+    """Weights history page - shows all historical weights from Wheights.xlsx."""
+
+    def __init__(self, master, app):
+        super().__init__(master, bg=THEME["bg_panel"])
+        self.app = app
+        pad = CURRENT_MODE["pad"]
+
+        top = tk.Frame(self, bg=THEME["bg_panel"])
+        top.pack(fill="x", padx=pad, pady=(pad, 10))
+
+        tk.Label(top, text="WEIGHTS HISTORY", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+
+        OnyxButtonTK(top, "Refresh Weights", command=self.update, variant="default").pack(side="right")
+
+        # Info label
+        info_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        info_frame.pack(fill="x", padx=pad, pady=(0, 10))
+        
+        tk.Label(info_frame, text="📊 All weights from Wheights.xlsx (latest first)",
+                fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["small"], "italic")).pack(anchor="w")
+
+        # Table with weights history
+        self.table = DataTableTree(self, columns=["DATE", "USD", "EUR", "NOK", "SUM", "STATUS"],
+                                   col_widths=[150, 120, 120, 120, 120, 150], height=22)
+        self.table.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+    def update(self):
+        """Update weights table with all historical data."""
+        from config import WEIGHTS_FILE
+        
+        self.table.clear()
+        
+        if not hasattr(self.app, 'excel_engine'):
+            self.table.add_row(["ERROR", "-", "-", "-", "-", "Excel engine not available"], style="bad")
+            return
+        
+        # Get all weights history
+        weights_history = self.app.excel_engine.get_all_weights_history(WEIGHTS_FILE)
+        
+        if not weights_history:
+            self.table.add_row(["NO DATA", "-", "-", "-", "-", "Could not load weights file"], style="bad")
+            return
+        
+        # Display all weights (newest first)
+        for i, w in enumerate(weights_history):
+            date_str = w["date"].strftime("%Y-%m-%d")
+            usd_str = f"{w['USD']:.4f}" if w['USD'] is not None else "-"
+            eur_str = f"{w['EUR']:.4f}" if w['EUR'] is not None else "-"
+            nok_str = f"{w['NOK']:.4f}" if w['NOK'] is not None else "-"
+            
+            # Calculate sum
+            try:
+                total = w['USD'] + w['EUR'] + w['NOK']
+                sum_str = f"{total:.4f}"
+                
+                # Check if sum is close to 1.0
+                is_valid = abs(total - 1.0) < 0.0001
+                status = "✓ Valid" if is_valid else f"⚠ Sum ≠ 1.0"
+                style = "good" if is_valid else "warn"
+            except (TypeError, ValueError):
+                sum_str = "ERROR"
+                status = "✗ Invalid"
+                style = "bad"
+            
+            # Mark first row (latest) differently
+            if i == 0:
+                status = "✓ LATEST (Active)"
+                style = "good"
+            
+            self.table.add_row([date_str, usd_str, eur_str, nok_str, sum_str, status], style=style)
+
+
 class NiborMetaDataPage(tk.Frame):
     """Nibor meta data page."""
 
@@ -1377,3 +1694,4 @@ class NiborMetaDataPage(tk.Frame):
         self.table.add_row(["Publication Delay", "24h (T+1)", "License", "Active"], style="normal")
         self.table.add_row(["Calculation Agent", "GRSS", "System", "Active"], style="normal")
         self.table.add_row(["Calculation Agent", "GRSS", "System", "Active"], style="normal")
+        self.table.add_row(["Algorithm", "Waterfall Level 1", "Manual", "Info"], style="section")
