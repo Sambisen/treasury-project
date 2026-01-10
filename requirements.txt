@@ -1,0 +1,12 @@
+# Onyx Terminal - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Data handling
+pandas>=2.0.0
+openpyxl>=3.1.0
+
+# Image processing
+pillow>=10.0.0
+
+# Optional: Bloomberg API (install separately if needed)
+# blpapi

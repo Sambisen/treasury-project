@@ -19,8 +19,13 @@ from config import (
     EXCEL_LOGO_CANDIDATES, BBG_LOGO_CANDIDATES,
     RULES_DB, RECON_MAPPING, DAYS_MAPPING, MARKET_STRUCTURE,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, SWET_CM_RECON_MAPPING,
-    ALL_REAL_TICKERS
+    ALL_REAL_TICKERS,
+    setup_logging, get_logger
 )
+
+# Initialize logging
+setup_logging()
+log = get_logger("main")
 from utils import (
     fmt_ts, fmt_date, safe_float, to_date,
     business_day_index_in_month, calendar_days_since_month_start,
@@ -119,14 +124,14 @@ class OnyxTerminalTK(tk.Tk):
                 img_label = tk.Label(header_left, image=photo, bg=THEME["bg_main"])
                 img_label.image = photo
                 img_label.pack()
-                print(f"[Main] Global Swedbank header loaded: {target_width}x{target_height}px")
+                log.info(f"Global Swedbank header loaded: {target_width}x{target_height}px")
             except Exception as e:
-                print(f"[Main] Failed to load Swedbank header: {e}")
+                log.warning(f"Failed to load Swedbank header: {e}")
                 tk.Label(header_left, text="ONYX TERMINAL",
                         fg=THEME["text"], bg=THEME["bg_main"],
                         font=("Segoe UI", 24, "bold")).pack()
         else:
-            print(f"[Main] Image not found: {image_path}")
+            log.warning(f"Image not found: {image_path}")
             tk.Label(header_left, text="ONYX TERMINAL",
                     fg=THEME["text"], bg=THEME["bg_main"],
                     font=("Segoe UI", 24, "bold")).pack()
@@ -402,15 +407,15 @@ class OnyxTerminalTK(tk.Tk):
         threading.Thread(target=self._worker_refresh_excel_then_bbg, daemon=True).start()
 
     def _worker_refresh_excel_then_bbg(self):
-        print("\n[Main] ===== REFRESH DATA WORKER STARTED =====")
-        print("[Main] Loading Excel data...")
+        log.info("===== REFRESH DATA WORKER STARTED =====")
+        log.info("Loading Excel data...")
         excel_ok, excel_msg = self.excel_engine.load_recon_direct()
-        print(f"[Main] Excel load result: success={excel_ok}, msg={excel_msg}")
-        
+        log.info(f"Excel load result: success={excel_ok}, msg={excel_msg}")
+
         if excel_ok:
-            print(f"[Main] Excel engine recon_data has {len(self.excel_engine.recon_data)} entries")
+            log.info(f"Excel engine recon_data has {len(self.excel_engine.recon_data)} entries")
         else:
-            print(f"[Main] [ERROR] Excel load FAILED: {excel_msg}")
+            log.error(f"Excel load FAILED: {excel_msg}")
         
         self.after(0, self._apply_excel_result, excel_ok, excel_msg)
 
@@ -454,15 +459,15 @@ class OnyxTerminalTK(tk.Tk):
         }
 
     def _apply_excel_result(self, excel_ok: bool, excel_msg: str):
-        print(f"\n[Main._apply_excel_result] Called with excel_ok={excel_ok}, msg={excel_msg}")
-        
+        log.debug(f"_apply_excel_result called with excel_ok={excel_ok}, msg={excel_msg}")
+
         if excel_ok:
             self.cached_excel_data = dict(self.excel_engine.recon_data)
-            print(f"[Main._apply_excel_result] [OK] Excel data cached: {len(self.cached_excel_data)} cells")
-            
-            # Print sample cells to verify data
+            log.info(f"Excel data cached: {len(self.cached_excel_data)} cells")
+
+            # Log sample cells to verify data
             sample_cells = list(self.cached_excel_data.items())[:5]
-            print(f"[Main._apply_excel_result] Sample cached cells: {sample_cells}")
+            log.debug(f"Sample cached cells: {sample_cells}")
             
             self.excel_last_ok_ts = datetime.now()
             self.excel_ok = True
@@ -474,7 +479,7 @@ class OnyxTerminalTK(tk.Tk):
         else:
             self.cached_excel_data = {}
             self.excel_ok = False
-            print(f"[Main._apply_excel_result] [ERROR] Excel failed, cached_excel_data cleared")
+            log.error("Excel failed, cached_excel_data cleared")
             
             # Update Excel status (compact format)
             self.excel_status_dot.config(fg=THEME["bad"])
@@ -538,11 +543,11 @@ class OnyxTerminalTK(tk.Tk):
         # Update NokImpliedPage FIRST to populate impl_calc_data
         if "nok_implied" in self._pages:
             try:
-                print("[Main] Updating NokImpliedPage to populate impl_calc_data...")
+                log.debug("Updating NokImpliedPage to populate impl_calc_data...")
                 self._pages["nok_implied"].update()
-                print(f"[Main] impl_calc_data populated with {len(getattr(self, 'impl_calc_data', {}))} entries")
+                log.debug(f"impl_calc_data populated with {len(getattr(self, 'impl_calc_data', {}))} entries")
             except Exception as e:
-                print(f"[Main] Error updating NokImpliedPage: {e}")
+                log.error(f"Error updating NokImpliedPage: {e}")
 
         self.set_busy(False)
         self.refresh_ui()
@@ -840,14 +845,14 @@ class OnyxTerminalTK(tk.Tk):
 # ==============================================================================
 def run_terminal_mode():
     """Kör systemet i terminal-läge utan GUI."""
-    print("=" * 60)
-    print("  ONYX TERMINAL - Terminal-läge")
-    print("=" * 60)
-    print("\nSystemet startat i terminal-läge\n")
+    log.info("=" * 60)
+    log.info("  ONYX TERMINAL - Terminal-läge")
+    log.info("=" * 60)
+    log.info("Systemet startat i terminal-läge")
 
-    print("Data-katalog:", DATA_DIR)
-    print("\nFiler som systemet letar efter:")
-    print("-" * 40)
+    log.info(f"Data-katalog: {DATA_DIR}")
+    log.info("Filer som systemet letar efter:")
+    log.info("-" * 40)
 
     all_files = [
         ("DAY_FILES[0]", DAY_FILES[0]),
@@ -857,27 +862,23 @@ def run_terminal_mode():
     ]
 
     for name, path in all_files:
-        exists = "✓ FINNS" if path.exists() else "✗ SAKNAS"
-        print(f"  {name}:")
-        print(f"    {path}")
-        print(f"    Status: {exists}")
-        print()
+        exists = "FINNS" if path.exists() else "SAKNAS"
+        log.info(f"  {name}: {path} - {exists}")
 
-    print("-" * 40)
-    print("Övriga sökvägar:")
-    print(f"  BASE_HISTORY_PATH: {BASE_HISTORY_PATH}")
-    print(f"  STIBOR_GRSS_PATH:  {STIBOR_GRSS_PATH}")
-    print(f"  CACHE_DIR:         {CACHE_DIR}")
-    print()
+    log.info("-" * 40)
+    log.info("Övriga sökvägar:")
+    log.info(f"  BASE_HISTORY_PATH: {BASE_HISTORY_PATH}")
+    log.info(f"  STIBOR_GRSS_PATH:  {STIBOR_GRSS_PATH}")
+    log.info(f"  CACHE_DIR:         {CACHE_DIR}")
 
     generate_alerts_report()
 
 
 def generate_alerts_report():
     """Genererar alerts baserat på filvalidering och sparar till rapport.txt."""
-    print("=" * 60)
-    print("  GENERERAR ALERT-RAPPORT")
-    print("=" * 60)
+    log.info("=" * 60)
+    log.info("  GENERERAR ALERT-RAPPORT")
+    log.info("=" * 60)
 
     active_alerts = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -987,15 +988,15 @@ def generate_alerts_report():
         f.write("-" * 60 + "\n")
         f.write("Slut på rapport\n")
 
-    print(f"\nAntal aktiva alerts: {len(active_alerts)}")
+    log.info(f"Antal aktiva alerts: {len(active_alerts)}")
     if active_alerts:
-        print("\nAlerts:")
+        log.info("Alerts:")
         for alert in active_alerts[:10]:
-            print(f"  ⚠ [{alert['source']}] {alert['msg']}")
+            log.warning(f"  [{alert['source']}] {alert['msg']}")
         if len(active_alerts) > 10:
-            print(f"  ... och {len(active_alerts) - 10} till")
+            log.info(f"  ... och {len(active_alerts) - 10} till")
 
-    print(f"\n✓ Rapport sparad till: {rapport_path}")
+    log.info(f"Rapport sparad till: {rapport_path}")
 
 
 # ==============================================================================

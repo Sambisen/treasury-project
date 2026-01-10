@@ -6,7 +6,9 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, get_logger
+
+log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree
 from utils import safe_float
 from calculations import calc_implied_yield
@@ -181,6 +183,10 @@ class DashboardPage(tk.Frame):
             funding_lbl.bind("<Leave>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_card"]))
             cells["funding"] = funding_lbl
 
+            # Tooltip showing EUR/USD implied (4 dec) and NOK (2 dec)
+            tenor_key_funding = tenor["key"]
+            ToolTip(funding_lbl, lambda t=tenor_key_funding: self._get_funding_tooltip(t))
+
             # Spread - Clean table style, centered, NO %
             spread_lbl = tk.Label(funding_frame, text="-",
                                  fg=THEME["text"], bg=THEME["bg_card"],
@@ -295,7 +301,7 @@ class DashboardPage(tk.Frame):
     def _on_dashboard_model_change(self):
         """Handle calculation model change on Dashboard."""
         model = self.calc_model_var.get()
-        print(f"[Dashboard] Calculation model changed to: {model}")
+        log.info(f"[Dashboard] Calculation model changed to: {model}")
         # Store selected model in app
         self.app.selected_calc_model = model
         # Trigger re-update of funding rates table
@@ -330,12 +336,12 @@ class DashboardPage(tk.Frame):
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
         if not hasattr(self.app, 'funding_calc_data'):
-            print(f"[Dashboard] No funding calculation data available")
+            log.info(f"[Dashboard] No funding calculation data available")
             return
         
         data = self.app.funding_calc_data.get(tenor_key)
         if not data:
-            print(f"[Dashboard] No funding data found for {tenor_key}")
+            log.info(f"[Dashboard] No funding data found for {tenor_key}")
             return
         
         popup = tk.Toplevel(self)
@@ -730,7 +736,7 @@ class DashboardPage(tk.Frame):
         
         # Get selected calculation model (default: swedbank)
         selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
-        print(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
+        log.info(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
         
         weights = self._get_weights()
         self.app.funding_calc_data = {}
@@ -743,12 +749,12 @@ class DashboardPage(tk.Frame):
                 # Use Internal Basket Rates (Excel CM - nibor suffix)
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}_nibor", {})
                 usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}_nibor", {})
-                print(f"[Dashboard] {tenor_key}: Using Swedbank Calc (Excel CM)")
+                log.info(f"[Dashboard] {tenor_key}: Using Swedbank Calc (Excel CM)")
             else:
                 # Use Bloomberg CM Rates (nore model - no suffix)
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
                 usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
-                print(f"[Dashboard] {tenor_key}: Using Nore Calc (Bloomberg CM)")
+                log.info(f"[Dashboard] {tenor_key}: Using Nore Calc (Bloomberg CM)")
             
             eur_impl = eur_data.get('implied')
             usd_impl = usd_data.get('implied')
@@ -886,7 +892,7 @@ class DashboardPage(tk.Frame):
     def _on_model_change(self):
         """Called when calculation model selection changes."""
         model = self.calc_model.get()
-        print(f"[NOK Implied] Calculation model changed to: {model}")
+        log.info(f"[NOK Implied] Calculation model changed to: {model}")
         # Note: Recalculation is triggered manually via Recalculate button
         # This allows user to change model without auto-recalculating
     
@@ -907,6 +913,28 @@ class DashboardPage(tk.Frame):
             return f"NIBOR {tenor_key.upper()}: {final_rate:.4f}%"
         return None
 
+    def _get_funding_tooltip(self, tenor_key):
+        """Get Funding Rate breakdown: EUR/USD implied (4 dec), NOK (2 dec)."""
+        calc_data = getattr(self.app, 'funding_calc_data', {})
+        tenor_data = calc_data.get(tenor_key, {})
+
+        eur_impl = tenor_data.get('eur_impl')
+        usd_impl = tenor_data.get('usd_impl')
+        nok_cm = tenor_data.get('nok_cm')
+
+        if eur_impl is None and usd_impl is None and nok_cm is None:
+            return None
+
+        lines = [f"Funding Rate {tenor_key.upper()}:"]
+        if eur_impl is not None:
+            lines.append(f"  EUR Implied: {eur_impl:.4f}%")
+        if usd_impl is not None:
+            lines.append(f"  USD Implied: {usd_impl:.4f}%")
+        if nok_cm is not None:
+            lines.append(f"  NOK CM:      {nok_cm:.2f}%")
+
+        return "\n".join(lines)
+
     def _get_weights(self):
         """Get weights from Excel engine or use defaults - ALWAYS USE LATEST."""
         from config import WEIGHTS_FILE
@@ -923,9 +951,9 @@ class DashboardPage(tk.Frame):
                     "EUR": latest_weights.get("EUR", 0.055),
                     "NOK": latest_weights.get("NOK", 0.500)
                 }
-                print(f"[_get_weights] Using latest weights: USD={weights['USD']:.2%}, EUR={weights['EUR']:.2%}, NOK={weights['NOK']:.2%}")
+                log.info(f"[_get_weights] Using latest weights: USD={weights['USD']:.2%}, EUR={weights['EUR']:.2%}, NOK={weights['NOK']:.2%}")
             else:
-                print(f"[_get_weights] Could not load weights, using defaults")
+                log.info(f"[_get_weights] Could not load weights, using defaults")
         
         return weights
 
@@ -939,7 +967,7 @@ class DashboardPage(tk.Frame):
         
         # Get selected calculation model (default: nore)
         selected_model = getattr(self.app, 'selected_calc_model', 'nore')
-        print(f"[Dashboard._update_implied_rates] Using calculation model: {selected_model}")
+        log.info(f"[Dashboard._update_implied_rates] Using calculation model: {selected_model}")
         
         weights = self._get_weights()
         self.app.funding_calc_data = {}
@@ -950,12 +978,12 @@ class DashboardPage(tk.Frame):
                 # Use Internal Basket Rates (Section 2 data from NokImpliedPage)
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}_nibor", {})
                 usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}_nibor", {})
-                print(f"[Dashboard] {tenor_key}: Using NIBOR model (Internal Basket)")
+                log.info(f"[Dashboard] {tenor_key}: Using NIBOR model (Internal Basket)")
             else:
                 # Use Bloomberg CM Rates (Section 1 data from NokImpliedPage) - DEFAULT
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
                 usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}", {})
-                print(f"[Dashboard] {tenor_key}: Using NORE model (Bloomberg CM)")
+                log.info(f"[Dashboard] {tenor_key}: Using NORE model (Bloomberg CM)")
             
             eur_impl = eur_data.get('implied')
             usd_impl = usd_data.get('implied')
@@ -1362,7 +1390,7 @@ class NokImpliedPage(tk.Frame):
     def _on_model_change(self):
         """Called when calculation model selection changes."""
         model = self.calc_model.get()
-        print(f"[NOK Implied] Calculation model changed to: {model}")
+        log.info(f"[NOK Implied] Calculation model changed to: {model}")
         # Note: Recalculation is triggered manually via Recalculate button
     
     def _get_ticker_val(self, ticker):
@@ -1378,25 +1406,25 @@ class NokImpliedPage(tk.Frame):
         from openpyxl.utils import coordinate_to_tuple
         excel_data = self.app.cached_excel_data or {}
         
-        print(f"[_get_pips_from_excel] Looking for cell {cell_address}")
-        print(f"[_get_pips_from_excel] Excel data keys count: {len(excel_data)}")
+        log.info(f"[_get_pips_from_excel] Looking for cell {cell_address}")
+        log.info(f"[_get_pips_from_excel] Excel data keys count: {len(excel_data)}")
         
         coord_tuple = coordinate_to_tuple(cell_address)
-        print(f"[_get_pips_from_excel] Converted to tuple: {coord_tuple}")
+        log.info(f"[_get_pips_from_excel] Converted to tuple: {coord_tuple}")
         
         val = excel_data.get(coord_tuple, None)
         
         if val is None:
-            print(f"[_get_pips_from_excel] [ERROR] Cell {cell_address} ({coord_tuple}) not found in Excel data")
+            log.info(f"[_get_pips_from_excel] [ERROR] Cell {cell_address} ({coord_tuple}) not found in Excel data")
             # Print first few keys to debug
             sample_keys = list(excel_data.keys())[:10]
-            print(f"[_get_pips_from_excel] Sample keys (first 10): {sample_keys}")
+            log.info(f"[_get_pips_from_excel] Sample keys (first 10): {sample_keys}")
         else:
-            print(f"[_get_pips_from_excel] [OK] Found {cell_address} = {val}")
+            log.info(f"[_get_pips_from_excel] [OK] Found {cell_address} = {val}")
         
         if val is not None:
             result = safe_float(val, None)
-            print(f"[_get_pips_from_excel] Parsed to: {result}")
+            log.info(f"[_get_pips_from_excel] Parsed to: {result}")
             return result
         return None
 
@@ -1420,25 +1448,25 @@ class NokImpliedPage(tk.Frame):
         return {}
 
     def update(self):
-        print(f"\n[NOK Implied Page] ========== UPDATE STARTED ==========")
-        print(f"[NOK Implied Page] cached_excel_data length: {len(self.app.cached_excel_data)}")
-        print(f"[NOK Implied Page] cached_market_data length: {len(self.app.cached_market_data or {})}")
+        log.info("========== NOK Implied Page UPDATE STARTED ==========")
+        log.info(f"[NOK Implied Page] cached_excel_data length: {len(self.app.cached_excel_data)}")
+        log.info(f"[NOK Implied Page] cached_market_data length: {len(self.app.cached_market_data or {})}")
         
         # Check if Excel data is loaded
         if not self.app.cached_excel_data or len(self.app.cached_excel_data) < 10:
-            print(f"[NOK Implied Page] ❌ Excel data not loaded or insufficient! Skipping update.")
-            print(f"[NOK Implied Page] Excel data needs at least 10 cells, currently has: {len(self.app.cached_excel_data)}")
+            log.info(f"[NOK Implied Page] ❌ Excel data not loaded or insufficient! Skipping update.")
+            log.info(f"[NOK Implied Page] Excel data needs at least 10 cells, currently has: {len(self.app.cached_excel_data)}")
             # Optionally trigger reload
             if hasattr(self.app, 'excel_engine'):
-                print(f"[NOK Implied Page] Attempting to check Excel engine recon_data...")
+                log.info(f"[NOK Implied Page] Attempting to check Excel engine recon_data...")
                 if self.app.excel_engine.recon_data:
-                    print(f"[NOK Implied Page] Excel engine has recon_data with {len(self.app.excel_engine.recon_data)} entries")
-                    print(f"[NOK Implied Page] But cached_excel_data is not populated. This is a sync issue.")
+                    log.info(f"[NOK Implied Page] Excel engine has recon_data with {len(self.app.excel_engine.recon_data)} entries")
+                    log.info(f"[NOK Implied Page] But cached_excel_data is not populated. This is a sync issue.")
                 else:
-                    print(f"[NOK Implied Page] Excel engine recon_data is also empty.")
+                    log.info(f"[NOK Implied Page] Excel engine recon_data is also empty.")
             return
         
-        print(f"[NOK Implied Page] [OK] Excel data loaded with {len(self.app.cached_excel_data)} cells")
+        log.info(f"[NOK Implied Page] [OK] Excel data loaded with {len(self.app.cached_excel_data)} cells")
         
         # Clear all tables
         self.usd_table_bbg.clear()
@@ -1523,34 +1551,34 @@ class NokImpliedPage(tk.Frame):
             if excel_days is None:
                 excel_days = bbg_days_usd
 
-            print(f"\n[NOK Implied] ========== TENOR {t['tenor']} ==========")
+            log.debug(f"========== TENOR {t['tenor']} ==========")
             
             # Get pips directly from Bloomberg market data (FRESH DATA!)
             pips_bbg_usd = self._get_ticker_val(t["usd_fwd"])
-            print(f"[NOK Implied] USD: pips from Bloomberg ({t['usd_fwd']}) = {pips_bbg_usd}")
+            log.info(f"[NOK Implied] USD: pips from Bloomberg ({t['usd_fwd']}) = {pips_bbg_usd}")
             
             pips_bbg_eur = self._get_ticker_val(t["eur_fwd"])
-            print(f"[NOK Implied] EUR: pips from Bloomberg ({t['eur_fwd']}) = {pips_bbg_eur}")
+            log.info(f"[NOK Implied] EUR: pips from Bloomberg ({t['eur_fwd']}) = {pips_bbg_eur}")
 
             # NOK CM (same for both sections)
             nok_cm = self._get_ticker_val(t["nok_cm"]) if t["nok_cm"] else None
-            print(f"[NOK Implied] NOK CM: {nok_cm}")
+            log.info(f"[NOK Implied] NOK CM: {nok_cm}")
 
             # ============ SECTION 1: Bloomberg CM + Bloomberg TPSF Days ============
             # USD: Use Bloomberg TPSF days directly (NO adjustment!)
             usd_rate_bbg = self._get_ticker_val(t["usd_rate_bbg"]) if t["usd_rate_bbg"] else None
-            print(f"[NOK Implied] USD Bloomberg CM Rate: {usd_rate_bbg}")
-            print(f"[NOK Implied] USD Spot: {usd_spot}")
-            print(f"[NOK Implied] USD BBG TPSF Days: {bbg_days_usd}")
-            print(f"[NOK Implied] CALLING calc_implied_yield for USD with BBG DAYS...")
+            log.info(f"[NOK Implied] USD Bloomberg CM Rate: {usd_rate_bbg}")
+            log.info(f"[NOK Implied] USD Spot: {usd_spot}")
+            log.info(f"[NOK Implied] USD BBG TPSF Days: {bbg_days_usd}")
+            log.info(f"[NOK Implied] CALLING calc_implied_yield for USD with BBG DAYS...")
             impl_usd_bbg = calc_implied_yield(usd_spot, pips_bbg_usd, usd_rate_bbg, bbg_days_usd) if bbg_days_usd else None
 
             # EUR: Use Bloomberg TPSF days directly (NO adjustment!)
             eur_rate_bbg = self._get_ticker_val(t["eur_rate_bbg"]) if t["eur_rate_bbg"] else None
-            print(f"[NOK Implied] EUR Bloomberg CM Rate: {eur_rate_bbg}")
-            print(f"[NOK Implied] EUR Spot: {eur_spot}")
-            print(f"[NOK Implied] EUR BBG TPSF Days: {bbg_days_eur}")
-            print(f"[NOK Implied] CALLING calc_implied_yield for EUR with BBG DAYS...")
+            log.info(f"[NOK Implied] EUR Bloomberg CM Rate: {eur_rate_bbg}")
+            log.info(f"[NOK Implied] EUR Spot: {eur_spot}")
+            log.info(f"[NOK Implied] EUR BBG TPSF Days: {bbg_days_eur}")
+            log.info(f"[NOK Implied] CALLING calc_implied_yield for EUR with BBG DAYS...")
             impl_eur_bbg = calc_implied_yield(eur_spot, pips_bbg_eur, eur_rate_bbg, bbg_days_eur) if bbg_days_eur else None
 
             # Add rows to Section 1 tables (using BBG TPSF days directly)

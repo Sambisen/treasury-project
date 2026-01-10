@@ -3,7 +3,27 @@ Configuration module for Onyx Terminal.
 Contains theme, paths, rules, and mappings.
 """
 import platform
+import logging
 from pathlib import Path
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+LOG_LEVEL = logging.INFO  # Change to logging.DEBUG for verbose output
+LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+LOG_DATE_FORMAT = "%H:%M:%S"
+
+def setup_logging(level=None):
+    """Configure logging for the application."""
+    logging.basicConfig(
+        level=level or LOG_LEVEL,
+        format=LOG_FORMAT,
+        datefmt=LOG_DATE_FORMAT
+    )
+
+def get_logger(name):
+    """Get a logger instance for a module."""
+    return logging.getLogger(name)
 
 # ============================================================================
 # DEVELOPMENT MODE

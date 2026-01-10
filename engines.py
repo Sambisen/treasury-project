@@ -16,8 +16,10 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING
+    EXCEL_CM_RATES_MAPPING, get_logger
 )
+
+log = get_logger("engines")
 from utils import copy_to_cache_fast, safe_float, to_date
 
 # Bloomberg API optional
@@ -91,68 +93,68 @@ class ExcelEngine:
             dfs = []
             errors = []
             
-            print(f"[ExcelEngine] Starting to load {len(DAY_FILES)} day files...")
+            log.info(f"[ExcelEngine] Starting to load {len(DAY_FILES)} day files...")
             
             for f_path in DAY_FILES:
-                print(f"[ExcelEngine] Checking: {f_path}")
+                log.info(f"[ExcelEngine] Checking: {f_path}")
                 
                 if not f_path.exists():
                     err_msg = f"File not found: {f_path}"
-                    print(f"[ExcelEngine] [ERROR] {err_msg}")
+                    log.info(f"[ExcelEngine] [ERROR] {err_msg}")
                     errors.append(err_msg)
                     continue
                 
-                print(f"[ExcelEngine] [OK] File exists, attempting to read...")
+                log.info(f"[ExcelEngine] [OK] File exists, attempting to read...")
                 
                 try:
                     df = pd.read_excel(f_path, engine="openpyxl")
-                    print(f"[ExcelEngine] [OK] Successfully read {len(df)} rows from {f_path.name}")
-                    print(f"[ExcelEngine]   Columns: {list(df.columns)}")
+                    log.info(f"[ExcelEngine] [OK] Successfully read {len(df)} rows from {f_path.name}")
+                    log.info(f"[ExcelEngine]   Columns: {list(df.columns)}")
                     dfs.append(df)
                 except Exception as e1:
-                    print(f"[ExcelEngine] [WARN] Direct read failed: {e1}")
-                    print(f"[ExcelEngine]   Trying cache copy method...")
+                    log.info(f"[ExcelEngine] [WARN] Direct read failed: {e1}")
+                    log.info(f"[ExcelEngine]   Trying cache copy method...")
                     try:
                         temp = copy_to_cache_fast(f_path)
                         df = pd.read_excel(temp, engine="openpyxl")
-                        print(f"[ExcelEngine] [OK] Successfully read from cache copy")
+                        log.info(f"[ExcelEngine] [OK] Successfully read from cache copy")
                         dfs.append(df)
                     except Exception as e2:
                         err_msg = f"Failed to read {f_path.name}: {e2}"
-                        print(f"[ExcelEngine] [ERROR] {err_msg}")
+                        log.info(f"[ExcelEngine] [ERROR] {err_msg}")
                         errors.append(err_msg)
                         continue
 
             if dfs:
-                print(f"[ExcelEngine] Concatenating {len(dfs)} dataframes...")
+                log.info(f"[ExcelEngine] Concatenating {len(dfs)} dataframes...")
                 day_data = pd.concat(dfs, ignore_index=True)
-                print(f"[ExcelEngine] Total rows: {len(day_data)}")
+                log.info(f"[ExcelEngine] Total rows: {len(day_data)}")
                 
                 if "date" in day_data.columns:
-                    print(f"[ExcelEngine] Processing 'date' column...")
+                    log.info(f"[ExcelEngine] Processing 'date' column...")
                     day_data["date"] = pd.to_datetime(day_data["date"], errors="coerce")
                     day_data["date"] = day_data["date"].dt.normalize()
                     day_data = day_data.dropna(subset=["date"]).sort_values("date")
-                    print(f"[ExcelEngine] After date processing: {len(day_data)} rows")
+                    log.info(f"[ExcelEngine] After date processing: {len(day_data)} rows")
                 else:
-                    print(f"[ExcelEngine] [WARN] WARNING: 'date' column not found in data!")
+                    log.info(f"[ExcelEngine] [WARN] WARNING: 'date' column not found in data!")
                 
                 self.day_data = day_data
-                print(f"[ExcelEngine] [OK] Day data loaded successfully")
-                print(f"[ExcelEngine] Final columns: {list(self.day_data.columns)}")
+                log.info(f"[ExcelEngine] [OK] Day data loaded successfully")
+                log.info(f"[ExcelEngine] Final columns: {list(self.day_data.columns)}")
             else:
                 err_msg = "No day files could be loaded"
-                print(f"[ExcelEngine] [ERROR] {err_msg}")
+                log.info(f"[ExcelEngine] [ERROR] {err_msg}")
                 if errors:
                     err_msg += ": " + "; ".join(errors)
                 self._day_data_err = err_msg
             
             self._day_data_ready = True
-            print(f"[ExcelEngine] Day files loading complete. Ready={self._day_data_ready}, Error={self._day_data_err}")
+            log.info(f"[ExcelEngine] Day files loading complete. Ready={self._day_data_ready}, Error={self._day_data_err}")
             
         except Exception as e:
             err_msg = f"Fatal error loading day files: {e}"
-            print(f"[ExcelEngine] [ERROR] {err_msg}")
+            log.info(f"[ExcelEngine] [ERROR] {err_msg}")
             self._day_data_err = err_msg
             self._day_data_ready = True
 
@@ -270,21 +272,21 @@ class ExcelEngine:
 
     def get_future_days_data(self, limit_rows=300):
         """Get future NIBOR days data with improved debugging."""
-        print(f"[ExcelEngine.get_future_days_data] Called with limit={limit_rows}")
-        print(f"[ExcelEngine.get_future_days_data] day_data.empty={self.day_data.empty}")
-        print(f"[ExcelEngine.get_future_days_data] day_data.shape={self.day_data.shape if not self.day_data.empty else 'N/A'}")
+        log.info(f"[ExcelEngine.get_future_days_data] Called with limit={limit_rows}")
+        log.info(f"[ExcelEngine.get_future_days_data] day_data.empty={self.day_data.empty}")
+        log.info(f"[ExcelEngine.get_future_days_data] day_data.shape={self.day_data.shape if not self.day_data.empty else 'N/A'}")
         
         if self.day_data.empty or "date" not in self.day_data.columns:
-            print(f"[ExcelEngine.get_future_days_data] [ERROR] Returning empty DataFrame")
+            log.info(f"[ExcelEngine.get_future_days_data] [ERROR] Returning empty DataFrame")
             if self._day_data_err:
-                print(f"[ExcelEngine.get_future_days_data] Error was: {self._day_data_err}")
+                log.info(f"[ExcelEngine.get_future_days_data] Error was: {self._day_data_err}")
             return pd.DataFrame()
         
         today = pd.Timestamp(datetime.now().date()).normalize()
-        print(f"[ExcelEngine.get_future_days_data] Today={today}")
+        log.info(f"[ExcelEngine.get_future_days_data] Today={today}")
         
         future_df = self.day_data[self.day_data["date"] >= today].copy()
-        print(f"[ExcelEngine.get_future_days_data] Future rows: {len(future_df)}")
+        log.info(f"[ExcelEngine.get_future_days_data] Future rows: {len(future_df)}")
         
         for c in ["date", "settlement"]:
             if c in future_df.columns:
@@ -294,7 +296,7 @@ class ExcelEngine:
         if len(future_df) > limit_rows:
             future_df = future_df.iloc[:limit_rows].copy()
         
-        print(f"[ExcelEngine.get_future_days_data] [OK] Returning {len(future_df)} rows")
+        log.info(f"[ExcelEngine.get_future_days_data] [OK] Returning {len(future_df)} rows")
         return future_df
 
     def get_recon_value(self, cell_ref):
@@ -315,10 +317,10 @@ class ExcelEngine:
         from config import NIBOR_WORKBOOK_PATH, INTERNAL_BASKET_MAPPING
         import re
         
-        print(f"[ExcelEngine] Loading Internal Basket Rates from {NIBOR_WORKBOOK_PATH}")
+        log.info(f"[ExcelEngine] Loading Internal Basket Rates from {NIBOR_WORKBOOK_PATH}")
         
         if not NIBOR_WORKBOOK_PATH.exists():
-            print(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
+            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
             return None
         
         try:
@@ -334,27 +336,27 @@ class ExcelEngine:
             date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
             
             if not date_sheets:
-                print(f"[ExcelEngine] ERROR: No date-formatted sheets found in workbook")
+                log.info(f"[ExcelEngine] ERROR: No date-formatted sheets found in workbook")
                 wb.close()
                 return None
             
             latest_sheet_name = sorted(date_sheets)[-1]
             latest_sheet = wb[latest_sheet_name]
             
-            print(f"[ExcelEngine] Using sheet: {latest_sheet_name}")
+            log.info(f"[ExcelEngine] Using sheet: {latest_sheet_name}")
             
             # Extract rates from cells
             rates = {}
             for key, cell_addr in INTERNAL_BASKET_MAPPING.items():
                 value = latest_sheet[cell_addr].value
                 rates[key] = safe_float(value, None)
-                print(f"[ExcelEngine]   {key} ({cell_addr}): {rates[key]}")
+                log.info(f"[ExcelEngine]   {key} ({cell_addr}): {rates[key]}")
             
             wb.close()
             return rates
             
         except Exception as e:
-            print(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
+            log.info(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
             return None
 
     def get_latest_weights(self, weights_path):
@@ -370,11 +372,11 @@ class ExcelEngine:
         Returns:
             dict: {"USD": 0.88, "EUR": 0.12, "NOK": 0.00, "date": datetime} or None if failed
         """
-        print(f"\n[ExcelEngine] Loading latest weights from file...")
-        print(f"[ExcelEngine] Weights file: {weights_path}")
+        log.info("Loading latest weights from file...")
+        log.info(f"[ExcelEngine] Weights file: {weights_path}")
         
         if not weights_path.exists():
-            print(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
+            log.info(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
             return None
         
         try:
@@ -387,7 +389,7 @@ class ExcelEngine:
             
             ws = wb.active  # Use first/active sheet
             
-            print(f"[ExcelEngine] Sheet: {ws.title}")
+            log.info(f"[ExcelEngine] Sheet: {ws.title}")
             
             # Find all rows with dates
             from config import WEIGHTS_COLS
@@ -416,7 +418,7 @@ class ExcelEngine:
                         continue
             
             if not dated_rows:
-                print(f"[ExcelEngine] [ERROR] No valid dates found in column A")
+                log.info(f"[ExcelEngine] [ERROR] No valid dates found in column A")
                 wb.close()
                 return None
             
@@ -424,16 +426,16 @@ class ExcelEngine:
             dated_rows.sort(reverse=True)
             latest_date, latest_row = dated_rows[0]
             
-            print(f"[ExcelEngine] Latest date: {latest_date.date()} (row {latest_row})")
+            log.info(f"[ExcelEngine] Latest date: {latest_date.date()} (row {latest_row})")
             
             # Read weights from this row
             usd_weight = ws.cell(row=latest_row, column=usd_col).value
             eur_weight = ws.cell(row=latest_row, column=eur_col).value
             nok_weight = ws.cell(row=latest_row, column=nok_col).value
             
-            print(f"[ExcelEngine]   USD (F{latest_row}): {usd_weight}")
-            print(f"[ExcelEngine]   EUR (G{latest_row}): {eur_weight}")
-            print(f"[ExcelEngine]   NOK (H{latest_row}): {nok_weight}")
+            log.info(f"[ExcelEngine]   USD (F{latest_row}): {usd_weight}")
+            log.info(f"[ExcelEngine]   EUR (G{latest_row}): {eur_weight}")
+            log.info(f"[ExcelEngine]   NOK (H{latest_row}): {nok_weight}")
             
             try:
                 usd = float(usd_weight) if usd_weight is not None else 0.0
@@ -442,19 +444,19 @@ class ExcelEngine:
                 
                 weights = {"USD": usd, "EUR": eur, "NOK": nok, "date": latest_date}
                 
-                print(f"[ExcelEngine] Weights: USD={usd:.2%}, EUR={eur:.2%}, NOK={nok:.2%}")
-                print(f"[ExcelEngine] Sum check: {usd + eur + nok:.4f} (should be 1.0)")
+                log.info(f"[ExcelEngine] Weights: USD={usd:.2%}, EUR={eur:.2%}, NOK={nok:.2%}")
+                log.info(f"[ExcelEngine] Sum check: {usd + eur + nok:.4f} (should be 1.0)")
                 
                 wb.close()
                 return weights
                 
             except (ValueError, TypeError) as e:
-                print(f"[ExcelEngine] [ERROR] Cannot convert weights to float: {e}")
+                log.info(f"[ExcelEngine] [ERROR] Cannot convert weights to float: {e}")
                 wb.close()
                 return None
             
         except Exception as e:
-            print(f"[ExcelEngine] [ERROR] Failed to load weights: {e}")
+            log.info(f"[ExcelEngine] [ERROR] Failed to load weights: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -473,11 +475,11 @@ class ExcelEngine:
             list of dicts: [{"date": datetime, "USD": 0.88, "EUR": 0.12, "NOK": 0.00}, ...]
             Returns empty list if failed
         """
-        print(f"\n[ExcelEngine] Loading ALL weights history from file...")
-        print(f"[ExcelEngine] Weights file: {weights_path}")
+        log.info("Loading ALL weights history from file...")
+        log.info(f"[ExcelEngine] Weights file: {weights_path}")
         
         if not weights_path.exists():
-            print(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
+            log.info(f"[ExcelEngine] [ERROR] Weights file not found: {weights_path}")
             return []
         
         try:
@@ -490,7 +492,7 @@ class ExcelEngine:
             
             ws = wb.active  # Use first/active sheet
             
-            print(f"[ExcelEngine] Sheet: {ws.title}")
+            log.info(f"[ExcelEngine] Sheet: {ws.title}")
             
             # Get column mappings
             from config import WEIGHTS_COLS
@@ -535,22 +537,22 @@ class ExcelEngine:
                     })
                     
                 except (ValueError, TypeError) as e:
-                    print(f"[ExcelEngine] [WARN] Could not parse row {row}: {e}")
+                    log.info(f"[ExcelEngine] [WARN] Could not parse row {row}: {e}")
                     continue
             
             # Sort by date (newest first)
             weights_history.sort(key=lambda x: x["date"], reverse=True)
             
-            print(f"[ExcelEngine] Loaded {len(weights_history)} weight entries")
+            log.info(f"[ExcelEngine] Loaded {len(weights_history)} weight entries")
             if weights_history:
                 latest = weights_history[0]
-                print(f"[ExcelEngine] Latest: {latest['date'].date()} - USD={latest['USD']:.2%}, EUR={latest['EUR']:.2%}, NOK={latest['NOK']:.2%}")
+                log.info(f"[ExcelEngine] Latest: {latest['date'].date()} - USD={latest['USD']:.2%}, EUR={latest['EUR']:.2%}, NOK={latest['NOK']:.2%}")
             
             wb.close()
             return weights_history
             
         except Exception as e:
-            print(f"[ExcelEngine] [ERROR] Failed to load weights history: {e}")
+            log.info(f"[ExcelEngine] [ERROR] Failed to load weights history: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -798,7 +800,7 @@ def _load_mock_defaults_from_excel() -> dict:
         return prices
 
     except Exception as e:
-        print(f"Warning: Could not load mock defaults from Excel: {e}")
+        log.warning(f"Could not load mock defaults from Excel: {e}")
         return fallback
 
 

@@ -2,6 +2,9 @@
 Calculation functions for Onyx Terminal.
 Separates mathematical logic from GUI code for portability.
 """
+from config import get_logger
+
+log = get_logger("calculations")
 
 
 def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) -> float | None:
@@ -29,21 +32,21 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
     Returns:
         Implied yield as percentage, or None if calculation fails
     """
-    print(f"\n[calc_implied_yield] ========== CALCULATION STARTED ==========")
-    print(f"[calc_implied_yield] INPUT:")
-    print(f"  spot={spot}")
-    print(f"  pips={pips}")
-    print(f"  base_rate={base_rate}")
-    print(f"  days={days}")
+    log.debug(f"\n[calc_implied_yield] ========== CALCULATION STARTED ==========")
+    log.debug(f"[calc_implied_yield] INPUT:")
+    log.debug(f"  spot={spot}")
+    log.debug(f"  pips={pips}")
+    log.debug(f"  base_rate={base_rate}")
+    log.debug(f"  days={days}")
     
     if not days or days <= 0:
-        print(f"[calc_implied_yield] [ERROR] Invalid days={days}")
+        log.debug(f"[calc_implied_yield] [ERROR] Invalid days={days}")
         return None
     if spot is None or pips is None or base_rate is None:
-        print(f"[calc_implied_yield] [ERROR] None value in inputs")
+        log.debug(f"[calc_implied_yield] [ERROR] None value in inputs")
         return None
     if spot <= 0:
-        print(f"[calc_implied_yield] [ERROR] Invalid spot={spot} (must be > 0)")
+        log.debug(f"[calc_implied_yield] [ERROR] Invalid spot={spot} (must be > 0)")
         return None
 
     try:
@@ -52,35 +55,35 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
         
         # Step 1: Forward price = Spot + (Pips/10000)
         fwd = spot + (pips / 10000.0)
-        print(f"[calc_implied_yield] STEP 1: fwd = {spot} + ({pips}/10000) = {fwd}")
+        log.debug(f"[calc_implied_yield] STEP 1: fwd = {spot} + ({pips}/10000) = {fwd}")
         
         # Step 2: Base factor = 1 + (Days * CM_Rate / 36000)
         base_factor = 1 + (days * base_rate / 36000.0)
-        print(f"[calc_implied_yield] STEP 2: base_factor = 1 + ({days}*{base_rate}/36000) = {base_factor}")
+        log.debug(f"[calc_implied_yield] STEP 2: base_factor = 1 + ({days}*{base_rate}/36000) = {base_factor}")
         
         # Step 3: Numerator = (Fwd * Base_factor) - Spot
         numerator = (fwd * base_factor) - spot
-        print(f"[calc_implied_yield] STEP 3: numerator = ({fwd}*{base_factor}) - {spot} = {numerator}")
+        log.debug(f"[calc_implied_yield] STEP 3: numerator = ({fwd}*{base_factor}) - {spot} = {numerator}")
         
         # Step 4: Denominator = (Spot * Days) / 36000
         denominator = (spot * days) / 36000.0
-        print(f"[calc_implied_yield] STEP 4: denominator = ({spot}*{days})/36000 = {denominator}")
+        log.debug(f"[calc_implied_yield] STEP 4: denominator = ({spot}*{days})/36000 = {denominator}")
         
         # Step 5: Implied rate = Numerator / Denominator
         r_nok = numerator / denominator
-        print(f"[calc_implied_yield] STEP 5: r_nok = {numerator}/{denominator} = {r_nok}%")
+        log.debug(f"[calc_implied_yield] STEP 5: r_nok = {numerator}/{denominator} = {r_nok}%")
         
         # Sanity check
         if abs(r_nok) > 20.0:
-            print(f"[calc_implied_yield] [WARNING] Result {r_nok}% is outside normal range! Check input data.")
+            log.debug(f"[calc_implied_yield] [WARNING] Result {r_nok}% is outside normal range! Check input data.")
         
-        print(f"[calc_implied_yield] ========== RESULT: {r_nok}% ==========\n")
+        log.debug(f"[calc_implied_yield] ========== RESULT: {r_nok}% ==========\n")
         return r_nok  # Already in percent form (e.g., 1.787622 for 1.787622%)
     except ZeroDivisionError:
-        print(f"[calc_implied_yield] [ERROR] Division by zero")
+        log.debug(f"[calc_implied_yield] [ERROR] Division by zero")
         return None
     except Exception as e:
-        print(f"[calc_implied_yield] [ERROR] Exception: {e}")
+        log.debug(f"[calc_implied_yield] [ERROR] Exception: {e}")
         return None
 
 
@@ -100,15 +103,15 @@ def calc_funding_rate(eur_implied: float, usd_implied: float, nok_cm: float,
     Returns:
         Weighted funding rate as percentage, or None if calculation fails
     """
-    print(f"\n[calc_funding_rate] CALCULATION:")
-    print(f"  eur={eur_implied}, usd={usd_implied}, nok={nok_cm}")
+    log.debug(f"\n[calc_funding_rate] CALCULATION:")
+    log.debug(f"  eur={eur_implied}, usd={usd_implied}, nok={nok_cm}")
     
     if None in [eur_implied, usd_implied, nok_cm]:
-        print(f"[calc_funding_rate] ERROR: None value")
+        log.debug(f"[calc_funding_rate] ERROR: None value")
         return None
     
     if not all(k in weights for k in ['EUR', 'USD', 'NOK']):
-        print(f"[calc_funding_rate] ERROR: Missing weights")
+        log.debug(f"[calc_funding_rate] ERROR: Missing weights")
         return None
     
     try:
@@ -117,8 +120,8 @@ def calc_funding_rate(eur_implied: float, usd_implied: float, nok_cm: float,
             usd_implied * weights['USD'] +
             nok_cm * weights['NOK']
         )
-        print(f"  Result: {funding_rate:.4f}%")
+        log.debug(f"  Result: {funding_rate:.4f}%")
         return funding_rate
     except Exception as e:
-        print(f"[calc_funding_rate] ERROR: {e}")
+        log.debug(f"[calc_funding_rate] ERROR: {e}")
         return None
