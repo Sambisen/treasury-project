@@ -18,8 +18,9 @@ class ToolTip:
         self.widget = widget
         self.text_func = text_func
         self.tooltip_window = None
-        widget.bind("<Enter>", self.show)
-        widget.bind("<Leave>", self.hide)
+        # Use add="+" to not replace existing bindings
+        widget.bind("<Enter>", self.show, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
     
     def show(self, event=None):
         text = self.text_func()
@@ -200,6 +201,10 @@ class DashboardPage(tk.Frame):
             final_lbl.bind("<Enter>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card_2"]))
             final_lbl.bind("<Leave>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card"]))
             cells["final"] = final_lbl
+
+            # Tooltip showing 4-decimal precision for NIBOR rate
+            tenor_key_capture = tenor["key"]
+            ToolTip(final_lbl, lambda t=tenor_key_capture: self._get_nibor_tooltip(t))
 
             # Match indicator - Professional text badge
             match_lbl = tk.Label(funding_frame, text="PEND",
@@ -891,6 +896,15 @@ class DashboardPage(tk.Frame):
         inf = data.get(ticker)
         if inf:
             return float(inf.get("price", 0.0))
+        return None
+
+    def _get_nibor_tooltip(self, tenor_key):
+        """Get NIBOR rate with 4 decimal precision for tooltip."""
+        calc_data = getattr(self.app, 'funding_calc_data', {})
+        tenor_data = calc_data.get(tenor_key, {})
+        final_rate = tenor_data.get('final_rate')
+        if final_rate is not None:
+            return f"NIBOR {tenor_key.upper()}: {final_rate:.4f}%"
         return None
 
     def _get_weights(self):
