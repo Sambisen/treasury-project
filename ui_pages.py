@@ -4,8 +4,9 @@ Contains all specific page views.
 """
 import tkinter as tk
 from tkinter import ttk
+from datetime import datetime
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree
 from utils import safe_float
 from calculations import calc_implied_yield
@@ -253,29 +254,26 @@ class DashboardPage(tk.Frame):
                 bg=THEME["bg_panel"],
                 font=FONTS["h3"]).pack(side="left")
 
-        # Fixed height scrollable box (~150px for ~5 rows)
+        # Fixed height scrollable box
         self.alerts_box = tk.Frame(alerts_container, bg=THEME["bg_card"],
                                   highlightthickness=1,
                                   highlightbackground=THEME["border"],
-                                  height=150)
+                                  height=ALERTS_BOX_HEIGHT)
         self.alerts_box.pack(fill="x")
         self.alerts_box.pack_propagate(False)
 
         # Scrollable content
-        alerts_canvas = tk.Canvas(self.alerts_box, bg=THEME["bg_card"],
-                                 highlightthickness=0, height=150)
-        alerts_scrollbar = tk.Scrollbar(self.alerts_box, orient="vertical",
-                                       command=alerts_canvas.yview)
-        self.alerts_scroll_frame = tk.Frame(alerts_canvas, bg=THEME["bg_card"])
+        self.alerts_canvas = tk.Canvas(self.alerts_box, bg=THEME["bg_card"],
+                                 highlightthickness=0, height=ALERTS_BOX_HEIGHT)
+        self.alerts_scrollbar = tk.Scrollbar(self.alerts_box, orient="vertical",
+                                       command=self.alerts_canvas.yview)
+        self.alerts_scroll_frame = tk.Frame(self.alerts_canvas, bg=THEME["bg_card"])
 
-        self.alerts_scroll_frame.bind("<Configure>",
-                                     lambda e: alerts_canvas.configure(
-                                         scrollregion=alerts_canvas.bbox("all")))
-        alerts_canvas.create_window((0, 0), window=self.alerts_scroll_frame, anchor="nw")
-        alerts_canvas.configure(yscrollcommand=alerts_scrollbar.set)
+        self.alerts_scroll_frame.bind("<Configure>", self._on_alerts_configure)
+        self.alerts_canvas.create_window((0, 0), window=self.alerts_scroll_frame, anchor="nw")
+        self.alerts_canvas.configure(yscrollcommand=self.alerts_scrollbar.set)
 
-        alerts_scrollbar.pack(side="right", fill="y")
-        alerts_canvas.pack(side="left", fill="both", expand=True)
+        self.alerts_canvas.pack(side="left", fill="both", expand=True)
 
         # ===================================================================
         # FOOTER - EXPLANATION
@@ -813,33 +811,72 @@ class DashboardPage(tk.Frame):
         
         # Show/hide alerts
         self._update_alerts(alert_messages)
-    
+
+    def _on_alerts_configure(self, event=None):
+        """Update scrollbar visibility and scroll region based on content size."""
+        self.alerts_canvas.configure(scrollregion=self.alerts_canvas.bbox("all"))
+        # Show scrollbar only if content exceeds visible area
+        content_height = self.alerts_scroll_frame.winfo_reqheight()
+        if content_height > ALERTS_BOX_HEIGHT:
+            self.alerts_scrollbar.pack(side="right", fill="y")
+        else:
+            self.alerts_scrollbar.pack_forget()
+
     def _update_alerts(self, messages):
-        """Update always-visible alert box with messages or show 'All OK'."""
+        """Update always-visible alert box with messages or show 'All OK'.
+
+        Messages can be either:
+        - Simple strings (treated as critical)
+        - Tuples of (message, priority) where priority is 'warning' or 'critical'
+        """
         # Clear previous alerts
         for widget in self.alerts_scroll_frame.winfo_children():
             widget.destroy()
-        
+
         if not messages:
             # All OK - show success message
             tk.Label(self.alerts_scroll_frame, text="✓ All Controls OK",
                     fg=THEME["good"], bg=THEME["bg_card"],
                     font=("Segoe UI", 14, "bold")).pack(expand=True, pady=50)
         else:
+            # Get current timestamp
+            timestamp = datetime.now().strftime("%H:%M:%S")
+
             # Show error messages
-            for i, msg in enumerate(messages):
+            for i, msg_item in enumerate(messages):
+                # Support both simple strings and (message, priority) tuples
+                if isinstance(msg_item, tuple):
+                    msg, priority = msg_item
+                else:
+                    msg, priority = msg_item, "critical"
+
+                # Set colors based on priority
+                if priority == "warning":
+                    icon_color = THEME["warning"]
+                    icon_text = "⚠"
+                else:  # critical
+                    icon_color = THEME["bad"]
+                    icon_text = "●"
+
                 alert_frame = tk.Frame(self.alerts_scroll_frame,
                                       bg=THEME["bg_card_2"] if i % 2 == 0 else THEME["bg_card"])
                 alert_frame.pack(fill="x", pady=2, padx=10)
-                
-                tk.Label(alert_frame, text="•", fg=THEME["bad"],
+
+                # Timestamp
+                tk.Label(alert_frame, text=timestamp, fg=THEME["muted"],
                         bg=alert_frame["bg"],
-                        font=("Segoe UI", 12)).pack(side="left", padx=(10, 5), pady=8)
-                
+                        font=("Consolas", 9)).pack(side="left", padx=(10, 8), pady=8)
+
+                # Priority icon
+                tk.Label(alert_frame, text=icon_text, fg=icon_color,
+                        bg=alert_frame["bg"],
+                        font=("Segoe UI", 12)).pack(side="left", padx=(0, 5), pady=8)
+
+                # Message
                 tk.Label(alert_frame, text=msg, fg=THEME["text"],
                         bg=alert_frame["bg"],
                         font=("Segoe UI", 10), anchor="w",
-                        wraplength=650).pack(side="left", fill="x", expand=True, pady=8)
+                        wraplength=580).pack(side="left", fill="x", expand=True, pady=8)
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""

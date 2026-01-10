@@ -107,6 +107,11 @@ FONTS = {
 
 CURRENT_MODE = {"type": "OFFICE", "pad": 20, "hpad": 30, "title": 24, "h2": 18, "body": 11, "small": 9}
 
+# ==============================================================================
+#  UI CONSTANTS
+# ==============================================================================
+ALERTS_BOX_HEIGHT = 150  # Height of the Active Alerts box in pixels
+
 
 def set_mode(mode: str):
     if mode == "OFFICE":
