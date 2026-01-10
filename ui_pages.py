@@ -9,7 +9,7 @@ from datetime import datetime
 from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, get_logger
 
 log = get_logger("ui_pages")
-from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree
+from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
 from utils import safe_float
 from calculations import calc_implied_yield
 
@@ -1325,67 +1325,99 @@ class NokImpliedPage(tk.Frame):
                                       font=("Segoe UI", CURRENT_MODE["body"], "bold"))
         self.weights_label.pack(side="left")
 
-        # ============ SECTION 1: Bloomberg CM + Excel Days ============
-        tk.Label(container, text="SEKTION 1: BLOOMBERG CM + EXCEL DAGAR", fg=THEME["good"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["body"], "bold")).pack(anchor="w", padx=pad, pady=(10, 5))
+        # ============================================================================
+        # SUMMARY CARDS - Show weighted results at a glance
+        # ============================================================================
+        summary_frame = tk.Frame(container, bg=THEME["bg_panel"])
+        summary_frame.pack(fill="x", padx=pad, pady=(10, 15))
+
+        tk.Label(summary_frame, text="FUNDING RATES (WEIGHTED)", fg=THEME["muted"],
+                bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", pady=(0, 8))
+
+        cards_frame = tk.Frame(summary_frame, bg=THEME["bg_panel"])
+        cards_frame.pack(fill="x")
+        for i in range(4):
+            cards_frame.grid_columnconfigure(i, weight=1, uniform="card")
+
+        self.summary_cards = {}
+        tenors = [("1M", "1m"), ("2M", "2m"), ("3M", "3m"), ("6M", "6m")]
+        for i, (label, key) in enumerate(tenors):
+            card = SummaryCard(cards_frame, label, "-")
+            card.grid(row=0, column=i, sticky="ew", padx=(0 if i == 0 else 5, 0))
+            self.summary_cards[key] = card
+
+        # ============================================================================
+        # COLLAPSIBLE SECTION 1: Bloomberg CM + Excel Days
+        # ============================================================================
+        self.section1 = CollapsibleSection(container, "DETALJER: BLOOMBERG CM + EXCEL DAGAR",
+                                           expanded=False, accent_color=THEME["good"])
+        self.section1.pack(fill="x", padx=pad, pady=(10, 5))
+
+        sec1_content = self.section1.content
 
         # USDNOK Table (Section 1)
-        tk.Label(container, text="USDNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec1_content, text="USDNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", pady=(5, 0))
 
-        self.usd_table_bbg = DataTableTree(container, columns=[
+        self.usd_table_bbg = DataTableTree(sec1_content, columns=[
             "TENOR", "USD RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK CM"
         ], col_widths=[50, 70, 70, 70, 80, 80, 80, 70], height=4)
-        self.usd_table_bbg.pack(fill="x", padx=pad, pady=(0, 5))
+        self.usd_table_bbg.pack(fill="x", pady=(0, 5))
 
         # EURNOK Table (Section 1)
-        tk.Label(container, text="EURNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec1_content, text="EURNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
-        self.eur_table_bbg = DataTableTree(container, columns=[
+        self.eur_table_bbg = DataTableTree(sec1_content, columns=[
             "TENOR", "EUR RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK CM"
         ], col_widths=[50, 70, 70, 70, 80, 80, 80, 70], height=4)
-        self.eur_table_bbg.pack(fill="x", padx=pad, pady=(0, 5))
+        self.eur_table_bbg.pack(fill="x", pady=(0, 5))
 
         # Weighted (Section 1)
-        tk.Label(container, text="VIKTAD (BBG CM)", fg=THEME["accent"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec1_content, text="VIKTAD (BBG CM)", fg=THEME["accent"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
-        self.weighted_table_bbg = DataTableTree(container, columns=[
+        self.weighted_table_bbg = DataTableTree(sec1_content, columns=[
             "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK CM", "× 50%", "TOTAL"
         ], col_widths=[50, 70, 60, 70, 60, 70, 60, 80], height=4)
-        self.weighted_table_bbg.pack(fill="x", padx=pad, pady=(0, 15))
+        self.weighted_table_bbg.pack(fill="x", pady=(0, 10))
 
-        # ============ SECTION 2: Excel CM + Bloomberg Days ============
-        tk.Label(container, text="SEKTION 2: EXCEL CM + BLOOMBERG DAGAR", fg=THEME["warn"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["body"], "bold")).pack(anchor="w", padx=pad, pady=(10, 5))
+        # ============================================================================
+        # COLLAPSIBLE SECTION 2: Excel CM + Bloomberg Days
+        # ============================================================================
+        self.section2 = CollapsibleSection(container, "DETALJER: EXCEL CM + BLOOMBERG DAGAR",
+                                           expanded=False, accent_color=THEME["warn"])
+        self.section2.pack(fill="x", padx=pad, pady=(5, pad))
+
+        sec2_content = self.section2.content
 
         # USDNOK Table (Section 2)
-        tk.Label(container, text="USDNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec2_content, text="USDNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", pady=(5, 0))
 
-        self.usd_table_exc = DataTableTree(container, columns=[
+        self.usd_table_exc = DataTableTree(sec2_content, columns=[
             "TENOR", "USD RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK CM"
         ], col_widths=[50, 70, 70, 90, 90, 70], height=4)
-        self.usd_table_exc.pack(fill="x", padx=pad, pady=(0, 5))
+        self.usd_table_exc.pack(fill="x", pady=(0, 5))
 
         # EURNOK Table (Section 2)
-        tk.Label(container, text="EURNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec2_content, text="EURNOK", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
-        self.eur_table_exc = DataTableTree(container, columns=[
+        self.eur_table_exc = DataTableTree(sec2_content, columns=[
             "TENOR", "EUR RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK CM"
         ], col_widths=[50, 70, 70, 90, 90, 70], height=4)
-        self.eur_table_exc.pack(fill="x", padx=pad, pady=(0, 5))
+        self.eur_table_exc.pack(fill="x", pady=(0, 5))
 
         # Weighted (Section 2)
-        tk.Label(container, text="VIKTAD (EXCEL CM)", fg=THEME["accent"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=pad)
+        tk.Label(sec2_content, text="VIKTAD (EXCEL CM)", fg=THEME["accent"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
-        self.weighted_table_exc = DataTableTree(container, columns=[
+        self.weighted_table_exc = DataTableTree(sec2_content, columns=[
             "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK CM", "× 50%", "TOTAL"
         ], col_widths=[50, 70, 60, 70, 60, 70, 60, 80], height=4)
-        self.weighted_table_exc.pack(fill="x", padx=pad, pady=(0, pad))
+        self.weighted_table_exc.pack(fill="x", pady=(0, 10))
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
@@ -1663,7 +1695,7 @@ class NokImpliedPage(tk.Frame):
                 fmt_rate(d["nok_cm"]), fmt_impl(w_nok), fmt_impl(total)
             ], style="normal")
 
-        # Add weighted rows for Section 2
+        # Add weighted rows for Section 2 and update summary cards
         for d in implied_data_exc:
             w_usd = d["impl_usd"] * weights["USD"] if d["impl_usd"] else None
             w_eur = d["impl_eur"] * weights["EUR"] if d["impl_eur"] else None
@@ -1675,6 +1707,14 @@ class NokImpliedPage(tk.Frame):
                 fmt_impl(d["impl_eur"]), fmt_impl(w_eur),
                 fmt_rate(d["nok_cm"]), fmt_impl(w_nok), fmt_impl(total)
             ], style="normal")
+
+            # Update summary cards with the weighted totals (using Excel CM data - Section 2)
+            tenor_key = d["tenor"].lower()
+            if tenor_key in self.summary_cards:
+                if total is not None:
+                    self.summary_cards[tenor_key].set_value(f"{total:.2f}%")
+                else:
+                    self.summary_cards[tenor_key].set_value("-")
 
 
 class WeightsPage(tk.Frame):

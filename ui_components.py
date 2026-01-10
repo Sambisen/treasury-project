@@ -181,6 +181,84 @@ class MetricChipTK(tk.Frame):
         self.lbl_value.configure(text=str(v))
 
 
+class SummaryCard(tk.Frame):
+    """Summary card showing tenor and calculated rate."""
+
+    def __init__(self, master, tenor: str, value: str = "-"):
+        super().__init__(master, bg=THEME["bg_card"], highlightthickness=1,
+                        highlightbackground=THEME["border"])
+
+        self.lbl_tenor = tk.Label(self, text=tenor, fg=THEME["muted"], bg=THEME["bg_card"],
+                                  font=("Segoe UI", CURRENT_MODE["small"], "bold"))
+        self.lbl_tenor.pack(anchor="center", pady=(12, 2))
+
+        self.lbl_value = tk.Label(self, text=value, fg=THEME["accent_secondary"], bg=THEME["bg_card"],
+                                  font=("Consolas", 18, "bold"))
+        self.lbl_value.pack(anchor="center", pady=(0, 4))
+
+        self.lbl_label = tk.Label(self, text="Funding Rate", fg=THEME["muted2"], bg=THEME["bg_card"],
+                                  font=("Segoe UI", 8))
+        self.lbl_label.pack(anchor="center", pady=(0, 10))
+
+    def set_value(self, v: str):
+        self.lbl_value.configure(text=str(v))
+
+
+class CollapsibleSection(tk.Frame):
+    """Expandable/collapsible section with header and content."""
+
+    def __init__(self, master, title: str, expanded: bool = False, accent_color=None):
+        super().__init__(master, bg=THEME["bg_panel"])
+
+        self._expanded = expanded
+        self._accent = accent_color or THEME["muted"]
+
+        # Header frame (clickable)
+        self.header = tk.Frame(self, bg=THEME["bg_card"], cursor="hand2",
+                              highlightthickness=1, highlightbackground=THEME["border"])
+        self.header.pack(fill="x", pady=(5, 0))
+
+        # Toggle icon
+        self.toggle_icon = tk.Label(self.header, text="▶" if not expanded else "▼",
+                                    fg=self._accent, bg=THEME["bg_card"],
+                                    font=("Segoe UI", 10))
+        self.toggle_icon.pack(side="left", padx=(12, 8), pady=10)
+
+        # Title
+        self.title_label = tk.Label(self.header, text=title, fg=self._accent,
+                                    bg=THEME["bg_card"],
+                                    font=("Segoe UI", CURRENT_MODE["body"], "bold"))
+        self.title_label.pack(side="left", pady=10)
+
+        # Content frame
+        self.content = tk.Frame(self, bg=THEME["bg_panel"])
+
+        # Bind click events
+        for widget in [self.header, self.toggle_icon, self.title_label]:
+            widget.bind("<Button-1>", self._toggle)
+
+        # Show/hide based on initial state
+        if expanded:
+            self.content.pack(fill="x", padx=10, pady=(0, 5))
+
+    def _toggle(self, event=None):
+        self._expanded = not self._expanded
+        if self._expanded:
+            self.toggle_icon.configure(text="▼")
+            self.content.pack(fill="x", padx=10, pady=(0, 5))
+        else:
+            self.toggle_icon.configure(text="▶")
+            self.content.pack_forget()
+
+    def expand(self):
+        if not self._expanded:
+            self._toggle()
+
+    def collapse(self):
+        if self._expanded:
+            self._toggle()
+
+
 class DataTableTree(tk.Frame):
     """
     Fast table using ttk.Treeview.
