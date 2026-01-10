@@ -110,7 +110,7 @@ class OnyxTerminalTK(tk.Tk):
         if os.path.exists(image_path):
             try:
                 img = Image.open(image_path)
-                target_width = 250
+                target_width = 350
                 aspect_ratio = img.height / img.width
                 target_height = int(target_width * aspect_ratio)
                 img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
