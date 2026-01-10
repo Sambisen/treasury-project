@@ -207,6 +207,7 @@ class DataTableTree(tk.Frame):
         self.tree.tag_configure("yellow", background="#2A2406", foreground=THEME["yellow"])
         self.tree.tag_configure("normal_even", background=THEME["row_even"], foreground=THEME["text"])
         self.tree.tag_configure("normal_odd", background=THEME["row_odd"], foreground=THEME["text"])
+        self.tree.tag_configure("active", background="#FFF3E0", foreground=THEME["accent"])
 
         self.tree.pack(side="left", fill="both", expand=True, padx=10, pady=10)
         self.vsb.pack(side="right", fill="y", padx=(0, 10), pady=10)
@@ -229,6 +230,8 @@ class DataTableTree(tk.Frame):
             tag = "warn"
         elif style == "yellow":
             tag = "yellow"
+        elif style == "active":
+            tag = "active"
         else:
             tag = "normal_even" if (self._row_idx % 2 == 0) else "normal_odd"
 

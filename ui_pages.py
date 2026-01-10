@@ -1200,8 +1200,14 @@ class NiborDaysPage(tk.Frame):
         else:
             df2 = df
 
+        # Get today's date to highlight the active row
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
         for _, r in df2.head(400).iterrows():
-            self.table.add_row([r.get(c, "") for c in cols], style="normal")
+            row_date = str(r.get("date", ""))
+            # Highlight today's row (the one used in calculations) with orange
+            style = "active" if row_date == today_str else "normal"
+            self.table.add_row([r.get(c, "") for c in cols], style=style)
 
 
 class NokImpliedPage(tk.Frame):
