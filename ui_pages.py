@@ -12,6 +12,7 @@ log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
 from utils import safe_float
 from calculations import calc_implied_yield
+from history import save_snapshot, get_rates_table_data, get_snapshot, load_history, get_previous_day_rates
 
 
 class ToolTip:
@@ -138,12 +139,12 @@ class DashboardPage(tk.Frame):
                                 relief="flat")
         funding_frame.pack(anchor="center")
 
-        # Table headers (5 columns: TENOR, FUNDING, SPREAD, NIBOR, MATCH)
-        headers = ["TENOR", "FUNDING RATE", "SPREAD", "NIBOR", "MATCH"]
-        widths = [12, 18, 12, 18, 12]
-        
+        # Table headers (6 columns: TENOR, FUNDING, SPREAD, NIBOR, CHG, MATCH)
+        headers = ["TENOR", "FUNDING RATE", "SPREAD", "NIBOR", "CHG", "MATCH"]
+        widths = [12, 18, 12, 18, 10, 12]
+
         header_frame = tk.Frame(funding_frame, bg=THEME["bg_card_2"])
-        header_frame.grid(row=0, column=0, columnspan=5, sticky="ew")
+        header_frame.grid(row=0, column=0, columnspan=6, sticky="ew")
         for i, (header, width) in enumerate(zip(headers, widths)):
             tk.Label(header_frame, text=header, fg=THEME["muted"],
                     bg=THEME["bg_card_2"],
@@ -212,11 +213,19 @@ class DashboardPage(tk.Frame):
             tenor_key_capture = tenor["key"]
             ToolTip(final_lbl, lambda t=tenor_key_capture: self._get_nibor_tooltip(t))
 
+            # CHG (Change from previous day)
+            chg_lbl = tk.Label(funding_frame, text="-",
+                              fg=THEME["muted"], bg=THEME["bg_card"],
+                              font=("Consolas", CURRENT_MODE["body"]),
+                              width=8, anchor="center")
+            chg_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
+            cells["chg"] = chg_lbl
+
             # Match indicator - Professional text badge
             match_lbl = tk.Label(funding_frame, text="PEND",
                                 fg=THEME["badge_pend"], bg=THEME["bg_card_2"],
                                 font=("Segoe UI", 9, "bold"), width=8, anchor="center")
-            match_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
+            match_lbl.grid(row=row_idx, column=5, padx=5, pady=6, sticky="ew")
             cells["match"] = match_lbl
             cells["excel_row"] = tenor["excel_row"]
             cells["excel_col"] = tenor["excel_col"]
@@ -740,9 +749,12 @@ class DashboardPage(tk.Frame):
         
         weights = self._get_weights()
         self.app.funding_calc_data = {}
-        
+
+        # Get previous day rates for CHG calculation
+        prev_rates = get_previous_day_rates()
+
         alert_messages = []
-        
+
         for tenor_key in ["1m", "2m", "3m", "6m"]:
             # Select data based on model choice
             if selected_model == "swedbank":
@@ -777,7 +789,25 @@ class DashboardPage(tk.Frame):
                 cells["spread"].config(text=f"{spread:.2f}")
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
-            
+
+            # CHG (Change from previous day)
+            if "chg" in cells:
+                prev_nibor = None
+                if prev_rates and tenor_key in prev_rates:
+                    prev_nibor = prev_rates[tenor_key].get('nibor')
+
+                if final_rate is not None and prev_nibor is not None:
+                    chg = final_rate - prev_nibor
+                    if chg > 0:
+                        chg_text = f"+{chg:.2f}"
+                    elif chg < 0:
+                        chg_text = f"{chg:.2f}"
+                    else:
+                        chg_text = "0.00"
+                    cells["chg"].config(text=chg_text, fg=THEME["text"])
+                else:
+                    cells["chg"].config(text="-", fg=THEME["muted"])
+
             # Excel validation
             if "match" in cells and final_rate is not None:
                 excel_row = cells.get("excel_row")
@@ -1823,3 +1853,184 @@ class NiborMetaDataPage(tk.Frame):
         self.table.add_row(["Calculation Agent", "GRSS", "System", "Active"], style="normal")
         self.table.add_row(["Calculation Agent", "GRSS", "System", "Active"], style="normal")
         self.table.add_row(["Algorithm", "Waterfall Level 1", "Manual", "Info"], style="section")
+
+
+class HistoryPage(tk.Frame):
+    """History page showing saved NIBOR snapshots with change tracking."""
+
+    def __init__(self, master, app):
+        super().__init__(master, bg=THEME["bg_panel"])
+        self.app = app
+        pad = CURRENT_MODE["pad"]
+
+        # Header
+        top = tk.Frame(self, bg=THEME["bg_panel"])
+        top.pack(fill="x", padx=pad, pady=(pad, 10))
+
+        tk.Label(top, text="NIBOR HISTORY", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+
+        btn_frame = tk.Frame(top, bg=THEME["bg_panel"])
+        btn_frame.pack(side="right")
+
+        OnyxButtonTK(btn_frame, "Save Snapshot", command=self._save_now, variant="accent").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "Refresh", command=self.update, variant="default").pack(side="left")
+
+        # Info label
+        info_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        info_frame.pack(fill="x", padx=pad, pady=(0, 10))
+
+        tk.Label(info_frame, text="Saved NIBOR calculations with daily changes (click row for details)",
+                fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["small"], "italic")).pack(anchor="w")
+
+        # Main content area - split horizontally
+        content = tk.Frame(self, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+        # Left: Rates table
+        left_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        left_frame.pack(side="left", fill="both", expand=True)
+
+        self.table = DataTableTree(
+            left_frame,
+            columns=["DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"],
+            col_widths=[100, 65, 50, 65, 50, 65, 50, 65, 50, 80, 80],
+            height=18
+        )
+        self.table.pack(fill="both", expand=True)
+        self.table.tree.bind("<<TreeviewSelect>>", self._on_row_select)
+
+        # Right: Detail panel
+        right_frame = tk.Frame(content, bg=THEME["bg_card"], width=280,
+                              highlightthickness=1, highlightbackground=THEME["border"])
+        right_frame.pack(side="right", fill="y", padx=(15, 0))
+        right_frame.pack_propagate(False)
+
+        tk.Label(right_frame, text="SNAPSHOT DETAILS", fg=THEME["muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", padx=12, pady=(12, 8))
+
+        self.detail_text = tk.Text(right_frame, bg=THEME["bg_card"], fg=THEME["text"],
+                                   font=("Consolas", 9), relief="flat", wrap="word",
+                                   highlightthickness=0)
+        self.detail_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.detail_text.config(state="disabled")
+
+        # Store history data for selection lookup
+        self._history_data = {}
+
+    def _save_now(self):
+        """Save current state as a snapshot."""
+        try:
+            date_key = save_snapshot(self.app)
+            log.info(f"Snapshot saved: {date_key}")
+            self.update()
+        except Exception as e:
+            log.error(f"Failed to save snapshot: {e}")
+
+    def _format_chg(self, chg):
+        """Format change value with sign."""
+        if chg is None:
+            return "-"
+        if chg > 0:
+            return f"+{chg:.2f}"
+        elif chg < 0:
+            return f"{chg:.2f}"
+        return "0.00"
+
+    def update(self):
+        """Update the history table."""
+        self.table.clear()
+        self._history_data = load_history()
+
+        table_data = get_rates_table_data(limit=50)
+
+        if not table_data:
+            self.table.add_row(["-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+            self._show_detail("No snapshots saved yet.\n\nClick 'Save Snapshot' to save current NIBOR calculation.")
+            return
+
+        for row in table_data:
+            values = [
+                row['date'],
+                f"{row['1m']:.2f}" if row['1m'] is not None else "-",
+                self._format_chg(row['1m_chg']),
+                f"{row['2m']:.2f}" if row['2m'] is not None else "-",
+                self._format_chg(row['2m_chg']),
+                f"{row['3m']:.2f}" if row['3m'] is not None else "-",
+                self._format_chg(row['3m_chg']),
+                f"{row['6m']:.2f}" if row['6m'] is not None else "-",
+                self._format_chg(row['6m_chg']),
+                row.get('model', '-'),
+                row.get('user', '-')
+            ]
+            self.table.add_row(values, style="normal")
+
+        # Show first row details
+        if table_data:
+            self._show_snapshot_detail(table_data[0]['date'])
+
+    def _on_row_select(self, event):
+        """Handle row selection to show details."""
+        selection = self.table.tree.selection()
+        if selection:
+            item = self.table.tree.item(selection[0])
+            values = item['values']
+            if values:
+                date_key = str(values[0])
+                self._show_snapshot_detail(date_key)
+
+    def _show_snapshot_detail(self, date_key: str):
+        """Show detailed info for a snapshot."""
+        snapshot = self._history_data.get(date_key)
+        if not snapshot:
+            self._show_detail(f"No details available for {date_key}")
+            return
+
+        lines = []
+        lines.append(f"Date: {date_key}")
+        lines.append(f"Time: {snapshot.get('timestamp', '-')[11:19]}")
+        lines.append(f"User: {snapshot.get('user', '-')}")
+        lines.append(f"Machine: {snapshot.get('machine', '-')}")
+        lines.append(f"Model: {snapshot.get('model', '-')}")
+        lines.append("")
+
+        # Weights
+        weights = snapshot.get('weights', {})
+        if weights:
+            lines.append("WEIGHTS:")
+            lines.append(f"  USD: {weights.get('USD', '-')}")
+            lines.append(f"  EUR: {weights.get('EUR', '-')}")
+            lines.append(f"  NOK: {weights.get('NOK', '-')}")
+            lines.append("")
+
+        # Rates detail
+        rates = snapshot.get('rates', {})
+        if rates:
+            lines.append("RATES BREAKDOWN:")
+            for tenor in ['1m', '2m', '3m', '6m']:
+                t_data = rates.get(tenor, {})
+                lines.append(f"  {tenor.upper()}:")
+                lines.append(f"    Funding: {t_data.get('funding', '-')}")
+                lines.append(f"    Spread:  {t_data.get('spread', '-')}")
+                lines.append(f"    NIBOR:   {t_data.get('nibor', '-')}")
+                lines.append(f"    EUR Impl:{t_data.get('eur_impl', '-')}")
+                lines.append(f"    USD Impl:{t_data.get('usd_impl', '-')}")
+                lines.append(f"    NOK CM:  {t_data.get('nok_cm', '-')}")
+            lines.append("")
+
+        # Alerts
+        alerts = snapshot.get('alerts', [])
+        if alerts:
+            lines.append("ALERTS:")
+            for a in alerts:
+                lines.append(f"  - {a}")
+
+        self._show_detail("\n".join(lines))
+
+    def _show_detail(self, text: str):
+        """Update detail panel text."""
+        self.detail_text.config(state="normal")
+        self.detail_text.delete("1.0", "end")
+        self.detail_text.insert("1.0", text)
+        self.detail_text.config(state="disabled")

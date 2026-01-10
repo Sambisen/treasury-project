@@ -33,9 +33,10 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK
+from history import save_snapshot
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage
+    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage, HistoryPage
 )
 
 
@@ -248,6 +249,7 @@ class OnyxTerminalTK(tk.Tk):
             ("nibor_recon", "Nibor Recon", ReconPage),
             ("nok_implied", "NOK Implied", NokImpliedPage),
             ("weights", "Weights", WeightsPage),
+            ("history", "History", HistoryPage),
             ("nibor_meta", "NIBOR Meta Data", NiborMetaDataPage),
             ("rules_logic", "Rules & Logic", RulesPage),
             ("bloomberg", "Bloomberg", BloombergPage),
@@ -551,6 +553,14 @@ class OnyxTerminalTK(tk.Tk):
 
         self.set_busy(False)
         self.refresh_ui()
+
+        # Auto-save snapshot after successful data refresh
+        if hasattr(self, 'funding_calc_data') and self.funding_calc_data:
+            try:
+                date_key = save_snapshot(self)
+                log.info(f"Auto-saved snapshot: {date_key}")
+            except Exception as e:
+                log.error(f"Failed to auto-save snapshot: {e}")
 
     def refresh_ui(self):
         if self._current_page and self._current_page in self._pages:
