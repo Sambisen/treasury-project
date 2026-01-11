@@ -1,5 +1,5 @@
 """
-Onyx Terminal - Main Application
+Nibor Calculation Terminal - Main Application
 Treasury Suite for NIBOR validation and monitoring.
 """
 import os
@@ -32,23 +32,24 @@ from utils import (
     LogoPipelineTK
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
-from ui_components import style_ttk, NavButtonTK, SourceCardTK
+from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
 from history import save_snapshot
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage, HistoryPage
+    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage, HistoryPage,
+    AuditLogPage, SettingsPage
 )
 
 
-class OnyxTerminalTK(tk.Tk):
-    """Main application window for Onyx Terminal."""
+class NiborTerminalTK(tk.Tk):
+    """Main application window for Nibor Calculation Terminal."""
 
     def __init__(self):
         super().__init__()
 
         set_mode("OFFICE")
 
-        self.title(f"Onyx Terminal v{APP_VERSION} — Treasury Suite ({CURRENT_MODE['type']} Mode)")
+        self.title(f"Nibor Calculation Terminal v{APP_VERSION}")
         self.geometry("1400x900")
         self.minsize(1320, 820)
         self.configure(bg=THEME["bg_main"])
@@ -58,6 +59,23 @@ class OnyxTerminalTK(tk.Tk):
         self.logo_pipeline = LogoPipelineTK()
         self.engine = BloombergEngine(cache_ttl_sec=3.0)
         self.excel_engine = ExcelEngine()
+
+        # Toast notification manager
+        from toast import ToastManager
+        self.toast = ToastManager(self)
+
+        # System tray (optional)
+        self._tray = None
+        self._tray_enabled = False
+        try:
+            from system_tray import SystemTray, TRAY_AVAILABLE
+            if TRAY_AVAILABLE:
+                self._tray = SystemTray(self)
+                self._tray.start()
+                self._tray_enabled = True
+                log.info("System tray initialized")
+        except ImportError:
+            log.warning("System tray not available - pystray not installed")
 
         self.status_spot = True
         self.status_fwds = True
@@ -93,8 +111,92 @@ class OnyxTerminalTK(tk.Tk):
         self._update_btn_original_text: dict[int, str] = {}
 
         self.build_ui()
+        self._setup_keyboard_shortcuts()
+
+        # Set up window close handler for system tray
+        self.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
         self.after(250, self.refresh_data)
+
+    def _setup_keyboard_shortcuts(self):
+        """Setup global keyboard shortcuts."""
+        # F5 = Refresh
+        self.bind("<F5>", lambda e: self.refresh_data())
+
+        # Ctrl+S = Save snapshot (when on history page)
+        self.bind("<Control-s>", self._shortcut_save_snapshot)
+
+        # Ctrl+E = Export (when on history page)
+        self.bind("<Control-e>", self._shortcut_export)
+
+        # Ctrl+H = Go to History page
+        self.bind("<Control-h>", lambda e: self.show_page("history"))
+
+        # Ctrl+D = Go to Dashboard
+        self.bind("<Control-d>", lambda e: self.show_page("dashboard"))
+
+        # Ctrl+R = Go to Nibor Recon
+        self.bind("<Control-r>", lambda e: self.show_page("nibor_recon"))
+
+        # Ctrl+N = Go to NOK Implied
+        self.bind("<Control-n>", lambda e: self.show_page("nok_implied"))
+
+        # Ctrl+comma = Settings
+        self.bind("<Control-comma>", lambda e: self._show_settings_dialog())
+
+        # Escape = Close any open dialog
+        self.bind("<Escape>", self._close_toplevel_dialogs)
+
+        # F1 = About
+        self.bind("<F1>", lambda e: self._show_about_dialog())
+
+        # Ctrl+M = Minimize to tray
+        self.bind("<Control-m>", lambda e: self._minimize_to_tray())
+
+    def _shortcut_save_snapshot(self, event=None):
+        """Handle Ctrl+S shortcut."""
+        if self._current_page == "history" and "history" in self._pages:
+            self._pages["history"]._save_now()
+
+    def _shortcut_export(self, event=None):
+        """Handle Ctrl+E shortcut."""
+        if self._current_page == "history" and "history" in self._pages:
+            self._pages["history"]._export_selected()
+
+    def _close_toplevel_dialogs(self, event=None):
+        """Close any open toplevel dialogs."""
+        for widget in self.winfo_children():
+            if isinstance(widget, tk.Toplevel):
+                widget.destroy()
+
+    def _on_window_close(self):
+        """Handle window close - minimize to tray or quit."""
+        if self._tray_enabled:
+            # Minimize to tray instead of closing
+            self._minimize_to_tray()
+        else:
+            # Actually quit
+            self._quit_app()
+
+    def _minimize_to_tray(self):
+        """Minimize to system tray."""
+        if self._tray_enabled and self._tray:
+            self.withdraw()
+            self._tray.show_notification(
+                "Nibor Calculation Terminal",
+                "Minimized to tray. Click icon to restore."
+            )
+            log.info("Application minimized to system tray")
+        else:
+            # If tray not available, just minimize normally
+            self.iconify()
+
+    def _quit_app(self):
+        """Quit the application."""
+        log.info("Application shutting down")
+        if self._tray:
+            self._tray.stop()
+        self.destroy()
 
     def build_ui(self):
         hpad = CURRENT_MODE["hpad"]
@@ -217,10 +319,15 @@ class OnyxTerminalTK(tk.Tk):
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
+        # STATUS BAR - Bottom of window
+        # ====================================================================
+        self._build_status_bar()
+
+        # ====================================================================
         # BODY with Command Center Sidebar + Content
         # ====================================================================
         self.body = tk.Frame(self, bg=THEME["bg_main"])
-        self.body.pack(fill="both", expand=True, padx=hpad, pady=(0, hpad))
+        self.body.pack(fill="both", expand=True, padx=hpad, pady=(0, 5))
 
         # Configure grid layout: sidebar (0) | separator (1) | content (2)
         self.body.grid_columnconfigure(0, weight=0, minsize=220)  # Sidebar fixed
@@ -250,10 +357,12 @@ class OnyxTerminalTK(tk.Tk):
             ("nok_implied", "NOK Implied", NokImpliedPage),
             ("weights", "Weights", WeightsPage),
             ("history", "History", HistoryPage),
+            ("audit_log", "Audit Log", AuditLogPage),
             ("nibor_meta", "NIBOR Meta Data", NiborMetaDataPage),
             ("rules_logic", "Rules & Logic", RulesPage),
             ("bloomberg", "Bloomberg", BloombergPage),
             ("nibor_days", "Nibor Days", NiborDaysPage),
+            ("settings", "⚙ Settings", SettingsPage),
         ]
 
         for page_key, page_name in [(k, n) for k, n, _ in self.PAGES_CONFIG]:
@@ -339,6 +448,236 @@ class OnyxTerminalTK(tk.Tk):
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
 
+    def _build_status_bar(self):
+        """Build the status bar at the bottom of the window."""
+        from config import APP_VERSION
+
+        status_bar = tk.Frame(self, bg="#1e1e2e", height=28)
+        status_bar.pack(side="bottom", fill="x")
+        status_bar.pack_propagate(False)
+
+        # Left side - connection status panel (new professional design)
+        self.connection_panel = ConnectionStatusPanel(status_bar, bg="#1e1e2e")
+        self.connection_panel.pack(side="left", padx=10)
+
+        # Right side - version and user
+        right_frame = tk.Frame(status_bar, bg="#1e1e2e")
+        right_frame.pack(side="right", padx=10)
+
+        # User info
+        import getpass
+        username = getpass.getuser()
+        tk.Label(right_frame, text=f"👤 {username}", fg="#666666", bg="#1e1e2e", font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
+
+        # Separator
+        tk.Frame(right_frame, bg="#333344", width=1, height=16).pack(side="right", padx=10)
+
+        # Version
+        tk.Label(right_frame, text=f"v{APP_VERSION}", fg="#555555", bg="#1e1e2e", font=("Segoe UI", 9)).pack(side="right")
+
+        # About button (clickable)
+        about_btn = tk.Label(right_frame, text="ⓘ", fg="#666666", bg="#1e1e2e", font=("Segoe UI", 11), cursor="hand2")
+        about_btn.pack(side="right", padx=(0, 5))
+        about_btn.bind("<Button-1>", lambda e: self._show_about_dialog())
+        about_btn.bind("<Enter>", lambda e: about_btn.config(fg="#e94560"))
+        about_btn.bind("<Leave>", lambda e: about_btn.config(fg="#666666"))
+
+    def _update_status_bar(self):
+        """Update status bar indicators using the new ConnectionStatusPanel."""
+        # Bloomberg status with details
+        if self.bbg_ok:
+            bbg_details = {
+                "Tickers": len(getattr(self, 'cached_market_data', {}) or {}),
+                "API": "blpapi" if blpapi else "Mock"
+            }
+            self.connection_panel.set_bloomberg_status(
+                ConnectionStatusIndicator.CONNECTED, bbg_details
+            )
+        else:
+            self.connection_panel.set_bloomberg_status(
+                ConnectionStatusIndicator.ERROR, {"Message": "Connection failed"}
+            )
+
+        # Excel status with details
+        if self.excel_ok:
+            excel_details = {
+                "File": "eFX_Template.xlsx",
+                "Cells": len(getattr(self, 'cached_excel_data', {}) or {})
+            }
+            self.connection_panel.set_excel_status(
+                ConnectionStatusIndicator.CONNECTED, excel_details
+            )
+        else:
+            self.connection_panel.set_excel_status(
+                ConnectionStatusIndicator.DISCONNECTED, {"Message": "File not loaded"}
+            )
+
+        # Update data freshness timestamp
+        self.connection_panel.set_data_time()
+
+    def _show_about_dialog(self):
+        """Show the About dialog."""
+        from config import APP_VERSION
+        import getpass
+        import platform
+
+        about_win = tk.Toplevel(self)
+        about_win.title("About Nibor Calculation Terminal")
+        about_win.geometry("400x300")
+        about_win.configure(bg="#1a1a2e")
+        about_win.resizable(False, False)
+        about_win.transient(self)
+        about_win.grab_set()
+
+        # Center on parent
+        about_win.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() - 400) // 2
+        y = self.winfo_y() + (self.winfo_height() - 300) // 2
+        about_win.geometry(f"+{x}+{y}")
+
+        # Content
+        content = tk.Frame(about_win, bg="#1a1a2e")
+        content.pack(fill="both", expand=True, padx=30, pady=20)
+
+        # Logo
+        tk.Label(content, text="N", font=("Segoe UI", 36, "bold"), fg="#e94560", bg="#1a1a2e").pack()
+
+        # Title
+        tk.Label(content, text="NIBOR CALCULATION TERMINAL", font=("Segoe UI", 14, "bold"), fg="white", bg="#1a1a2e").pack(pady=(5, 0))
+
+        # Subtitle
+        tk.Label(content, text="Treasury Reference Rate System", font=("Segoe UI", 10), fg="#888888", bg="#1a1a2e").pack(pady=(2, 15))
+
+        # Info
+        info_frame = tk.Frame(content, bg="#1a1a2e")
+        info_frame.pack(fill="x", pady=10)
+
+        info_items = [
+            ("Version:", APP_VERSION),
+            ("User:", getpass.getuser()),
+            ("Platform:", platform.system()),
+            ("Python:", platform.python_version()),
+        ]
+
+        for label, value in info_items:
+            row = tk.Frame(info_frame, bg="#1a1a2e")
+            row.pack(fill="x", pady=2)
+            tk.Label(row, text=label, font=("Segoe UI", 9), fg="#666666", bg="#1a1a2e", width=10, anchor="e").pack(side="left")
+            tk.Label(row, text=value, font=("Segoe UI", 9), fg="#aaaaaa", bg="#1a1a2e", anchor="w").pack(side="left", padx=5)
+
+        # Footer
+        tk.Label(content, text="© 2025 Swedbank Treasury", font=("Segoe UI", 8), fg="#444444", bg="#1a1a2e").pack(side="bottom", pady=(15, 0))
+
+        # Close button
+        close_btn = tk.Button(content, text="Close", command=about_win.destroy,
+                             bg="#333344", fg="white", font=("Segoe UI", 9),
+                             relief="flat", padx=20, pady=5, cursor="hand2")
+        close_btn.pack(side="bottom")
+
+    def _show_settings_dialog(self):
+        """Show the Settings dialog."""
+        settings_win = tk.Toplevel(self)
+        settings_win.title("Settings")
+        settings_win.geometry("500x400")
+        settings_win.configure(bg="#1a1a2e")
+        settings_win.resizable(False, False)
+        settings_win.transient(self)
+        settings_win.grab_set()
+
+        # Center on parent
+        settings_win.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() - 500) // 2
+        y = self.winfo_y() + (self.winfo_height() - 400) // 2
+        settings_win.geometry(f"+{x}+{y}")
+
+        # Title
+        tk.Label(settings_win, text="⚙️ Settings", font=("Segoe UI", 16, "bold"),
+                fg="white", bg="#1a1a2e").pack(pady=(20, 15))
+
+        # Content frame
+        content = tk.Frame(settings_win, bg="#1a1a2e")
+        content.pack(fill="both", expand=True, padx=30)
+
+        # Auto-refresh interval
+        refresh_frame = tk.Frame(content, bg="#1a1a2e")
+        refresh_frame.pack(fill="x", pady=10)
+
+        tk.Label(refresh_frame, text="Auto-refresh interval:", font=("Segoe UI", 10),
+                fg="#aaaaaa", bg="#1a1a2e").pack(side="left")
+
+        self.settings_refresh_var = tk.StringVar(value="Manual")
+        refresh_options = ["Manual", "30 sec", "1 min", "5 min", "10 min"]
+        refresh_menu = ttk.Combobox(refresh_frame, textvariable=self.settings_refresh_var,
+                                   values=refresh_options, state="readonly", width=15)
+        refresh_menu.pack(side="right")
+
+        # Theme selection
+        theme_frame = tk.Frame(content, bg="#1a1a2e")
+        theme_frame.pack(fill="x", pady=10)
+
+        tk.Label(theme_frame, text="Theme:", font=("Segoe UI", 10),
+                fg="#aaaaaa", bg="#1a1a2e").pack(side="left")
+
+        self.settings_theme_var = tk.StringVar(value="Dark")
+        theme_options = ["Dark", "Light"]
+        theme_menu = ttk.Combobox(theme_frame, textvariable=self.settings_theme_var,
+                                 values=theme_options, state="readonly", width=15)
+        theme_menu.pack(side="right")
+
+        # Auto-save snapshots
+        autosave_frame = tk.Frame(content, bg="#1a1a2e")
+        autosave_frame.pack(fill="x", pady=10)
+
+        self.settings_autosave_var = tk.BooleanVar(value=True)
+        autosave_check = tk.Checkbutton(autosave_frame, text="Auto-save snapshots on data refresh",
+                                        variable=self.settings_autosave_var,
+                                        font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
+                                        selectcolor="#333344", activebackground="#1a1a2e",
+                                        activeforeground="#aaaaaa")
+        autosave_check.pack(side="left")
+
+        # Show notifications
+        notif_frame = tk.Frame(content, bg="#1a1a2e")
+        notif_frame.pack(fill="x", pady=10)
+
+        self.settings_notif_var = tk.BooleanVar(value=True)
+        notif_check = tk.Checkbutton(notif_frame, text="Show notifications for alerts",
+                                    variable=self.settings_notif_var,
+                                    font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
+                                    selectcolor="#333344", activebackground="#1a1a2e",
+                                    activeforeground="#aaaaaa")
+        notif_check.pack(side="left")
+
+        # Keyboard shortcuts info
+        shortcuts_frame = tk.LabelFrame(content, text="Keyboard Shortcuts", font=("Segoe UI", 9),
+                                       fg="#666666", bg="#1a1a2e", bd=1)
+        shortcuts_frame.pack(fill="x", pady=20)
+
+        shortcuts = [
+            ("F5", "Refresh data"),
+            ("Ctrl+S", "Save snapshot"),
+            ("Ctrl+E", "Export selected"),
+            ("Ctrl+H", "History page"),
+            ("Ctrl+D", "Dashboard"),
+            ("Ctrl+,", "Settings"),
+            ("F1", "About"),
+            ("Esc", "Close dialogs"),
+        ]
+
+        for key, desc in shortcuts:
+            row = tk.Frame(shortcuts_frame, bg="#1a1a2e")
+            row.pack(fill="x", padx=10, pady=2)
+            tk.Label(row, text=key, font=("Consolas", 9), fg="#e94560", bg="#1a1a2e", width=10, anchor="w").pack(side="left")
+            tk.Label(row, text=desc, font=("Segoe UI", 9), fg="#888888", bg="#1a1a2e", anchor="w").pack(side="left")
+
+        # Buttons
+        btn_frame = tk.Frame(settings_win, bg="#1a1a2e")
+        btn_frame.pack(side="bottom", pady=20)
+
+        tk.Button(btn_frame, text="Close", command=settings_win.destroy,
+                 bg="#333344", fg="white", font=("Segoe UI", 9),
+                 relief="flat", padx=20, pady=5, cursor="hand2").pack(side="right", padx=5)
+
     def register_update_button(self, btn: tk.Button):
         if btn not in self._update_buttons:
             self._update_buttons.append(btn)
@@ -389,19 +728,23 @@ class OnyxTerminalTK(tk.Tk):
         if folder_path.exists():
             os.startfile(folder_path)
         else:
-            messagebox.showerror("Onyx", f"Folder missing: {folder_path}")
+            messagebox.showerror("Nibor Terminal", f"Folder missing: {folder_path}")
 
     def open_stibor_folder(self):
         if STIBOR_GRSS_PATH.exists():
             os.startfile(STIBOR_GRSS_PATH)
         else:
-            messagebox.showerror("Onyx", f"Folder missing: {STIBOR_GRSS_PATH}")
+            messagebox.showerror("Nibor Terminal", f"Folder missing: {STIBOR_GRSS_PATH}")
 
     def refresh_data(self):
         if self._busy:
             return
 
         self.set_busy(True, text="FETCHING…")
+
+        # Set connection indicators to "connecting" state
+        self.connection_panel.set_bloomberg_status(ConnectionStatusIndicator.CONNECTING)
+        self.connection_panel.set_excel_status(ConnectionStatusIndicator.CONNECTING)
 
         today = datetime.now().strftime("%Y-%m-%d")
         self.update_days_from_date(today)
@@ -552,7 +895,15 @@ class OnyxTerminalTK(tk.Tk):
                 log.error(f"Error updating NokImpliedPage: {e}")
 
         self.set_busy(False)
+        self._update_status_bar()
         self.refresh_ui()
+
+        # Auto-save snapshot after successful data refresh
+        # Show success toast
+        if self.bbg_ok and self.excel_ok:
+            self.toast.success("Data refreshed successfully")
+        elif self.bbg_ok or self.excel_ok:
+            self.toast.warning("Partial data refresh - check connections")
 
         # Auto-save snapshot after successful data refresh
         if hasattr(self, 'funding_calc_data') and self.funding_calc_data:
@@ -1013,10 +1364,47 @@ def generate_alerts_report():
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
-    # För att köra i terminal-läge (utan GUI):
-    # run_terminal_mode()
+    import sys
 
-    # För att köra i GUI-läge:
-    app = OnyxTerminalTK()
+    # Check if splash should be skipped (for debugging)
+    skip_splash = "--no-splash" in sys.argv
+
+    if not skip_splash:
+        try:
+            from splash_screen import SplashScreen
+            import time
+
+            # Create hidden root for splash
+            splash_root = tk.Tk()
+            splash_root.withdraw()
+
+            splash = SplashScreen(splash_root)
+            splash.update()
+
+            # Simulate loading steps
+            loading_steps = [
+                (10, "Loading configuration..."),
+                (25, "Initializing Excel engine..."),
+                (45, "Loading workbook data..."),
+                (60, "Connecting to Bloomberg..."),
+                (75, "Fetching market data..."),
+                (90, "Building interface..."),
+            ]
+
+            for progress, status in loading_steps:
+                splash.set_progress(progress, status)
+                splash.update()
+                time.sleep(0.15)
+
+            splash.set_progress(100, "Launching...")
+            splash.update()
+            time.sleep(0.2)
+
+            splash.destroy()
+            splash_root.destroy()
+        except Exception as e:
+            log.warning(f"Splash screen failed: {e}")
+
+    # Launch main application
+    app = NiborTerminalTK()
     app.mainloop()
-    # run_terminal_mode()

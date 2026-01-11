@@ -1,5 +1,5 @@
 """
-History module for Onyx Terminal.
+History module for Nibor Calculation Terminal.
 Handles saving and loading NIBOR calculation snapshots.
 """
 import json
@@ -9,12 +9,12 @@ import platform
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from config import DATA_DIR, get_logger
+from config import NIBOR_LOG_PATH, get_logger
 
 log = get_logger("history")
 
-# History file path
-HISTORY_DIR = DATA_DIR / "history"
+# History file path - uses OneDrive path from config
+HISTORY_DIR = NIBOR_LOG_PATH
 HISTORY_FILE = HISTORY_DIR / "nibor_log.json"
 
 
@@ -90,20 +90,19 @@ def create_snapshot(app) -> dict:
         w = app.funding_calc_data['1m'].get('weights', {})
         weights = {'USD': w.get('USD'), 'EUR': w.get('EUR'), 'NOK': w.get('NOK')}
 
-    # Get market data summary
+    # Get ALL market data from Bloomberg
     market_data = {}
     cached_market = getattr(app, 'cached_market_data', {}) or {}
+    for ticker, data in cached_market.items():
+        if isinstance(data, dict):
+            market_data[ticker] = data.get('price')
+        else:
+            market_data[ticker] = data
 
-    # Key tickers to capture
-    key_tickers = [
-        'NOK F033 Curncy', 'NKEU F033 Curncy',  # Spots
-        'EUCM1M SWET Curncy', 'EUCM2M SWET Curncy', 'EUCM3M SWET Curncy', 'EUCM6M SWET Curncy',
-        'USCM1M SWET Curncy', 'USCM2M SWET Curncy', 'USCM3M SWET Curncy', 'USCM6M SWET Curncy',
-    ]
-
-    for ticker in key_tickers:
-        if ticker in cached_market:
-            market_data[ticker] = cached_market[ticker].get('price')
+    # Get Excel CM rates (EUR and USD per tenor)
+    excel_cm_rates = {}
+    if hasattr(app, 'excel_engine') and app.excel_engine:
+        excel_cm_rates = getattr(app.excel_engine, 'excel_cm_rates', {}) or {}
 
     # Get alerts
     alerts = [a.get('msg', str(a)) for a in getattr(app, 'active_alerts', [])]
@@ -119,6 +118,7 @@ def create_snapshot(app) -> dict:
         'rates': rates,
         'weights': weights,
         'market_data': market_data,
+        'excel_cm_rates': excel_cm_rates,
         'alerts': alerts
     }
 

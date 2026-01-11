@@ -1,5 +1,5 @@
 """
-UI components for Onyx Terminal.
+UI components for Nibor Terminal.
 Contains reusable GUI widgets.
 """
 import tkinter as tk
@@ -11,7 +11,7 @@ from utils import fmt_ts, LogoPipelineTK
 
 
 def style_ttk(root: tk.Tk):
-    """Apply Onyx theme to ttk widgets."""
+    """Apply Nibor theme to ttk widgets."""
     style = ttk.Style(root)
     try:
         style.theme_use("clam")
@@ -42,8 +42,8 @@ def style_ttk(root: tk.Tk):
     )
 
 
-class OnyxButtonTK(tk.Button):
-    """Styled button for Onyx Terminal."""
+class NiborButtonTK(tk.Button):
+    """Styled button for Nibor Terminal."""
 
     def __init__(self, master, text, command=None, variant="default", **kwargs):
         if variant == "accent":
@@ -77,6 +77,10 @@ class OnyxButtonTK(tk.Button):
             font=("Segoe UI", CURRENT_MODE["body"], "bold"),
             **kwargs
         )
+
+
+# Alias for backward compatibility
+OnyxButtonTK = NiborButtonTK
 
 
 class NavButtonTK(tk.Button):
@@ -315,3 +319,301 @@ class DataTableTree(tk.Frame):
 
         self.tree.insert("", "end", values=[("" if v is None else str(v)) for v in values], tags=(tag,))
         self._row_idx += 1
+
+
+class ConnectionStatusIndicator(tk.Frame):
+    """
+    Professional connection status indicator with pill design.
+    Shows status for Bloomberg, Excel, etc. with click-for-details.
+    """
+
+    # Status constants
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    ERROR = "error"
+    STALE = "stale"
+
+    def __init__(self, master, label: str, icon: str = "●", **kwargs):
+        super().__init__(master, bg=kwargs.get("bg", THEME["bg_card"]), **kwargs)
+
+        self.label_text = label
+        self._status = self.DISCONNECTED
+        self._last_update = None
+        self._details = {}
+        self._pulse_job = None
+        self._pulse_state = True
+
+        # Container frame (pill shape)
+        self._pill = tk.Frame(self, bg="#2d2d44", highlightthickness=1,
+                             highlightbackground="#3d3d54")
+        self._pill.pack(padx=2, pady=2)
+
+        # Status dot
+        self._dot = tk.Label(self._pill, text=icon, fg="#666666",
+                            bg="#2d2d44", font=("Segoe UI", 10))
+        self._dot.pack(side="left", padx=(8, 4), pady=4)
+
+        # Label
+        self._label = tk.Label(self._pill, text=label, fg="#888888",
+                              bg="#2d2d44", font=("Segoe UI", 9))
+        self._label.pack(side="left", padx=(0, 4), pady=4)
+
+        # Status text (short)
+        self._status_lbl = tk.Label(self._pill, text="--", fg="#666666",
+                                   bg="#2d2d44", font=("Segoe UI", 8))
+        self._status_lbl.pack(side="left", padx=(0, 8), pady=4)
+
+        # Make clickable
+        self._pill.config(cursor="hand2")
+        for widget in [self._pill, self._dot, self._label, self._status_lbl]:
+            widget.bind("<Button-1>", self._on_click)
+            widget.bind("<Enter>", self._on_enter)
+            widget.bind("<Leave>", self._on_leave)
+
+    def set_status(self, status: str, details: dict = None):
+        """
+        Set connection status.
+
+        Args:
+            status: One of DISCONNECTED, CONNECTING, CONNECTED, ERROR, STALE
+            details: Optional dict with extra info (message, latency, etc.)
+        """
+        self._status = status
+        self._details = details or {}
+
+        # Stop any existing pulse animation
+        if self._pulse_job:
+            self.after_cancel(self._pulse_job)
+            self._pulse_job = None
+
+        # Update colors based on status
+        colors = {
+            self.DISCONNECTED: {"dot": "#666666", "text": "--", "bg": "#2d2d44"},
+            self.CONNECTING: {"dot": "#f59e0b", "text": "...", "bg": "#3d3520"},
+            self.CONNECTED: {"dot": "#4ade80", "text": "OK", "bg": "#1e3d2e"},
+            self.ERROR: {"dot": "#ef4444", "text": "ERR", "bg": "#3d1e1e"},
+            self.STALE: {"dot": "#f59e0b", "text": "OLD", "bg": "#3d3520"},
+        }
+
+        style = colors.get(status, colors[self.DISCONNECTED])
+
+        self._dot.config(fg=style["dot"])
+        self._status_lbl.config(text=style["text"], fg=style["dot"])
+        self._pill.config(bg=style["bg"])
+        self._dot.config(bg=style["bg"])
+        self._label.config(bg=style["bg"])
+        self._status_lbl.config(bg=style["bg"])
+
+        # Start pulse animation for connecting state
+        if status == self.CONNECTING:
+            self._start_pulse()
+
+        # Track update time for connected state
+        if status == self.CONNECTED:
+            self._last_update = datetime.now()
+
+    def _start_pulse(self):
+        """Start pulse animation for connecting state."""
+        if self._status != self.CONNECTING:
+            return
+
+        self._pulse_state = not self._pulse_state
+        color = "#f59e0b" if self._pulse_state else "#8b5a00"
+        self._dot.config(fg=color)
+
+        self._pulse_job = self.after(500, self._start_pulse)
+
+    def _on_enter(self, event):
+        """Hover enter effect."""
+        self._pill.config(highlightbackground=THEME["accent"])
+
+    def _on_leave(self, event):
+        """Hover leave effect."""
+        self._pill.config(highlightbackground="#3d3d54")
+
+    def _on_click(self, event):
+        """Show details popup on click."""
+        self._show_details_popup()
+
+    def _show_details_popup(self):
+        """Show detailed status popup."""
+        popup = tk.Toplevel(self)
+        popup.title(f"{self.label_text} Status")
+        popup.geometry("350x250")
+        popup.configure(bg=THEME["bg_main"])
+        popup.transient(self.winfo_toplevel())
+        popup.grab_set()
+
+        # Center on parent
+        popup.update_idletasks()
+        x = self.winfo_toplevel().winfo_x() + 100
+        y = self.winfo_toplevel().winfo_y() + 100
+        popup.geometry(f"+{x}+{y}")
+
+        # Header
+        header = tk.Frame(popup, bg=THEME["bg_main"])
+        header.pack(fill="x", padx=20, pady=(15, 10))
+
+        status_colors = {
+            self.CONNECTED: THEME["good"],
+            self.CONNECTING: "#f59e0b",
+            self.ERROR: THEME["bad"],
+            self.STALE: "#f59e0b",
+            self.DISCONNECTED: THEME["muted"],
+        }
+
+        tk.Label(header, text=f"● {self.label_text}",
+                fg=status_colors.get(self._status, THEME["muted"]),
+                bg=THEME["bg_main"],
+                font=("Segoe UI", 14, "bold")).pack(side="left")
+
+        # Status details
+        content = tk.Frame(popup, bg=THEME["bg_card"], highlightthickness=1,
+                          highlightbackground=THEME["border"])
+        content.pack(fill="both", expand=True, padx=20, pady=10)
+
+        details_frame = tk.Frame(content, bg=THEME["bg_card"])
+        details_frame.pack(fill="both", expand=True, padx=15, pady=15)
+
+        # Status
+        self._add_detail_row(details_frame, "Status:", self._status.upper(), 0)
+
+        # Last update
+        if self._last_update:
+            time_str = self._last_update.strftime("%H:%M:%S")
+            ago = (datetime.now() - self._last_update).seconds
+            self._add_detail_row(details_frame, "Last Update:", f"{time_str} ({ago}s ago)", 1)
+        else:
+            self._add_detail_row(details_frame, "Last Update:", "--", 1)
+
+        # Extra details from dict
+        row = 2
+        for key, value in self._details.items():
+            self._add_detail_row(details_frame, f"{key}:", str(value), row)
+            row += 1
+
+        # Buttons
+        btn_frame = tk.Frame(popup, bg=THEME["bg_main"])
+        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        # Refresh button
+        refresh_btn = tk.Button(btn_frame, text="🔄 Refresh", bg=THEME["accent"],
+                               fg="white", font=("Segoe UI", 10), relief="flat",
+                               padx=15, pady=5, cursor="hand2",
+                               command=lambda: self._trigger_refresh(popup))
+        refresh_btn.pack(side="left")
+
+        # Close button
+        tk.Button(btn_frame, text="Close", bg=THEME["chip2"], fg=THEME["text"],
+                 font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
+                 cursor="hand2", command=popup.destroy).pack(side="right")
+
+        # Bind Escape
+        popup.bind("<Escape>", lambda e: popup.destroy())
+
+    def _add_detail_row(self, parent, label: str, value: str, row: int):
+        """Add a detail row to the popup."""
+        tk.Label(parent, text=label, fg=THEME["muted"], bg=THEME["bg_card"],
+                font=("Segoe UI", 10), anchor="w").grid(row=row, column=0, sticky="w", pady=3)
+        tk.Label(parent, text=value, fg=THEME["text"], bg=THEME["bg_card"],
+                font=("Consolas", 10), anchor="w").grid(row=row, column=1, sticky="w", padx=(10, 0), pady=3)
+
+    def _trigger_refresh(self, popup):
+        """Trigger a refresh and close popup."""
+        popup.destroy()
+        # Try to find app and call refresh
+        try:
+            app = self.winfo_toplevel()
+            if hasattr(app, 'refresh_data'):
+                app.refresh_data()
+        except Exception:
+            pass
+
+    def get_status(self) -> str:
+        """Get current status."""
+        return self._status
+
+    def get_last_update(self) -> datetime:
+        """Get last update time."""
+        return self._last_update
+
+
+class ConnectionStatusPanel(tk.Frame):
+    """
+    Panel containing multiple connection status indicators.
+    Typically placed in the status bar.
+    """
+
+    def __init__(self, master, **kwargs):
+        bg = kwargs.pop("bg", "#1e1e2e")
+        super().__init__(master, bg=bg, **kwargs)
+
+        self._indicators = {}
+
+        # Bloomberg indicator
+        self.bbg = ConnectionStatusIndicator(self, "Bloomberg", "●", bg=bg)
+        self.bbg.pack(side="left", padx=(0, 5))
+        self._indicators["bloomberg"] = self.bbg
+
+        # Excel indicator
+        self.excel = ConnectionStatusIndicator(self, "Excel", "●", bg=bg)
+        self.excel.pack(side="left", padx=(0, 5))
+        self._indicators["excel"] = self.excel
+
+        # Separator
+        tk.Frame(self, bg="#333344", width=1, height=20).pack(side="left", padx=8)
+
+        # Data freshness indicator
+        self._freshness_frame = tk.Frame(self, bg=bg)
+        self._freshness_frame.pack(side="left", padx=5)
+
+        tk.Label(self._freshness_frame, text="Data:", fg="#666666", bg=bg,
+                font=("Segoe UI", 9)).pack(side="left")
+
+        self._freshness_lbl = tk.Label(self._freshness_frame, text="--:--:--",
+                                       fg="#888888", bg=bg, font=("Consolas", 9))
+        self._freshness_lbl.pack(side="left", padx=(3, 0))
+
+        self._freshness_ago = tk.Label(self._freshness_frame, text="",
+                                       fg="#666666", bg=bg, font=("Segoe UI", 8))
+        self._freshness_ago.pack(side="left", padx=(5, 0))
+
+        # Start freshness update timer
+        self._update_freshness_display()
+
+    def set_bloomberg_status(self, status: str, details: dict = None):
+        """Set Bloomberg connection status."""
+        self.bbg.set_status(status, details)
+
+    def set_excel_status(self, status: str, details: dict = None):
+        """Set Excel connection status."""
+        self.excel.set_status(status, details)
+
+    def set_data_time(self, timestamp: datetime = None):
+        """Set the data freshness timestamp."""
+        if timestamp:
+            self._data_time = timestamp
+            self._freshness_lbl.config(text=timestamp.strftime("%H:%M:%S"))
+        else:
+            self._data_time = datetime.now()
+            self._freshness_lbl.config(text=datetime.now().strftime("%H:%M:%S"))
+
+    def _update_freshness_display(self):
+        """Update the 'ago' display for data freshness."""
+        if hasattr(self, '_data_time') and self._data_time:
+            ago = (datetime.now() - self._data_time).seconds
+            if ago < 60:
+                ago_text = f"({ago}s ago)"
+                color = "#4ade80" if ago < 30 else "#888888"
+            elif ago < 300:
+                ago_text = f"({ago // 60}m ago)"
+                color = "#f59e0b"
+            else:
+                ago_text = f"({ago // 60}m ago)"
+                color = "#ef4444"
+
+            self._freshness_ago.config(text=ago_text, fg=color)
+
+        # Schedule next update
+        self.after(5000, self._update_freshness_display)

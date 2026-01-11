@@ -1,5 +1,5 @@
 """
-Utility functions for Onyx Terminal.
+Utility functions for Nibor Calculation Terminal.
 """
 import shutil
 import subprocess

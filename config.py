@@ -1,5 +1,5 @@
 """
-Configuration module for Onyx Terminal.
+Configuration module for Nibor Calculation Terminal.
 Contains theme, paths, rules, and mappings.
 """
 import platform
@@ -204,6 +204,7 @@ BBG_LOGO_CANDIDATES = [
 ]
 
 BASE_HISTORY_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor"
+NIBOR_LOG_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Nibor logg"
 STIBOR_GRSS_PATH = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
 
 DAY_FILES = [

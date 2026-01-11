@@ -1,10 +1,10 @@
 """
-Page classes for Onyx Terminal.
+Page classes for Nibor Calculation Terminal.
 Contains all specific page views.
 """
 import tkinter as tk
 from tkinter import ttk
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, get_logger
 
@@ -13,6 +13,15 @@ from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard
 from utils import safe_float
 from calculations import calc_implied_yield
 from history import save_snapshot, get_rates_table_data, get_snapshot, load_history, get_previous_day_rates
+
+# Import chart components (optional - graceful fallback if matplotlib not available)
+try:
+    from charts import TrendChart, TrendPopup, ComparisonView, MATPLOTLIB_AVAILABLE
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    TrendChart = None
+    TrendPopup = None
+    ComparisonView = None
 
 
 class ToolTip:
@@ -75,7 +84,52 @@ class DashboardPage(tk.Frame):
         # ====================================================================
         content = tk.Frame(self, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=20, pady=20)
-        
+
+        # ====================================================================
+        # HEADER WITH CLOCK
+        # ====================================================================
+        header_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        header_frame.pack(fill="x", pady=(0, 10))
+
+        # Left side - Title (optional, can be empty)
+        left_header = tk.Frame(header_frame, bg=THEME["bg_panel"])
+        left_header.pack(side="left")
+
+        # Right side - Clock widget
+        clock_frame = tk.Frame(header_frame, bg=THEME["bg_card"],
+                              highlightthickness=1, highlightbackground=THEME["border"])
+        clock_frame.pack(side="right")
+
+        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
+        clock_inner.pack(padx=15, pady=8)
+
+        # Date
+        self._clock_date = tk.Label(clock_inner, text="",
+                                    fg=THEME["muted"], bg=THEME["bg_card"],
+                                    font=("Segoe UI", 9))
+        self._clock_date.pack(side="left", padx=(0, 15))
+
+        # Time with seconds
+        self._clock_time = tk.Label(clock_inner, text="",
+                                    fg=THEME["accent"], bg=THEME["bg_card"],
+                                    font=("Consolas", 20, "bold"))
+        self._clock_time.pack(side="left")
+
+        # Seconds (smaller, separate for nice effect)
+        self._clock_seconds = tk.Label(clock_inner, text="",
+                                       fg=THEME["muted"], bg=THEME["bg_card"],
+                                       font=("Consolas", 12))
+        self._clock_seconds.pack(side="left", anchor="s", pady=(0, 2))
+
+        # Market status indicator
+        self._market_status = tk.Label(clock_inner, text="",
+                                       fg=THEME["muted"], bg=THEME["bg_card"],
+                                       font=("Segoe UI", 8))
+        self._market_status.pack(side="left", padx=(15, 0))
+
+        # Start clock update
+        self._update_clock()
+
         # ====================================================================
         # NIBOR CALCULATION SECTION
         # ====================================================================
@@ -123,10 +177,26 @@ class DashboardPage(tk.Frame):
         # ====================================================================
         # NIBOR RATES TABLE with Norway flag 🇳🇴
         # ====================================================================
-        tk.Label(content, text="🇳🇴 NIBOR RATES (LIVE)",
+        header_row = tk.Frame(content, bg=THEME["bg_panel"])
+        header_row.pack(anchor="center", pady=(10, 15))
+
+        tk.Label(header_row, text="🇳🇴 NIBOR RATES (LIVE)",
                 fg=THEME["accent_secondary"],
                 bg=THEME["bg_panel"],
-                font=FONTS["h2"]).pack(anchor="center", pady=(10, 15))
+                font=FONTS["h2"]).pack(side="left")
+
+        # Trend icon - opens popup with history chart
+        if MATPLOTLIB_AVAILABLE and TrendPopup:
+            trend_icon = tk.Label(header_row, text="📈",
+                                 fg=THEME["muted"],
+                                 bg=THEME["bg_panel"],
+                                 font=("Segoe UI", 16),
+                                 cursor="hand2")
+            trend_icon.pack(side="left", padx=(10, 0))
+            trend_icon.bind("<Button-1>", lambda e: self._show_trend_popup())
+            trend_icon.bind("<Enter>", lambda e: trend_icon.config(fg=THEME["accent"]))
+            trend_icon.bind("<Leave>", lambda e: trend_icon.config(fg=THEME["muted"]))
+            ToolTip(trend_icon, lambda: "Click to view NIBOR trend history")
 
         # Container for centering
         table_container = tk.Frame(content, bg=THEME["bg_panel"])
@@ -341,6 +411,55 @@ class DashboardPage(tk.Frame):
         card._status = lbl_status
         card._sub = lbl_sub
         return card
+
+    def _update_clock(self):
+        """Update the dashboard clock every second."""
+        now = datetime.now()
+
+        # Format date: "Fri 10 Jan 2025"
+        days_sv = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]
+        months_sv = ["", "jan", "feb", "mar", "apr", "maj", "jun",
+                     "jul", "aug", "sep", "okt", "nov", "dec"]
+        day_name = days_sv[now.weekday()]
+        date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
+
+        # Format time: "14:32" and ":45" for seconds
+        time_str = now.strftime("%H:%M")
+        sec_str = now.strftime(":%S")
+
+        # Update labels
+        self._clock_date.config(text=date_str)
+        self._clock_time.config(text=time_str)
+        self._clock_seconds.config(text=sec_str)
+
+        # Market status (Norwegian market hours: 09:00 - 16:00 CET, Mon-Fri)
+        hour = now.hour
+        weekday = now.weekday()
+
+        if weekday < 5:  # Monday to Friday
+            if 9 <= hour < 16:
+                self._market_status.config(text="● MARKET OPEN", fg="#4ade80")
+            elif hour < 9:
+                self._market_status.config(text="○ Pre-market", fg="#f59e0b")
+            else:
+                self._market_status.config(text="○ After-hours", fg="#f59e0b")
+        else:
+            self._market_status.config(text="○ Weekend", fg=THEME["muted"])
+
+        # Schedule next update
+        self.after(1000, self._update_clock)
+
+    def _show_trend_popup(self):
+        """Show popup with NIBOR trend history chart."""
+        if not TrendPopup:
+            return
+
+        # Get history data
+        history_data = get_rates_table_data(limit=30)
+
+        # Create popup
+        popup = TrendPopup(self.winfo_toplevel(), history_data)
+        popup.grab_set()
 
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
@@ -1873,8 +1992,18 @@ class HistoryPage(tk.Frame):
         btn_frame = tk.Frame(top, bg=THEME["bg_panel"])
         btn_frame.pack(side="right")
 
-        OnyxButtonTK(btn_frame, "Save Snapshot", command=self._save_now, variant="accent").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "Confirm Nibor", command=self._confirm_nibor, variant="accent").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "Save Snapshot", command=self._save_now, variant="default").pack(side="left", padx=5)
         OnyxButtonTK(btn_frame, "Refresh", command=self.update, variant="default").pack(side="left")
+
+        # Trend chart (collapsible)
+        if MATPLOTLIB_AVAILABLE and TrendChart:
+            chart_section = CollapsibleSection(self, "Trend Graph", expanded=False, accent_color=THEME["accent"])
+            chart_section.pack(fill="x", padx=pad, pady=(0, 10))
+            self.trend_chart = TrendChart(chart_section.content, height=200)
+            self.trend_chart.pack(fill="x", pady=5)
+        else:
+            self.trend_chart = None
 
         # Info label
         info_frame = tk.Frame(self, bg=THEME["bg_panel"])
@@ -1883,6 +2012,43 @@ class HistoryPage(tk.Frame):
         tk.Label(info_frame, text="Saved NIBOR calculations with daily changes (click row for details)",
                 fg=THEME["muted"], bg=THEME["bg_panel"],
                 font=("Segoe UI", CURRENT_MODE["small"], "italic")).pack(anchor="w")
+
+        # Search frame
+        search_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        search_frame.pack(fill="x", padx=pad, pady=(0, 10))
+
+        tk.Label(search_frame, text="Sök datum:", fg=THEME["text"], bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["body"])).pack(side="left")
+
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", self._on_search_change)
+        self.search_entry = tk.Entry(search_frame, textvariable=self.search_var,
+                                     bg=THEME["bg_card"], fg=THEME["text"],
+                                     insertbackground=THEME["text"],
+                                     font=("Consolas", CURRENT_MODE["body"]),
+                                     width=15, relief="flat",
+                                     highlightthickness=1, highlightbackground=THEME["border"])
+        self.search_entry.pack(side="left", padx=(8, 8))
+
+        OnyxButtonTK(search_frame, "Rensa", command=self._clear_search, variant="default").pack(side="left")
+
+        # Export buttons frame
+        export_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        export_frame.pack(fill="x", padx=pad, pady=(0, 10))
+
+        OnyxButtonTK(export_frame, "Export Selected", command=self._export_selected, variant="accent").pack(side="left", padx=(0, 5))
+        OnyxButtonTK(export_frame, "Export PDF", command=self._export_pdf, variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(export_frame, "Compare", command=self._compare_selected, variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(export_frame, "Select All", command=self._select_all, variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(export_frame, "Deselect All", command=self._deselect_all, variant="default").pack(side="left", padx=5)
+
+        self._selected_label = tk.Label(export_frame, text="0 selected", fg=THEME["muted"], bg=THEME["bg_panel"],
+                                        font=("Segoe UI", CURRENT_MODE["small"]))
+        self._selected_label.pack(side="left", padx=15)
+
+        # Store all table data for filtering
+        self._all_table_data = []
+        self._selected_dates = set()  # Track selected dates
 
         # Main content area - split horizontally
         content = tk.Frame(self, bg=THEME["bg_panel"])
@@ -1894,12 +2060,13 @@ class HistoryPage(tk.Frame):
 
         self.table = DataTableTree(
             left_frame,
-            columns=["DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"],
-            col_widths=[100, 65, 50, 65, 50, 65, 50, 65, 50, 80, 80],
+            columns=["SEL", "DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"],
+            col_widths=[30, 90, 60, 45, 60, 45, 60, 45, 60, 45, 75, 70],
             height=18
         )
         self.table.pack(fill="both", expand=True)
         self.table.tree.bind("<<TreeviewSelect>>", self._on_row_select)
+        self.table.tree.bind("<Button-1>", self._on_table_click)
 
         # Right: Detail panel
         right_frame = tk.Frame(content, bg=THEME["bg_card"], width=280,
@@ -1928,6 +2095,34 @@ class HistoryPage(tk.Frame):
         except Exception as e:
             log.error(f"Failed to save snapshot: {e}")
 
+    def _confirm_nibor(self):
+        """Confirm NIBOR: save snapshot AND write stamp to Excel."""
+        import tkinter.messagebox as messagebox
+
+        # First save to log
+        try:
+            date_key = save_snapshot(self.app)
+            log.info(f"Snapshot saved: {date_key}")
+        except Exception as e:
+            log.error(f"Failed to save snapshot: {e}")
+            messagebox.showerror("Error", f"Failed to save snapshot: {e}")
+            return
+
+        # Then write stamp to Excel
+        if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+            success, msg = self.app.excel_engine.write_confirmation_stamp()
+            if success:
+                log.info(f"Confirmation stamp written: {msg}")
+                messagebox.showinfo("Nibor Confirmed", f"✓ NIBOR confirmed and logged!\n\n{msg}")
+            else:
+                log.error(f"Failed to write stamp: {msg}")
+                messagebox.showwarning("Warning", f"Snapshot saved but Excel stamp failed:\n\n{msg}")
+        else:
+            messagebox.showwarning("Warning", "Snapshot saved but Excel engine not available for stamp.")
+
+        # Refresh the table
+        self.update()
+
     def _format_chg(self, chg):
         """Format change value with sign."""
         if chg is None:
@@ -1944,14 +2139,39 @@ class HistoryPage(tk.Frame):
         self._history_data = load_history()
 
         table_data = get_rates_table_data(limit=50)
+        self._all_table_data = table_data  # Store for filtering
+
+        # Update trend chart if available
+        if self.trend_chart and table_data:
+            self.trend_chart.set_data(table_data)
 
         if not table_data:
-            self.table.add_row(["-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+            self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
             self._show_detail("No snapshots saved yet.\n\nClick 'Save Snapshot' to save current NIBOR calculation.")
             return
 
+        # Apply search filter if active
+        search_text = self.search_var.get().strip()
+        if search_text:
+            self._filter_table(search_text)
+        else:
+            self._populate_table(table_data)
+
+    def _populate_table(self, table_data, highlight_single=False):
+        """Populate table with data."""
+        self.table.clear()
+
+        if not table_data:
+            self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+            return
+
         for row in table_data:
+            # Check if this date is selected
+            is_selected = row['date'] in self._selected_dates
+            checkbox = "☑" if is_selected else "☐"
+
             values = [
+                checkbox,
                 row['date'],
                 f"{row['1m']:.2f}" if row['1m'] is not None else "-",
                 self._format_chg(row['1m_chg']),
@@ -1966,9 +2186,43 @@ class HistoryPage(tk.Frame):
             ]
             self.table.add_row(values, style="normal")
 
-        # Show first row details
-        if table_data:
+        self._update_selected_count()
+
+        # If single result from search, highlight in orange and select it
+        if highlight_single and len(table_data) == 1:
+            items = self.table.tree.get_children()
+            if items:
+                # Configure orange tag for highlighting
+                self.table.tree.tag_configure("search_match", background="#FF8C00", foreground="white")
+                self.table.tree.item(items[0], tags=("search_match",))
+                self.table.tree.selection_set(items[0])
+                self._show_snapshot_detail(table_data[0]['date'])
+        elif table_data:
+            # Show first row details
             self._show_snapshot_detail(table_data[0]['date'])
+
+    def _on_search_change(self, *args):
+        """Handle search text change."""
+        search_text = self.search_var.get().strip()
+        if search_text:
+            self._filter_table(search_text)
+        else:
+            # Reset to show all data
+            self._populate_table(self._all_table_data)
+
+    def _filter_table(self, search_text: str):
+        """Filter table by date search."""
+        if not self._all_table_data:
+            return
+
+        # Filter rows where date contains search text
+        filtered = [row for row in self._all_table_data if search_text in row['date']]
+        self._populate_table(filtered, highlight_single=True)
+
+    def _clear_search(self):
+        """Clear search and show all data."""
+        self.search_var.set("")
+        self._populate_table(self._all_table_data)
 
     def _on_row_select(self, event):
         """Handle row selection to show details."""
@@ -1976,9 +2230,480 @@ class HistoryPage(tk.Frame):
         if selection:
             item = self.table.tree.item(selection[0])
             values = item['values']
-            if values:
-                date_key = str(values[0])
+            if values and len(values) > 1:
+                date_key = str(values[1])  # Date is now column 1 (after checkbox)
                 self._show_snapshot_detail(date_key)
+
+    def _on_table_click(self, event):
+        """Handle click on table - toggle checkbox if clicked on SEL column."""
+        region = self.table.tree.identify_region(event.x, event.y)
+        if region != "cell":
+            return
+
+        column = self.table.tree.identify_column(event.x)
+        if column != "#1":  # First column (SEL)
+            return
+
+        item = self.table.tree.identify_row(event.y)
+        if not item:
+            return
+
+        values = self.table.tree.item(item, 'values')
+        if not values or len(values) < 2:
+            return
+
+        date_key = str(values[1])  # Date is column 1
+
+        # Toggle selection
+        if date_key in self._selected_dates:
+            self._selected_dates.remove(date_key)
+        else:
+            self._selected_dates.add(date_key)
+
+        # Update the checkbox display
+        new_checkbox = "☑" if date_key in self._selected_dates else "☐"
+        new_values = list(values)
+        new_values[0] = new_checkbox
+        self.table.tree.item(item, values=new_values)
+
+        self._update_selected_count()
+
+    def _update_selected_count(self):
+        """Update the selected count label."""
+        count = len(self._selected_dates)
+        self._selected_label.config(text=f"{count} selected")
+
+    def _select_all(self):
+        """Select all visible rows."""
+        for item in self.table.tree.get_children():
+            values = self.table.tree.item(item, 'values')
+            if values and len(values) > 1:
+                date_key = str(values[1])
+                self._selected_dates.add(date_key)
+                new_values = list(values)
+                new_values[0] = "☑"
+                self.table.tree.item(item, values=new_values)
+        self._update_selected_count()
+
+    def _deselect_all(self):
+        """Deselect all rows."""
+        self._selected_dates.clear()
+        for item in self.table.tree.get_children():
+            values = self.table.tree.item(item, 'values')
+            if values:
+                new_values = list(values)
+                new_values[0] = "☐"
+                self.table.tree.item(item, values=new_values)
+        self._update_selected_count()
+
+    def _export_selected(self):
+        """Export selected snapshots to Excel."""
+        import tkinter.messagebox as messagebox
+        import tkinter.filedialog as filedialog
+
+        if not self._selected_dates:
+            messagebox.showwarning("No Selection", "Please select at least one date to export.")
+            return
+
+        # Ask for save location
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            title="Export NIBOR History",
+            initialfile=f"nibor_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        )
+
+        if not filename:
+            return
+
+        try:
+            self._do_export(filename)
+            messagebox.showinfo("Export Complete", f"Exported {len(self._selected_dates)} snapshots to:\n{filename}")
+        except Exception as e:
+            log.error(f"Export failed: {e}")
+            messagebox.showerror("Export Failed", f"Error exporting data:\n{e}")
+
+    def _do_export(self, filename: str):
+        """Perform the actual export to Excel - one sheet per selected date."""
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+        # Remove default sheet
+        wb.remove(wb.active)
+
+        # Styles
+        header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+        section_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=10)
+        section_font = Font(bold=True, color="FFFFFF", size=11)
+        label_font = Font(bold=True, size=10)
+        value_font = Font(size=10)
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Create a sheet for each selected date
+        for date_key in sorted(self._selected_dates, reverse=True):
+            snapshot = self._history_data.get(date_key, {})
+            if not snapshot:
+                continue
+
+            # Create sheet with date as name
+            ws = wb.create_sheet(title=date_key)
+
+            row = 1
+
+            # === HEADER INFO ===
+            ws.cell(row=row, column=1, value="NIBOR SNAPSHOT").font = Font(bold=True, size=14)
+            row += 2
+
+            # Basic info
+            info_data = [
+                ("Date:", date_key),
+                ("Time:", snapshot.get('timestamp', '-')[11:19] if snapshot.get('timestamp') else '-'),
+                ("User:", snapshot.get('user', '-')),
+                ("Machine:", snapshot.get('machine', '-')),
+                ("Model:", snapshot.get('model', '-')),
+            ]
+            for label, value in info_data:
+                ws.cell(row=row, column=1, value=label).font = label_font
+                ws.cell(row=row, column=2, value=value).font = value_font
+                row += 1
+
+            row += 1
+
+            # === WEIGHTS ===
+            ws.cell(row=row, column=1, value="WEIGHTS").font = section_font
+            ws.cell(row=row, column=1).fill = section_fill
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+            row += 1
+
+            weights = snapshot.get('weights', {})
+            for curr in ['USD', 'EUR', 'NOK']:
+                ws.cell(row=row, column=1, value=f"{curr}:").font = label_font
+                val = weights.get(curr)
+                ws.cell(row=row, column=2, value=val if val else '-').font = value_font
+                if val:
+                    ws.cell(row=row, column=2).number_format = '0.00%'
+                row += 1
+
+            row += 1
+
+            # === NIBOR RATES ===
+            ws.cell(row=row, column=1, value="NIBOR RATES").font = section_font
+            ws.cell(row=row, column=1).fill = section_fill
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+            row += 1
+
+            # Header row
+            rate_headers = ["Tenor", "NIBOR", "Funding", "Spread"]
+            for col, h in enumerate(rate_headers, 1):
+                cell = ws.cell(row=row, column=col, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = thin_border
+            row += 1
+
+            rates = snapshot.get('rates', {})
+            for tenor in ['1m', '2m', '3m', '6m']:
+                t_data = rates.get(tenor, {})
+                row_data = [
+                    tenor.upper(),
+                    t_data.get('nibor'),
+                    t_data.get('funding'),
+                    t_data.get('spread'),
+                ]
+                for col, val in enumerate(row_data, 1):
+                    cell = ws.cell(row=row, column=col, value=val if val is not None else '-')
+                    cell.border = thin_border
+                    if col > 1 and val is not None:
+                        cell.number_format = '0.0000'
+                        cell.alignment = Alignment(horizontal="right")
+                row += 1
+
+            row += 1
+
+            # === IMPLIED RATES ===
+            ws.cell(row=row, column=1, value="IMPLIED RATES").font = section_font
+            ws.cell(row=row, column=1).fill = section_fill
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+            row += 1
+
+            # Header row
+            impl_headers = ["Tenor", "EUR Implied", "USD Implied", "NOK CM"]
+            for col, h in enumerate(impl_headers, 1):
+                cell = ws.cell(row=row, column=col, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = thin_border
+            row += 1
+
+            for tenor in ['1m', '2m', '3m', '6m']:
+                t_data = rates.get(tenor, {})
+                impl_row = [
+                    tenor.upper(),
+                    t_data.get('eur_impl'),
+                    t_data.get('usd_impl'),
+                    t_data.get('nok_cm'),
+                ]
+                for col, val in enumerate(impl_row, 1):
+                    cell = ws.cell(row=row, column=col, value=val if val is not None else '-')
+                    cell.border = thin_border
+                    if col > 1 and val is not None:
+                        cell.number_format = '0.0000'
+                        cell.alignment = Alignment(horizontal="right")
+                row += 1
+
+            row += 1
+
+            # === EXCEL CM RATES ===
+            excel_cm = snapshot.get('excel_cm_rates', {})
+            if excel_cm:
+                ws.cell(row=row, column=1, value="EXCEL CM RATES (används)").font = section_font
+                ws.cell(row=row, column=1).fill = section_fill
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+                row += 1
+
+                # Header
+                for col, h in enumerate(["Tenor", "EUR", "USD"], 1):
+                    cell = ws.cell(row=row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.border = thin_border
+                row += 1
+
+                for tenor in ['1M', '2M', '3M', '6M']:
+                    eur = excel_cm.get(f'EUR_{tenor}')
+                    usd = excel_cm.get(f'USD_{tenor}')
+                    ws.cell(row=row, column=1, value=tenor).border = thin_border
+                    cell_eur = ws.cell(row=row, column=2, value=eur if eur else '-')
+                    cell_eur.border = thin_border
+                    if eur:
+                        cell_eur.number_format = '0.0000'
+                    cell_usd = ws.cell(row=row, column=3, value=usd if usd else '-')
+                    cell_usd.border = thin_border
+                    if usd:
+                        cell_usd.number_format = '0.0000'
+                    row += 1
+
+                row += 1
+
+            # === BLOOMBERG MARKET DATA ===
+            market_data = snapshot.get('market_data', {})
+            if market_data:
+                ws.cell(row=row, column=1, value="BLOOMBERG MARKET DATA").font = section_font
+                ws.cell(row=row, column=1).fill = section_fill
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+                row += 1
+
+                # Header
+                for col, h in enumerate(["Ticker", "Value"], 1):
+                    cell = ws.cell(row=row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.border = thin_border
+                row += 1
+
+                # Sort tickers for consistent output
+                for ticker in sorted(market_data.keys()):
+                    val = market_data[ticker]
+                    ws.cell(row=row, column=1, value=ticker).border = thin_border
+                    cell_val = ws.cell(row=row, column=2, value=val if val else '-')
+                    cell_val.border = thin_border
+                    if val is not None:
+                        cell_val.number_format = '0.0000'
+                    row += 1
+
+                row += 1
+
+            # === ALERTS ===
+            alerts = snapshot.get('alerts', [])
+            if alerts:
+                ws.cell(row=row, column=1, value="ALERTS").font = section_font
+                ws.cell(row=row, column=1).fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+                row += 1
+                for alert in alerts:
+                    ws.cell(row=row, column=1, value=f"• {alert}")
+                    row += 1
+
+            # Auto-width columns
+            ws.column_dimensions['A'].width = 25
+            ws.column_dimensions['B'].width = 15
+            ws.column_dimensions['C'].width = 12
+            ws.column_dimensions['D'].width = 12
+            ws.column_dimensions['E'].width = 12
+            ws.column_dimensions['F'].width = 12
+            ws.column_dimensions['G'].width = 12
+
+        wb.save(filename)
+        log.info(f"Exported {len(self._selected_dates)} snapshots to {filename}")
+
+    def _compare_selected(self):
+        """Compare two selected dates side by side."""
+        import tkinter.messagebox as messagebox
+
+        if len(self._selected_dates) != 2:
+            messagebox.showinfo("Select Two Dates",
+                               "Please select exactly 2 dates to compare.\n\n"
+                               "Click the checkbox (☐) in the SEL column to select dates.")
+            return
+
+        if not ComparisonView:
+            messagebox.showwarning("Not Available",
+                                  "Comparison view requires matplotlib.\n"
+                                  "Install with: pip install matplotlib")
+            return
+
+        dates = sorted(self._selected_dates)
+        ComparisonView(self.winfo_toplevel(), self._history_data, dates[0], dates[1])
+
+    def _export_pdf(self):
+        """Export selected snapshots to PDF."""
+        import tkinter.messagebox as messagebox
+        import tkinter.filedialog as filedialog
+
+        if not self._selected_dates:
+            messagebox.showwarning("No Selection", "Please select at least one date to export.")
+            return
+
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        except ImportError:
+            messagebox.showwarning("Not Available",
+                                  "PDF export requires reportlab.\n"
+                                  "Install with: pip install reportlab")
+            return
+
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+            title="Export NIBOR History to PDF",
+            initialfile=f"nibor_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        )
+
+        if not filename:
+            return
+
+        try:
+            self._do_pdf_export(filename)
+            messagebox.showinfo("Export Complete", f"Exported {len(self._selected_dates)} snapshots to:\n{filename}")
+        except Exception as e:
+            log.error(f"PDF export failed: {e}")
+            messagebox.showerror("Export Failed", f"Error exporting PDF:\n{e}")
+
+    def _do_pdf_export(self, filename: str):
+        """Perform the PDF export."""
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+
+        doc = SimpleDocTemplate(filename, pagesize=A4,
+                               topMargin=20*mm, bottomMargin=20*mm,
+                               leftMargin=15*mm, rightMargin=15*mm)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Title style
+        title_style = ParagraphStyle('Title', parent=styles['Heading1'],
+                                    fontSize=16, spaceAfter=10,
+                                    textColor=colors.HexColor('#1F4E79'))
+        section_style = ParagraphStyle('Section', parent=styles['Heading2'],
+                                      fontSize=12, spaceAfter=6, spaceBefore=12,
+                                      textColor=colors.HexColor('#4472C4'))
+        normal_style = styles['Normal']
+
+        for i, date_key in enumerate(sorted(self._selected_dates, reverse=True)):
+            snapshot = self._history_data.get(date_key, {})
+            if not snapshot:
+                continue
+
+            if i > 0:
+                elements.append(PageBreak())
+
+            # Title
+            elements.append(Paragraph(f"NIBOR Snapshot: {date_key}", title_style))
+            elements.append(Spacer(1, 5*mm))
+
+            # Basic info
+            info_data = [
+                ["Time:", snapshot.get('timestamp', '-')[11:19] if snapshot.get('timestamp') else '-'],
+                ["User:", snapshot.get('user', '-')],
+                ["Machine:", snapshot.get('machine', '-')],
+                ["Model:", snapshot.get('model', '-')],
+            ]
+            info_table = Table(info_data, colWidths=[30*mm, 60*mm])
+            info_table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(info_table)
+            elements.append(Spacer(1, 5*mm))
+
+            # NIBOR Rates
+            elements.append(Paragraph("NIBOR Rates", section_style))
+            rates = snapshot.get('rates', {})
+            rate_data = [["Tenor", "NIBOR", "Funding", "Spread"]]
+            for tenor in ['1m', '2m', '3m', '6m']:
+                t_data = rates.get(tenor, {})
+                rate_data.append([
+                    tenor.upper(),
+                    f"{t_data.get('nibor'):.4f}" if t_data.get('nibor') else "-",
+                    f"{t_data.get('funding'):.4f}" if t_data.get('funding') else "-",
+                    f"{t_data.get('spread'):.4f}" if t_data.get('spread') else "-",
+                ])
+
+            rate_table = Table(rate_data, colWidths=[25*mm, 35*mm, 35*mm, 35*mm])
+            rate_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(rate_table)
+
+            # Weights
+            weights = snapshot.get('weights', {})
+            if weights:
+                elements.append(Paragraph("Weights", section_style))
+                weight_data = [["Currency", "Weight"]]
+                for curr in ['USD', 'EUR', 'NOK']:
+                    w = weights.get(curr)
+                    weight_data.append([curr, f"{w*100:.2f}%" if w else "-"])
+                w_table = Table(weight_data, colWidths=[30*mm, 40*mm])
+                w_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+                ]))
+                elements.append(w_table)
+
+            # Alerts
+            alerts = snapshot.get('alerts', [])
+            if alerts:
+                elements.append(Paragraph("Alerts", section_style))
+                for alert in alerts:
+                    elements.append(Paragraph(f"• {alert}", normal_style))
+
+        doc.build(elements)
+        log.info(f"PDF exported to {filename}")
 
     def _show_snapshot_detail(self, date_key: str):
         """Show detailed info for a snapshot."""
@@ -2007,16 +2732,64 @@ class HistoryPage(tk.Frame):
         # Rates detail
         rates = snapshot.get('rates', {})
         if rates:
-            lines.append("RATES BREAKDOWN:")
+            lines.append("NIBOR RATES:")
             for tenor in ['1m', '2m', '3m', '6m']:
                 t_data = rates.get(tenor, {})
-                lines.append(f"  {tenor.upper()}:")
-                lines.append(f"    Funding: {t_data.get('funding', '-')}")
-                lines.append(f"    Spread:  {t_data.get('spread', '-')}")
-                lines.append(f"    NIBOR:   {t_data.get('nibor', '-')}")
-                lines.append(f"    EUR Impl:{t_data.get('eur_impl', '-')}")
-                lines.append(f"    USD Impl:{t_data.get('usd_impl', '-')}")
-                lines.append(f"    NOK CM:  {t_data.get('nok_cm', '-')}")
+                nibor = t_data.get('nibor')
+                if nibor is not None:
+                    lines.append(f"  {tenor.upper()}: {nibor:.4f}")
+            lines.append("")
+
+            # Implied rates breakdown
+            lines.append("IMPLIED RATES:")
+            lines.append("        EUR Impl  USD Impl  NOK CM")
+            for tenor in ['1m', '2m', '3m', '6m']:
+                t_data = rates.get(tenor, {})
+                eur_impl = t_data.get('eur_impl')
+                usd_impl = t_data.get('usd_impl')
+                nok_cm = t_data.get('nok_cm')
+                eur_str = f"{eur_impl:.4f}" if eur_impl is not None else "   -   "
+                usd_str = f"{usd_impl:.4f}" if usd_impl is not None else "   -   "
+                nok_str = f"{nok_cm:.4f}" if nok_cm is not None else "   -   "
+                lines.append(f"  {tenor.upper()}:  {eur_str}  {usd_str}  {nok_str}")
+            lines.append("")
+
+        # Excel CM rates (used for calculation)
+        excel_cm = snapshot.get('excel_cm_rates', {})
+        if excel_cm:
+            lines.append("EXCEL CM RATES (används):")
+            for tenor in ['1M', '2M', '3M', '6M']:
+                eur = excel_cm.get(f'EUR_{tenor}')
+                usd = excel_cm.get(f'USD_{tenor}')
+                eur_str = f"{eur:.4f}" if eur is not None else "-"
+                usd_str = f"{usd:.4f}" if usd is not None else "-"
+                lines.append(f"  {tenor}: EUR {eur_str}  USD {usd_str}")
+            lines.append("")
+
+        # Bloomberg market data
+        market_data = snapshot.get('market_data', {})
+        if market_data:
+            lines.append("BLOOMBERG DATA:")
+            # Show key rates first
+            key_tickers = [
+                ('NOK F033 Curncy', 'USDNOK Spot'),
+                ('NKEU F033 Curncy', 'EURNOK Spot'),
+            ]
+            for ticker, label in key_tickers:
+                val = market_data.get(ticker)
+                if val is not None:
+                    lines.append(f"  {label}: {val:.4f}")
+
+            # Show CM rates from Bloomberg
+            lines.append("  --- BBG CM (referens) ---")
+            for tenor in ['1M', '2M', '3M', '6M']:
+                eur_ticker = f'EUCM{tenor} SWET Curncy'
+                usd_ticker = f'USCM{tenor} SWET Curncy'
+                eur = market_data.get(eur_ticker)
+                usd = market_data.get(usd_ticker)
+                eur_str = f"{eur:.4f}" if eur is not None else "-"
+                usd_str = f"{usd:.4f}" if usd is not None else "-"
+                lines.append(f"  {tenor}: EUR {eur_str}  USD {usd_str}")
             lines.append("")
 
         # Alerts
@@ -2034,3 +2807,1513 @@ class HistoryPage(tk.Frame):
         self.detail_text.delete("1.0", "end")
         self.detail_text.insert("1.0", text)
         self.detail_text.config(state="disabled")
+
+
+class AuditLogPage(tk.Frame):
+    """
+    Professional Audit Log page with search, filtering, live updates, and persistence.
+
+    Features:
+    - Real-time log streaming with live indicator
+    - Search functionality
+    - Level and date filtering
+    - Auto-save to JSON
+    - Right-click context menu
+    - Pause/Resume auto-scroll
+    - Export to TXT/JSON
+    - Visual icons per log level
+    """
+
+    # Log level icons and colors
+    LEVEL_CONFIG = {
+        'INFO': {'icon': 'ℹ️', 'color': '#3b82f6', 'bg': '#1e3a5f'},
+        'WARNING': {'icon': '⚠️', 'color': '#f59e0b', 'bg': '#3d3520'},
+        'ERROR': {'icon': '❌', 'color': '#ef4444', 'bg': '#3d1e1e'},
+        'ACTION': {'icon': '✓', 'color': '#4ade80', 'bg': '#1e3d2e'},
+        'DEBUG': {'icon': '🔧', 'color': '#8b5cf6', 'bg': '#2d1f4e'},
+        'SYSTEM': {'icon': '⚙️', 'color': '#6b7280', 'bg': '#2d2d44'},
+    }
+
+    def __init__(self, master, app):
+        super().__init__(master, bg=THEME["bg_panel"])
+        self.app = app
+        pad = CURRENT_MODE["pad"]
+
+        # State
+        self._log_entries = []
+        self._filtered_entries = []
+        self._auto_scroll = True
+        self._live_indicator_state = False
+        self._new_entries_count = 0
+        self._log_file_path = None
+
+        # Try to load saved logs
+        self._init_log_file()
+
+        # ================================================================
+        # HEADER ROW
+        # ================================================================
+        header = tk.Frame(self, bg=THEME["bg_panel"])
+        header.pack(fill="x", padx=pad, pady=(pad, 10))
+
+        # Left: Title with live indicator
+        title_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        title_frame.pack(side="left")
+
+        tk.Label(title_frame, text="AUDIT LOG", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+
+        # Live indicator dot (pulses when new logs arrive)
+        self._live_dot = tk.Label(title_frame, text="●", fg="#666666", bg=THEME["bg_panel"],
+                                  font=("Segoe UI", 12))
+        self._live_dot.pack(side="left", padx=(10, 0))
+
+        self._live_label = tk.Label(title_frame, text="LIVE", fg="#666666", bg=THEME["bg_panel"],
+                                    font=("Segoe UI", 8, "bold"))
+        self._live_label.pack(side="left", padx=(3, 0))
+
+        # Right: Action buttons
+        btn_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        btn_frame.pack(side="right")
+
+        # Pause/Resume button
+        self._pause_btn = OnyxButtonTK(btn_frame, "⏸ Pause", command=self._toggle_auto_scroll, variant="default")
+        self._pause_btn.pack(side="left", padx=3)
+
+        OnyxButtonTK(btn_frame, "📋 Copy", command=self._copy_to_clipboard, variant="default").pack(side="left", padx=3)
+        OnyxButtonTK(btn_frame, "💾 Export", command=self._show_export_menu, variant="default").pack(side="left", padx=3)
+        OnyxButtonTK(btn_frame, "🗑 Clear", command=self._clear_log, variant="danger").pack(side="left", padx=3)
+
+        # ================================================================
+        # SEARCH AND FILTER ROW
+        # ================================================================
+        filter_row = tk.Frame(self, bg=THEME["bg_panel"])
+        filter_row.pack(fill="x", padx=pad, pady=(0, 10))
+
+        # Search box
+        search_frame = tk.Frame(filter_row, bg=THEME["bg_card"], highlightthickness=1,
+                               highlightbackground=THEME["border"])
+        search_frame.pack(side="left")
+
+        tk.Label(search_frame, text="🔍", fg=THEME["muted"], bg=THEME["bg_card"],
+                font=("Segoe UI", 10)).pack(side="left", padx=(8, 4), pady=4)
+
+        self._search_var = tk.StringVar()
+        self._search_var.trace_add("write", lambda *args: self._apply_filter())
+        self._search_entry = tk.Entry(search_frame, textvariable=self._search_var,
+                                      bg=THEME["bg_card"], fg=THEME["text"],
+                                      insertbackground=THEME["text"],
+                                      font=("Segoe UI", 10), relief="flat",
+                                      width=25)
+        self._search_entry.pack(side="left", padx=(0, 8), pady=4)
+        self._search_entry.bind("<Escape>", lambda e: self._clear_search())
+
+        # Clear search button
+        clear_search_btn = tk.Label(search_frame, text="✕", fg=THEME["muted"], bg=THEME["bg_card"],
+                                   font=("Segoe UI", 10), cursor="hand2")
+        clear_search_btn.pack(side="left", padx=(0, 8))
+        clear_search_btn.bind("<Button-1>", lambda e: self._clear_search())
+
+        # Level filter pills
+        level_frame = tk.Frame(filter_row, bg=THEME["bg_panel"])
+        level_frame.pack(side="left", padx=(15, 0))
+
+        tk.Label(level_frame, text="Level:", fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 9)).pack(side="left", padx=(0, 5))
+
+        self._filter_var = tk.StringVar(value="ALL")
+        levels = ["ALL", "INFO", "WARNING", "ERROR", "ACTION", "SYSTEM"]
+
+        for level in levels:
+            color = self.LEVEL_CONFIG.get(level, {}).get('color', THEME["text"])
+            if level == "ALL":
+                color = THEME["text"]
+
+            rb = tk.Radiobutton(level_frame, text=level, variable=self._filter_var, value=level,
+                               bg=THEME["bg_panel"], fg=color,
+                               selectcolor=THEME["bg_card"],
+                               activebackground=THEME["bg_panel"],
+                               activeforeground=color,
+                               font=("Segoe UI", 9, "bold"),
+                               command=self._apply_filter)
+            rb.pack(side="left", padx=2)
+
+        # Date filter (right side)
+        date_frame = tk.Frame(filter_row, bg=THEME["bg_panel"])
+        date_frame.pack(side="right")
+
+        tk.Label(date_frame, text="Time:", fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 9)).pack(side="left", padx=(0, 5))
+
+        self._time_filter_var = tk.StringVar(value="ALL")
+        for label, value in [("All", "ALL"), ("1h", "1H"), ("15m", "15M"), ("5m", "5M")]:
+            rb = tk.Radiobutton(date_frame, text=label, variable=self._time_filter_var, value=value,
+                               bg=THEME["bg_panel"], fg=THEME["text"],
+                               selectcolor=THEME["bg_card"],
+                               activebackground=THEME["bg_panel"],
+                               font=("Segoe UI", 9),
+                               command=self._apply_filter)
+            rb.pack(side="left", padx=2)
+
+        # ================================================================
+        # STATS BAR
+        # ================================================================
+        stats_frame = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
+                              highlightbackground=THEME["border"])
+        stats_frame.pack(fill="x", padx=pad, pady=(0, 10))
+
+        # Stats with icons
+        self._stats_labels = {}
+        stats_config = [
+            ("total", "📊 Total:", THEME["text"]),
+            ("info", "ℹ️ Info:", "#3b82f6"),
+            ("warning", "⚠️ Warnings:", "#f59e0b"),
+            ("error", "❌ Errors:", "#ef4444"),
+            ("action", "✓ Actions:", "#4ade80"),
+        ]
+
+        for key, label, color in stats_config:
+            frame = tk.Frame(stats_frame, bg=THEME["bg_card"])
+            frame.pack(side="left", padx=12, pady=6)
+
+            tk.Label(frame, text=label, fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 9)).pack(side="left")
+
+            lbl = tk.Label(frame, text="0", fg=color, bg=THEME["bg_card"],
+                          font=("Segoe UI", 10, "bold"))
+            lbl.pack(side="left", padx=(3, 0))
+            self._stats_labels[key] = lbl
+
+        # Showing X of Y label
+        self._showing_label = tk.Label(stats_frame, text="", fg=THEME["muted"],
+                                       bg=THEME["bg_card"], font=("Segoe UI", 9))
+        self._showing_label.pack(side="right", padx=12, pady=6)
+
+        # ================================================================
+        # LOG LIST (using Treeview for better performance)
+        # ================================================================
+        log_container = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
+                                highlightbackground=THEME["border"])
+        log_container.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+        # Create treeview with columns
+        columns = ("time", "level", "message")
+        self._tree = ttk.Treeview(log_container, columns=columns, show="headings",
+                                  selectmode="extended")
+
+        # Configure columns
+        self._tree.heading("time", text="TIME", anchor="w")
+        self._tree.heading("level", text="LEVEL", anchor="w")
+        self._tree.heading("message", text="MESSAGE", anchor="w")
+
+        self._tree.column("time", width=150, minwidth=120)
+        self._tree.column("level", width=100, minwidth=80)
+        self._tree.column("message", width=600, minwidth=200)
+
+        # Scrollbars
+        y_scroll = ttk.Scrollbar(log_container, orient="vertical", command=self._tree.yview)
+        x_scroll = ttk.Scrollbar(log_container, orient="horizontal", command=self._tree.xview)
+        self._tree.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
+
+        # Pack
+        self._tree.pack(side="left", fill="both", expand=True)
+        y_scroll.pack(side="right", fill="y")
+
+        # Configure tags for row colors
+        for level, config in self.LEVEL_CONFIG.items():
+            self._tree.tag_configure(level.lower(), background=config['bg'], foreground=config['color'])
+
+        # Alternating row colors for readability
+        self._tree.tag_configure("even", background=THEME["bg_card"])
+        self._tree.tag_configure("odd", background=THEME["bg_card_2"])
+
+        # Bind events
+        self._tree.bind("<Double-1>", self._on_double_click)
+        self._tree.bind("<Button-3>", self._show_context_menu)  # Right-click
+        self._tree.bind("<Control-c>", lambda e: self._copy_selected())
+
+        # Context menu
+        self._context_menu = tk.Menu(self, tearoff=0, bg=THEME["bg_card"], fg=THEME["text"],
+                                     activebackground=THEME["accent"], activeforeground="white")
+        self._context_menu.add_command(label="📋 Copy", command=self._copy_selected)
+        self._context_menu.add_command(label="🔍 View Details", command=self._view_selected_details)
+        self._context_menu.add_separator()
+        self._context_menu.add_command(label="🗑 Delete Selected", command=self._delete_selected)
+
+        # ================================================================
+        # FOOTER STATUS BAR
+        # ================================================================
+        footer = tk.Frame(self, bg=THEME["bg_card_2"], height=24)
+        footer.pack(fill="x", padx=pad, pady=(0, pad))
+        footer.pack_propagate(False)
+
+        # Auto-save status
+        self._autosave_label = tk.Label(footer, text="💾 Auto-save: ON", fg=THEME["muted"],
+                                        bg=THEME["bg_card_2"], font=("Segoe UI", 8))
+        self._autosave_label.pack(side="left", padx=10, pady=4)
+
+        # Log file path
+        self._filepath_label = tk.Label(footer, text="", fg=THEME["muted"],
+                                        bg=THEME["bg_card_2"], font=("Segoe UI", 8))
+        self._filepath_label.pack(side="left", padx=10, pady=4)
+
+        # Session duration
+        self._session_start = datetime.now()
+        self._session_label = tk.Label(footer, text="Session: 0:00:00", fg=THEME["muted"],
+                                       bg=THEME["bg_card_2"], font=("Segoe UI", 8))
+        self._session_label.pack(side="right", padx=10, pady=4)
+
+        # Start timers
+        self._update_session_timer()
+        self._pulse_live_indicator()
+
+        # Add initial entries
+        self._add_system_start_entry()
+
+    def _init_log_file(self):
+        """Initialize log file for auto-save."""
+        try:
+            from config import NIBOR_LOG_PATH
+            log_dir = NIBOR_LOG_PATH / "audit_logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            today = datetime.now().strftime("%Y-%m-%d")
+            self._log_file_path = log_dir / f"audit_{today}.json"
+
+            # Load existing entries from today's log
+            if self._log_file_path.exists():
+                import json
+                with open(self._log_file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    for entry in data:
+                        entry['timestamp'] = datetime.fromisoformat(entry['timestamp'])
+                    self._log_entries = data
+        except Exception as e:
+            log.error(f"Failed to init log file: {e}")
+
+    def _auto_save(self):
+        """Auto-save logs to JSON file."""
+        if not self._log_file_path:
+            return
+
+        try:
+            import json
+            data = []
+            for entry in self._log_entries:
+                data.append({
+                    'timestamp': entry['timestamp'].isoformat(),
+                    'level': entry['level'],
+                    'message': entry['message'],
+                    'source': entry.get('source', 'app')
+                })
+
+            with open(self._log_file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            log.error(f"Auto-save failed: {e}")
+
+    def _add_system_start_entry(self):
+        """Add system startup entries."""
+        import getpass
+        import platform
+
+        self.add_entry("SYSTEM", "═" * 50)
+        self.add_entry("SYSTEM", "Nibor Calculation Terminal - Session Started")
+        self.add_entry("SYSTEM", f"User: {getpass.getuser()} @ {platform.node()}")
+        self.add_entry("SYSTEM", f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.add_entry("SYSTEM", "═" * 50)
+        self.add_entry("INFO", "Ready for NIBOR calculations")
+
+    def add_entry(self, level: str, message: str, timestamp=None, source: str = "app"):
+        """Add a log entry."""
+        ts = timestamp or datetime.now()
+        entry = {
+            'timestamp': ts,
+            'level': level.upper(),
+            'message': message,
+            'source': source
+        }
+        self._log_entries.append(entry)
+        self._new_entries_count += 1
+
+        # Update display
+        self._update_stats()
+        self._apply_filter()
+
+        # Trigger live indicator pulse
+        self._trigger_live_pulse()
+
+        # Auto-save periodically (every 10 entries)
+        if len(self._log_entries) % 10 == 0:
+            self._auto_save()
+
+    def _trigger_live_pulse(self):
+        """Trigger the live indicator to pulse."""
+        self._live_indicator_state = True
+        self._live_dot.config(fg="#4ade80")
+        self._live_label.config(fg="#4ade80")
+
+        # Reset after 500ms
+        self.after(500, self._reset_live_indicator)
+
+    def _reset_live_indicator(self):
+        """Reset live indicator to idle state."""
+        if not self._auto_scroll:
+            self._live_dot.config(fg="#f59e0b")
+            self._live_label.config(fg="#f59e0b", text="PAUSED")
+        else:
+            self._live_dot.config(fg="#666666")
+            self._live_label.config(fg="#666666", text="LIVE")
+
+    def _pulse_live_indicator(self):
+        """Periodic pulse for live indicator."""
+        if self._auto_scroll and self._new_entries_count > 0:
+            self._new_entries_count = 0
+        self.after(2000, self._pulse_live_indicator)
+
+    def _update_session_timer(self):
+        """Update session duration display."""
+        elapsed = datetime.now() - self._session_start
+        hours, remainder = divmod(int(elapsed.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self._session_label.config(text=f"Session: {hours}:{minutes:02d}:{seconds:02d}")
+        self.after(1000, self._update_session_timer)
+
+    def _update_stats(self):
+        """Update statistics display."""
+        total = len(self._log_entries)
+        counts = {'info': 0, 'warning': 0, 'error': 0, 'action': 0}
+
+        for entry in self._log_entries:
+            level = entry['level'].lower()
+            if level in counts:
+                counts[level] += 1
+
+        self._stats_labels['total'].config(text=str(total))
+        self._stats_labels['info'].config(text=str(counts['info']))
+        self._stats_labels['warning'].config(text=str(counts['warning']))
+        self._stats_labels['error'].config(text=str(counts['error']))
+        self._stats_labels['action'].config(text=str(counts['action']))
+
+    def _apply_filter(self):
+        """Apply all filters and update display."""
+        search_text = self._search_var.get().lower()
+        level_filter = self._filter_var.get()
+        time_filter = self._time_filter_var.get()
+
+        # Calculate time threshold
+        now = datetime.now()
+        time_thresholds = {
+            "ALL": None,
+            "1H": now - timedelta(hours=1),
+            "15M": now - timedelta(minutes=15),
+            "5M": now - timedelta(minutes=5),
+        }
+        time_threshold = time_thresholds.get(time_filter)
+
+        # Filter entries
+        self._filtered_entries = []
+        for entry in self._log_entries:
+            # Level filter
+            if level_filter != "ALL" and entry['level'] != level_filter:
+                continue
+
+            # Time filter
+            if time_threshold and entry['timestamp'] < time_threshold:
+                continue
+
+            # Search filter
+            if search_text and search_text not in entry['message'].lower():
+                continue
+
+            self._filtered_entries.append(entry)
+
+        # Update treeview
+        self._refresh_treeview()
+
+        # Update showing label
+        total = len(self._log_entries)
+        shown = len(self._filtered_entries)
+        if shown < total:
+            self._showing_label.config(text=f"Showing {shown} of {total}")
+        else:
+            self._showing_label.config(text="")
+
+    def _refresh_treeview(self):
+        """Refresh the treeview with filtered entries."""
+        # Clear existing
+        for item in self._tree.get_children():
+            self._tree.delete(item)
+
+        # Add filtered entries
+        for i, entry in enumerate(self._filtered_entries):
+            level = entry['level']
+            config = self.LEVEL_CONFIG.get(level, self.LEVEL_CONFIG['INFO'])
+
+            time_str = entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+            level_str = f"{config['icon']} {level}"
+
+            # Determine tag
+            tag = level.lower()
+
+            self._tree.insert("", "end", values=(time_str, level_str, entry['message']), tags=(tag,))
+
+        # Auto-scroll to bottom if enabled
+        if self._auto_scroll and self._filtered_entries:
+            children = self._tree.get_children()
+            if children:
+                self._tree.see(children[-1])
+
+    def _toggle_auto_scroll(self):
+        """Toggle auto-scroll."""
+        self._auto_scroll = not self._auto_scroll
+        if self._auto_scroll:
+            self._pause_btn.config(text="⏸ Pause")
+            self._live_label.config(text="LIVE", fg="#666666")
+            self._live_dot.config(fg="#666666")
+        else:
+            self._pause_btn.config(text="▶ Resume")
+            self._live_label.config(text="PAUSED", fg="#f59e0b")
+            self._live_dot.config(fg="#f59e0b")
+
+    def _clear_search(self):
+        """Clear search field."""
+        self._search_var.set("")
+        self._search_entry.focus_set()
+
+    def _copy_to_clipboard(self):
+        """Copy all visible logs to clipboard."""
+        lines = []
+        for entry in self._filtered_entries:
+            ts = entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+            lines.append(f"[{ts}] [{entry['level']:8}] {entry['message']}")
+
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+        self.add_entry("ACTION", f"Copied {len(lines)} log entries to clipboard")
+
+    def _copy_selected(self):
+        """Copy selected entries to clipboard."""
+        selection = self._tree.selection()
+        if not selection:
+            return
+
+        lines = []
+        for item in selection:
+            values = self._tree.item(item, 'values')
+            lines.append(f"[{values[0]}] {values[1]} {values[2]}")
+
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+    def _show_context_menu(self, event):
+        """Show context menu on right-click."""
+        # Select item under cursor
+        item = self._tree.identify_row(event.y)
+        if item:
+            self._tree.selection_set(item)
+            self._context_menu.post(event.x_root, event.y_root)
+
+    def _on_double_click(self, event):
+        """Handle double-click on entry."""
+        self._view_selected_details()
+
+    def _view_selected_details(self):
+        """Show details popup for selected entry."""
+        selection = self._tree.selection()
+        if not selection:
+            return
+
+        # Get the entry data
+        item = selection[0]
+        idx = self._tree.index(item)
+        if idx < len(self._filtered_entries):
+            entry = self._filtered_entries[idx]
+            self._show_entry_details(entry)
+
+    def _show_entry_details(self, entry):
+        """Show detailed popup for a log entry."""
+        popup = tk.Toplevel(self)
+        popup.title("Log Entry Details")
+        popup.geometry("500x300")
+        popup.configure(bg=THEME["bg_main"])
+        popup.transient(self.winfo_toplevel())
+        popup.grab_set()
+
+        # Header with level icon
+        config = self.LEVEL_CONFIG.get(entry['level'], self.LEVEL_CONFIG['INFO'])
+
+        header = tk.Frame(popup, bg=config['bg'])
+        header.pack(fill="x", padx=0, pady=0)
+
+        tk.Label(header, text=f"  {config['icon']} {entry['level']}",
+                fg=config['color'], bg=config['bg'],
+                font=("Segoe UI", 14, "bold")).pack(side="left", pady=10)
+
+        # Content
+        content = tk.Frame(popup, bg=THEME["bg_main"])
+        content.pack(fill="both", expand=True, padx=20, pady=15)
+
+        # Timestamp
+        tk.Label(content, text="Timestamp:", fg=THEME["muted"], bg=THEME["bg_main"],
+                font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=3)
+        tk.Label(content, text=entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                fg=THEME["text"], bg=THEME["bg_main"],
+                font=("Consolas", 10)).grid(row=0, column=1, sticky="w", padx=10, pady=3)
+
+        # Level
+        tk.Label(content, text="Level:", fg=THEME["muted"], bg=THEME["bg_main"],
+                font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=3)
+        tk.Label(content, text=entry['level'], fg=config['color'], bg=THEME["bg_main"],
+                font=("Segoe UI", 10, "bold")).grid(row=1, column=1, sticky="w", padx=10, pady=3)
+
+        # Source
+        tk.Label(content, text="Source:", fg=THEME["muted"], bg=THEME["bg_main"],
+                font=("Segoe UI", 10)).grid(row=2, column=0, sticky="w", pady=3)
+        tk.Label(content, text=entry.get('source', 'app'), fg=THEME["text"], bg=THEME["bg_main"],
+                font=("Segoe UI", 10)).grid(row=2, column=1, sticky="w", padx=10, pady=3)
+
+        # Message
+        tk.Label(content, text="Message:", fg=THEME["muted"], bg=THEME["bg_main"],
+                font=("Segoe UI", 10)).grid(row=3, column=0, sticky="nw", pady=3)
+
+        msg_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1,
+                            highlightbackground=THEME["border"])
+        msg_frame.grid(row=3, column=1, sticky="nsew", padx=10, pady=3)
+        content.grid_rowconfigure(3, weight=1)
+        content.grid_columnconfigure(1, weight=1)
+
+        msg_text = tk.Text(msg_frame, bg=THEME["bg_card"], fg=THEME["text"],
+                          font=("Consolas", 10), relief="flat", wrap="word", height=6)
+        msg_text.pack(fill="both", expand=True, padx=8, pady=8)
+        msg_text.insert("1.0", entry['message'])
+        msg_text.config(state="disabled")
+
+        # Buttons
+        btn_frame = tk.Frame(popup, bg=THEME["bg_main"])
+        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        tk.Button(btn_frame, text="📋 Copy", bg=THEME["accent"], fg="white",
+                 font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
+                 command=lambda: self._copy_entry(entry)).pack(side="left")
+        tk.Button(btn_frame, text="Close", bg=THEME["chip2"], fg=THEME["text"],
+                 font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
+                 command=popup.destroy).pack(side="right")
+
+        popup.bind("<Escape>", lambda e: popup.destroy())
+
+    def _copy_entry(self, entry):
+        """Copy single entry to clipboard."""
+        ts = entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+        text = f"[{ts}] [{entry['level']}] {entry['message']}"
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+    def _delete_selected(self):
+        """Delete selected entries."""
+        selection = self._tree.selection()
+        if not selection:
+            return
+
+        import tkinter.messagebox as messagebox
+        if not messagebox.askyesno("Delete Entries", f"Delete {len(selection)} selected entries?"):
+            return
+
+        # Get indices to delete
+        indices_to_delete = set()
+        for item in selection:
+            idx = self._tree.index(item)
+            if idx < len(self._filtered_entries):
+                # Find the original entry
+                entry = self._filtered_entries[idx]
+                if entry in self._log_entries:
+                    indices_to_delete.add(self._log_entries.index(entry))
+
+        # Delete in reverse order
+        for idx in sorted(indices_to_delete, reverse=True):
+            del self._log_entries[idx]
+
+        self._update_stats()
+        self._apply_filter()
+        self.add_entry("ACTION", f"Deleted {len(indices_to_delete)} log entries")
+
+    def _show_export_menu(self):
+        """Show export options menu."""
+        menu = tk.Menu(self, tearoff=0, bg=THEME["bg_card"], fg=THEME["text"])
+        menu.add_command(label="📄 Export as TXT", command=lambda: self._export_log("txt"))
+        menu.add_command(label="📋 Export as JSON", command=lambda: self._export_log("json"))
+        menu.add_separator()
+        menu.add_command(label="📂 Open Log Folder", command=self._open_log_folder)
+
+        # Position near the button
+        menu.post(self.winfo_rootx() + 400, self.winfo_rooty() + 50)
+
+    def _export_log(self, format_type: str = "txt"):
+        """Export log to file."""
+        import tkinter.filedialog as filedialog
+
+        if format_type == "json":
+            filetypes = [("JSON files", "*.json"), ("All files", "*.*")]
+            ext = ".json"
+        else:
+            filetypes = [("Text files", "*.txt"), ("All files", "*.*")]
+            ext = ".txt"
+
+        filename = filedialog.asksaveasfilename(
+            defaultextension=ext,
+            filetypes=filetypes,
+            title="Export Audit Log",
+            initialfile=f"audit_log_{datetime.now().strftime('%Y%m%d_%H%M')}{ext}"
+        )
+
+        if not filename:
+            return
+
+        try:
+            if format_type == "json":
+                import json
+                data = []
+                for entry in self._filtered_entries:
+                    data.append({
+                        'timestamp': entry['timestamp'].isoformat(),
+                        'level': entry['level'],
+                        'message': entry['message'],
+                        'source': entry.get('source', 'app')
+                    })
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+            else:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write("NIBOR CALCULATION TERMINAL - AUDIT LOG\n")
+                    f.write(f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write("=" * 70 + "\n\n")
+
+                    for entry in self._filtered_entries:
+                        ts_str = entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+                        f.write(f"[{ts_str}] [{entry['level']:8}] {entry['message']}\n")
+
+            self.add_entry("ACTION", f"Log exported to {filename}")
+        except Exception as e:
+            log.error(f"Failed to export log: {e}")
+            self.add_entry("ERROR", f"Export failed: {e}")
+
+    def _open_log_folder(self):
+        """Open the log folder in file explorer."""
+        if self._log_file_path:
+            import os
+            folder = self._log_file_path.parent
+            if folder.exists():
+                os.startfile(folder)
+
+    def _clear_log(self):
+        """Clear all log entries."""
+        import tkinter.messagebox as messagebox
+        if messagebox.askyesno("Clear Log", "Are you sure you want to clear all log entries?"):
+            self._log_entries.clear()
+            self._update_stats()
+            self._apply_filter()
+            self.add_entry("SYSTEM", "Audit log cleared by user")
+
+    def update(self):
+        """Refresh the log display."""
+        self._apply_filter()
+
+
+class SettingsPage(tk.Frame):
+    """
+    Professional Settings page with category navigation and comprehensive options.
+    """
+
+    # Category configuration
+    CATEGORIES = [
+        ("appearance", "🎨", "Utseende"),
+        ("data", "🔄", "Data & Refresh"),
+        ("alerts", "🔔", "Alerts"),
+        ("display", "📊", "Display"),
+        ("connections", "🔌", "Connections"),
+        ("history", "💾", "History"),
+        ("shortcuts", "⌨️", "Shortcuts"),
+        ("system", "🖥️", "System"),
+        ("about", "ℹ️", "About"),
+    ]
+
+    def __init__(self, master, app):
+        super().__init__(master, bg=THEME["bg_panel"])
+        self.app = app
+        pad = CURRENT_MODE["pad"]
+
+        # Load settings
+        from settings import get_settings, ACCENT_COLORS, FONT_SIZE_PRESETS
+        self.settings = get_settings()
+        self._pending_changes = {}  # Track unsaved changes
+        self._widgets = {}  # Store widget references
+
+        # ================================================================
+        # HEADER
+        # ================================================================
+        header = tk.Frame(self, bg=THEME["bg_panel"])
+        header.pack(fill="x", padx=pad, pady=(pad, 15))
+
+        # Title with cogwheel
+        title_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        title_frame.pack(side="left")
+
+        # Animated cogwheel
+        self._cog_angle = 0
+        self._cog_label = tk.Label(title_frame, text="⚙", fg=THEME["accent"],
+                                   bg=THEME["bg_panel"], font=("Segoe UI", 28))
+        self._cog_label.pack(side="left", padx=(0, 10))
+
+        tk.Label(title_frame, text="SETTINGS", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+
+        # Action buttons
+        btn_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        btn_frame.pack(side="right")
+
+        OnyxButtonTK(btn_frame, "↺ Restore Defaults", command=self._restore_defaults,
+                    variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "📥 Import", command=self._import_settings,
+                    variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "📤 Export", command=self._export_settings,
+                    variant="default").pack(side="left", padx=5)
+
+        # ================================================================
+        # MAIN CONTENT (Sidebar + Content Area)
+        # ================================================================
+        main = tk.Frame(self, bg=THEME["bg_panel"])
+        main.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+        # Left sidebar with categories
+        sidebar = tk.Frame(main, bg=THEME["bg_card"], width=180,
+                          highlightthickness=1, highlightbackground=THEME["border"])
+        sidebar.pack(side="left", fill="y", padx=(0, 15))
+        sidebar.pack_propagate(False)
+
+        self._category_buttons = {}
+        self._current_category = "appearance"
+
+        for cat_id, icon, label in self.CATEGORIES:
+            btn = tk.Frame(sidebar, bg=THEME["bg_card"], cursor="hand2")
+            btn.pack(fill="x", padx=5, pady=2)
+
+            btn_inner = tk.Frame(btn, bg=THEME["bg_card"])
+            btn_inner.pack(fill="x", padx=8, pady=8)
+
+            icon_lbl = tk.Label(btn_inner, text=icon, fg=THEME["muted"],
+                               bg=THEME["bg_card"], font=("Segoe UI", 14))
+            icon_lbl.pack(side="left")
+
+            text_lbl = tk.Label(btn_inner, text=label, fg=THEME["text"],
+                               bg=THEME["bg_card"], font=("Segoe UI", 10))
+            text_lbl.pack(side="left", padx=(8, 0))
+
+            # Store references
+            self._category_buttons[cat_id] = {
+                "frame": btn,
+                "inner": btn_inner,
+                "icon": icon_lbl,
+                "text": text_lbl
+            }
+
+            # Bind events
+            for widget in [btn, btn_inner, icon_lbl, text_lbl]:
+                widget.bind("<Button-1>", lambda e, c=cat_id: self._select_category(c))
+                widget.bind("<Enter>", lambda e, c=cat_id: self._on_category_hover(c, True))
+                widget.bind("<Leave>", lambda e, c=cat_id: self._on_category_hover(c, False))
+
+        # Right content area
+        self._content_frame = tk.Frame(main, bg=THEME["bg_card"],
+                                       highlightthickness=1,
+                                       highlightbackground=THEME["border"])
+        self._content_frame.pack(side="left", fill="both", expand=True)
+
+        # Inner content with padding
+        self._content_inner = tk.Frame(self._content_frame, bg=THEME["bg_card"])
+        self._content_inner.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # ================================================================
+        # FOOTER WITH SAVE/CANCEL
+        # ================================================================
+        footer = tk.Frame(self, bg=THEME["bg_panel"])
+        footer.pack(fill="x", padx=pad, pady=(10, pad))
+
+        # Unsaved changes indicator
+        self._unsaved_label = tk.Label(footer, text="", fg="#f59e0b",
+                                       bg=THEME["bg_panel"], font=("Segoe UI", 9))
+        self._unsaved_label.pack(side="left")
+
+        # Buttons
+        btn_frame2 = tk.Frame(footer, bg=THEME["bg_panel"])
+        btn_frame2.pack(side="right")
+
+        self._cancel_btn = OnyxButtonTK(btn_frame2, "Cancel", command=self._cancel_changes,
+                                        variant="default")
+        self._cancel_btn.pack(side="left", padx=5)
+
+        self._apply_btn = OnyxButtonTK(btn_frame2, "Apply", command=self._apply_changes,
+                                       variant="default")
+        self._apply_btn.pack(side="left", padx=5)
+
+        self._save_btn = OnyxButtonTK(btn_frame2, "Save", command=self._save_changes,
+                                      variant="accent")
+        self._save_btn.pack(side="left", padx=5)
+
+        # Select first category
+        self._select_category("appearance")
+
+        # Start cogwheel animation
+        self._animate_cogwheel()
+
+    def _animate_cogwheel(self):
+        """Subtle cogwheel rotation animation."""
+        # Only animate when there are pending changes
+        if self._pending_changes:
+            self._cog_angle = (self._cog_angle + 15) % 360
+            # We can't actually rotate text, but we can pulse the color
+            intensity = abs((self._cog_angle % 60) - 30) / 30
+            r = int(233 * (0.7 + 0.3 * intensity))
+            g = int(69 * (0.7 + 0.3 * intensity))
+            b = int(96 * (0.7 + 0.3 * intensity))
+            self._cog_label.config(fg=f"#{r:02x}{g:02x}{b:02x}")
+        else:
+            self._cog_label.config(fg=THEME["accent"])
+
+        self.after(100, self._animate_cogwheel)
+
+    def _select_category(self, category_id: str):
+        """Select a category and show its settings."""
+        self._current_category = category_id
+
+        # Update button styles
+        for cat_id, widgets in self._category_buttons.items():
+            if cat_id == category_id:
+                widgets["frame"].config(bg=THEME["accent"])
+                widgets["inner"].config(bg=THEME["accent"])
+                widgets["icon"].config(bg=THEME["accent"], fg="white")
+                widgets["text"].config(bg=THEME["accent"], fg="white")
+            else:
+                widgets["frame"].config(bg=THEME["bg_card"])
+                widgets["inner"].config(bg=THEME["bg_card"])
+                widgets["icon"].config(bg=THEME["bg_card"], fg=THEME["muted"])
+                widgets["text"].config(bg=THEME["bg_card"], fg=THEME["text"])
+
+        # Clear content
+        for widget in self._content_inner.winfo_children():
+            widget.destroy()
+
+        # Build content for selected category
+        builder = getattr(self, f"_build_{category_id}", None)
+        if builder:
+            builder()
+
+    def _on_category_hover(self, category_id: str, entering: bool):
+        """Handle category button hover."""
+        if category_id == self._current_category:
+            return
+
+        widgets = self._category_buttons[category_id]
+        if entering:
+            widgets["frame"].config(bg=THEME["bg_card_2"])
+            widgets["inner"].config(bg=THEME["bg_card_2"])
+            widgets["icon"].config(bg=THEME["bg_card_2"])
+            widgets["text"].config(bg=THEME["bg_card_2"])
+        else:
+            widgets["frame"].config(bg=THEME["bg_card"])
+            widgets["inner"].config(bg=THEME["bg_card"])
+            widgets["icon"].config(bg=THEME["bg_card"])
+            widgets["text"].config(bg=THEME["bg_card"])
+
+    def _add_section_header(self, parent, text: str):
+        """Add a section header."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+        frame.pack(fill="x", pady=(0, 15))
+
+        tk.Label(frame, text=text, fg=THEME["accent"], bg=THEME["bg_card"],
+                font=("Segoe UI", 12, "bold")).pack(side="left")
+
+        tk.Frame(frame, bg=THEME["border"], height=1).pack(side="left", fill="x",
+                                                            expand=True, padx=(15, 0), pady=8)
+
+    def _add_setting_row(self, parent, label: str, description: str = None) -> tk.Frame:
+        """Add a setting row and return the right-side frame for controls."""
+        row = tk.Frame(parent, bg=THEME["bg_card"])
+        row.pack(fill="x", pady=8)
+
+        left = tk.Frame(row, bg=THEME["bg_card"])
+        left.pack(side="left", fill="x", expand=True)
+
+        tk.Label(left, text=label, fg=THEME["text"], bg=THEME["bg_card"],
+                font=("Segoe UI", 10)).pack(anchor="w")
+
+        if description:
+            tk.Label(left, text=description, fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 8)).pack(anchor="w")
+
+        right = tk.Frame(row, bg=THEME["bg_card"])
+        right.pack(side="right")
+
+        return right
+
+    def _create_toggle(self, parent, setting_key: str) -> tk.Frame:
+        """Create a toggle switch."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+
+        current = self.settings.get(setting_key)
+        var = tk.BooleanVar(value=current)
+
+        def on_toggle():
+            self._mark_changed(setting_key, var.get())
+
+        # Custom toggle look
+        toggle_frame = tk.Frame(frame, bg="#3d3d54" if not current else THEME["accent"],
+                               width=44, height=24, highlightthickness=0)
+        toggle_frame.pack()
+        toggle_frame.pack_propagate(False)
+
+        knob = tk.Frame(toggle_frame, bg="white", width=20, height=20)
+        if current:
+            knob.place(x=22, y=2)
+        else:
+            knob.place(x=2, y=2)
+
+        def toggle_click(e=None):
+            new_val = not var.get()
+            var.set(new_val)
+            if new_val:
+                toggle_frame.config(bg=THEME["accent"])
+                knob.place(x=22, y=2)
+            else:
+                toggle_frame.config(bg="#3d3d54")
+                knob.place(x=2, y=2)
+            on_toggle()
+
+        toggle_frame.bind("<Button-1>", toggle_click)
+        knob.bind("<Button-1>", toggle_click)
+        toggle_frame.config(cursor="hand2")
+        knob.config(cursor="hand2")
+
+        self._widgets[setting_key] = {"var": var, "frame": toggle_frame, "knob": knob}
+        return frame
+
+    def _create_dropdown(self, parent, setting_key: str, options: list) -> tk.Frame:
+        """Create a dropdown menu."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+
+        current = self.settings.get(setting_key)
+        var = tk.StringVar(value=str(current))
+
+        def on_change(*args):
+            self._mark_changed(setting_key, var.get())
+
+        var.trace_add("write", on_change)
+
+        # Style the dropdown
+        dropdown = ttk.Combobox(frame, textvariable=var, values=options,
+                               state="readonly", width=15)
+        dropdown.pack()
+
+        self._widgets[setting_key] = {"var": var}
+        return frame
+
+    def _create_slider(self, parent, setting_key: str, min_val: int, max_val: int,
+                       suffix: str = "") -> tk.Frame:
+        """Create a slider with value display."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+
+        current = self.settings.get(setting_key)
+        var = tk.IntVar(value=current)
+
+        value_label = tk.Label(frame, text=f"{current}{suffix}", fg=THEME["text"],
+                              bg=THEME["bg_card"], font=("Consolas", 10), width=6)
+        value_label.pack(side="right", padx=(10, 0))
+
+        def on_change(val):
+            int_val = int(float(val))
+            value_label.config(text=f"{int_val}{suffix}")
+            self._mark_changed(setting_key, int_val)
+
+        slider = ttk.Scale(frame, from_=min_val, to=max_val, variable=var,
+                          orient="horizontal", length=150, command=on_change)
+        slider.pack(side="right")
+
+        self._widgets[setting_key] = {"var": var}
+        return frame
+
+    def _create_radio_group(self, parent, setting_key: str, options: list) -> tk.Frame:
+        """Create a radio button group."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+
+        current = self.settings.get(setting_key)
+        var = tk.StringVar(value=str(current))
+
+        def on_change():
+            self._mark_changed(setting_key, var.get())
+
+        for value, label in options:
+            rb = tk.Radiobutton(frame, text=label, variable=var, value=value,
+                               bg=THEME["bg_card"], fg=THEME["text"],
+                               selectcolor=THEME["bg_card_2"],
+                               activebackground=THEME["bg_card"],
+                               font=("Segoe UI", 9), command=on_change)
+            rb.pack(side="left", padx=(0, 15))
+
+        self._widgets[setting_key] = {"var": var}
+        return frame
+
+    def _create_color_picker(self, parent, setting_key: str, colors: dict) -> tk.Frame:
+        """Create a color picker with predefined colors."""
+        frame = tk.Frame(parent, bg=THEME["bg_card"])
+
+        current = self.settings.get(setting_key)
+
+        for color_name, color_hex in colors.items():
+            color_frame = tk.Frame(frame, bg=color_hex, width=28, height=28,
+                                  highlightthickness=2,
+                                  highlightbackground=THEME["border"] if color_name != current else "white",
+                                  cursor="hand2")
+            color_frame.pack(side="left", padx=3)
+            color_frame.pack_propagate(False)
+
+            def on_click(e, name=color_name):
+                self._mark_changed(setting_key, name)
+                # Update visual selection
+                for child in frame.winfo_children():
+                    child.config(highlightbackground=THEME["border"])
+                e.widget.config(highlightbackground="white")
+
+            color_frame.bind("<Button-1>", on_click)
+
+        return frame
+
+    def _mark_changed(self, key: str, value):
+        """Mark a setting as changed."""
+        original = self.settings.get(key)
+        if value != original:
+            self._pending_changes[key] = value
+        elif key in self._pending_changes:
+            del self._pending_changes[key]
+
+        # Update UI
+        if self._pending_changes:
+            self._unsaved_label.config(text=f"⚠ {len(self._pending_changes)} unsaved changes")
+        else:
+            self._unsaved_label.config(text="")
+
+    # ================================================================
+    # CATEGORY BUILDERS
+    # ================================================================
+
+    def _build_appearance(self):
+        """Build Appearance settings."""
+        from settings import ACCENT_COLORS
+
+        self._add_section_header(self._content_inner, "Theme")
+
+        # Theme toggle
+        right = self._add_setting_row(self._content_inner, "Color Theme",
+                                      "Choose between dark and light mode")
+        self._create_radio_group(right, "theme", [("dark", "🌙 Dark"), ("light", "☀️ Light")]).pack()
+
+        # Accent color
+        right = self._add_setting_row(self._content_inner, "Accent Color",
+                                      "Primary color for buttons and highlights")
+        self._create_color_picker(right, "accent_color", ACCENT_COLORS).pack()
+
+        self._add_section_header(self._content_inner, "Text")
+
+        # Font size
+        right = self._add_setting_row(self._content_inner, "Font Size",
+                                      "Adjust text size throughout the app")
+        self._create_radio_group(right, "font_size",
+                                [("compact", "Compact"), ("normal", "Normal"), ("large", "Large")]).pack()
+
+        # Animations
+        right = self._add_setting_row(self._content_inner, "Animations",
+                                      "Enable smooth transitions and effects")
+        self._create_toggle(right, "animations").pack()
+
+    def _build_data(self):
+        """Build Data & Refresh settings."""
+        self._add_section_header(self._content_inner, "Auto Refresh")
+
+        # Auto-refresh toggle
+        right = self._add_setting_row(self._content_inner, "Enable Auto-Refresh",
+                                      "Automatically fetch new data at regular intervals")
+        self._create_toggle(right, "auto_refresh").pack()
+
+        # Refresh interval
+        right = self._add_setting_row(self._content_inner, "Refresh Interval",
+                                      "How often to fetch new data")
+        self._create_dropdown(right, "refresh_interval",
+                             ["30", "60", "120", "300", "600"]).pack()
+
+        # Show countdown
+        right = self._add_setting_row(self._content_inner, "Show Countdown Timer",
+                                      "Display time until next refresh")
+        self._create_toggle(right, "show_countdown").pack()
+
+        self._add_section_header(self._content_inner, "Data Quality")
+
+        # Stale warning
+        right = self._add_setting_row(self._content_inner, "Stale Data Warning",
+                                      "Warn when data is older than X minutes")
+        self._create_slider(right, "stale_warning_minutes", 1, 30, " min").pack()
+
+    def _build_alerts(self):
+        """Build Alerts settings."""
+        self._add_section_header(self._content_inner, "Rate Alerts")
+
+        # Enable alerts
+        right = self._add_setting_row(self._content_inner, "Enable Rate Alerts",
+                                      "Get notified when NIBOR rates change significantly")
+        self._create_toggle(right, "rate_alerts_enabled").pack()
+
+        # Threshold
+        right = self._add_setting_row(self._content_inner, "Alert Threshold",
+                                      "Minimum change in basis points to trigger alert")
+        self._create_slider(right, "rate_alert_threshold_bps", 1, 20, " bps").pack()
+
+        self._add_section_header(self._content_inner, "Notification Types")
+
+        # Sound
+        right = self._add_setting_row(self._content_inner, "Sound Notifications",
+                                      "Play a sound when alerts trigger")
+        self._create_toggle(right, "sound_enabled").pack()
+
+        # Toast
+        right = self._add_setting_row(self._content_inner, "Toast Notifications",
+                                      "Show popup notifications in-app")
+        self._create_toggle(right, "toast_enabled").pack()
+
+        # System tray
+        right = self._add_setting_row(self._content_inner, "System Tray Alerts",
+                                      "Show notifications in Windows system tray")
+        self._create_toggle(right, "tray_alerts_enabled").pack()
+
+    def _build_display(self):
+        """Build Display settings."""
+        self._add_section_header(self._content_inner, "Numbers")
+
+        # Decimal places
+        right = self._add_setting_row(self._content_inner, "Decimal Places",
+                                      "Number of decimals for rate display")
+        self._create_radio_group(right, "decimal_places",
+                                [("2", "2"), ("4", "4"), ("6", "6")]).pack()
+
+        # Show CHG column
+        right = self._add_setting_row(self._content_inner, "Show Change Column",
+                                      "Display daily change in rate tables")
+        self._create_toggle(right, "show_chg_column").pack()
+
+        self._add_section_header(self._content_inner, "Layout")
+
+        # Start page
+        right = self._add_setting_row(self._content_inner, "Start Page",
+                                      "Which page to show when the app opens")
+        self._create_dropdown(right, "start_page",
+                             ["dashboard", "history", "nibor_days", "nok_implied"]).pack()
+
+        # Compact mode
+        right = self._add_setting_row(self._content_inner, "Compact Mode",
+                                      "Use smaller margins and padding")
+        self._create_toggle(right, "compact_mode").pack()
+
+    def _build_connections(self):
+        """Build Connections settings."""
+        self._add_section_header(self._content_inner, "Bloomberg")
+
+        # Auto-connect
+        right = self._add_setting_row(self._content_inner, "Auto-Connect",
+                                      "Automatically connect to Bloomberg on startup")
+        self._create_toggle(right, "bloomberg_auto_connect").pack()
+
+        # Timeout
+        right = self._add_setting_row(self._content_inner, "Connection Timeout",
+                                      "Maximum time to wait for Bloomberg response")
+        self._create_slider(right, "bloomberg_timeout", 5, 60, "s").pack()
+
+        self._add_section_header(self._content_inner, "Status Display")
+
+        # Show connection status
+        right = self._add_setting_row(self._content_inner, "Show Connection Status",
+                                      "Display connection indicators in status bar")
+        self._create_toggle(right, "show_connection_status").pack()
+
+    def _build_history(self):
+        """Build History settings."""
+        self._add_section_header(self._content_inner, "Snapshots")
+
+        # Auto-save
+        right = self._add_setting_row(self._content_inner, "Auto-Save Snapshots",
+                                      "Automatically save NIBOR snapshots")
+        self._create_toggle(right, "auto_save_snapshots").pack()
+
+        # Retention
+        right = self._add_setting_row(self._content_inner, "History Retention",
+                                      "How long to keep historical data")
+        self._create_dropdown(right, "history_retention_days",
+                             ["30", "60", "90", "180", "365"]).pack()
+
+        self._add_section_header(self._content_inner, "Audit Log")
+
+        # Log level
+        right = self._add_setting_row(self._content_inner, "Log Level",
+                                      "Minimum severity to record in audit log")
+        self._create_dropdown(right, "audit_log_level",
+                             ["all", "info", "warning", "error"]).pack()
+
+        # Max entries
+        right = self._add_setting_row(self._content_inner, "Max Log Entries",
+                                      "Maximum number of log entries to keep")
+        self._create_slider(right, "max_log_entries", 1000, 10000, "").pack()
+
+    def _build_shortcuts(self):
+        """Build Keyboard Shortcuts display."""
+        self._add_section_header(self._content_inner, "Navigation")
+
+        shortcuts_nav = [
+            ("Ctrl + 1", "Go to Dashboard"),
+            ("Ctrl + 2", "Go to History"),
+            ("Ctrl + 3", "Go to Nibor Days"),
+            ("Ctrl + H", "Go to History"),
+            ("Ctrl + ,", "Open Settings"),
+        ]
+
+        for key, action in shortcuts_nav:
+            row = tk.Frame(self._content_inner, bg=THEME["bg_card"])
+            row.pack(fill="x", pady=4)
+
+            key_frame = tk.Frame(row, bg=THEME["bg_card_2"], padx=8, pady=4)
+            key_frame.pack(side="left")
+            tk.Label(key_frame, text=key, fg=THEME["text"], bg=THEME["bg_card_2"],
+                    font=("Consolas", 10, "bold")).pack()
+
+            tk.Label(row, text=action, fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 10)).pack(side="left", padx=(15, 0))
+
+        self._add_section_header(self._content_inner, "Actions")
+
+        shortcuts_action = [
+            ("Ctrl + R", "Refresh Data"),
+            ("Ctrl + S", "Save Snapshot"),
+            ("Ctrl + E", "Export"),
+            ("F5", "Refresh Data"),
+            ("F11", "Toggle Fullscreen"),
+            ("Escape", "Close Popup / Cancel"),
+        ]
+
+        for key, action in shortcuts_action:
+            row = tk.Frame(self._content_inner, bg=THEME["bg_card"])
+            row.pack(fill="x", pady=4)
+
+            key_frame = tk.Frame(row, bg=THEME["bg_card_2"], padx=8, pady=4)
+            key_frame.pack(side="left")
+            tk.Label(key_frame, text=key, fg=THEME["text"], bg=THEME["bg_card_2"],
+                    font=("Consolas", 10, "bold")).pack()
+
+            tk.Label(row, text=action, fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 10)).pack(side="left", padx=(15, 0))
+
+    def _build_system(self):
+        """Build System settings."""
+        self._add_section_header(self._content_inner, "Window Behavior")
+
+        # Minimize to tray
+        right = self._add_setting_row(self._content_inner, "Minimize to System Tray",
+                                      "Keep running in background when minimized")
+        self._create_toggle(right, "minimize_to_tray").pack()
+
+        # Start with Windows
+        right = self._add_setting_row(self._content_inner, "Start with Windows",
+                                      "Launch automatically when Windows starts")
+        self._create_toggle(right, "start_with_windows").pack()
+
+        # Confirm on close
+        right = self._add_setting_row(self._content_inner, "Confirm on Close",
+                                      "Ask for confirmation before closing")
+        self._create_toggle(right, "confirm_on_close").pack()
+
+        self._add_section_header(self._content_inner, "Language")
+
+        # Language
+        right = self._add_setting_row(self._content_inner, "Language",
+                                      "Interface language")
+        self._create_radio_group(right, "language",
+                                [("sv", "🇸🇪 Svenska"), ("en", "🇬🇧 English")]).pack()
+
+    def _build_about(self):
+        """Build About section."""
+        from config import APP_VERSION
+        import getpass
+        import platform
+
+        # Center content
+        center = tk.Frame(self._content_inner, bg=THEME["bg_card"])
+        center.pack(expand=True)
+
+        # Logo
+        tk.Label(center, text="N", font=("Segoe UI", 64, "bold"),
+                fg=THEME["accent"], bg=THEME["bg_card"]).pack(pady=(20, 10))
+
+        # Title
+        tk.Label(center, text="NIBOR CALCULATION TERMINAL",
+                fg=THEME["text"], bg=THEME["bg_card"],
+                font=("Segoe UI", 16, "bold")).pack()
+
+        # Version
+        tk.Label(center, text=f"Version {APP_VERSION}",
+                fg=THEME["muted"], bg=THEME["bg_card"],
+                font=("Segoe UI", 11)).pack(pady=(5, 20))
+
+        # Separator
+        tk.Frame(center, bg=THEME["border"], height=1, width=200).pack(pady=10)
+
+        # Info
+        info_frame = tk.Frame(center, bg=THEME["bg_card"])
+        info_frame.pack(pady=10)
+
+        info = [
+            ("User", getpass.getuser()),
+            ("Machine", platform.node()),
+            ("Python", platform.python_version()),
+            ("OS", f"{platform.system()} {platform.release()}"),
+        ]
+
+        for label, value in info:
+            row = tk.Frame(info_frame, bg=THEME["bg_card"])
+            row.pack(fill="x", pady=2)
+            tk.Label(row, text=f"{label}:", fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 9), width=10, anchor="e").pack(side="left")
+            tk.Label(row, text=value, fg=THEME["text"], bg=THEME["bg_card"],
+                    font=("Consolas", 9)).pack(side="left", padx=(10, 0))
+
+        # Separator
+        tk.Frame(center, bg=THEME["border"], height=1, width=200).pack(pady=15)
+
+        # Copyright
+        tk.Label(center, text="© 2025 Swedbank Treasury",
+                fg=THEME["muted"], bg=THEME["bg_card"],
+                font=("Segoe UI", 9)).pack()
+
+        # Buttons
+        btn_frame = tk.Frame(center, bg=THEME["bg_card"])
+        btn_frame.pack(pady=20)
+
+        OnyxButtonTK(btn_frame, "📂 Open Log Folder", command=self._open_log_folder,
+                    variant="default").pack(side="left", padx=5)
+        OnyxButtonTK(btn_frame, "📄 View License", command=self._show_license,
+                    variant="default").pack(side="left", padx=5)
+
+    # ================================================================
+    # ACTIONS
+    # ================================================================
+
+    def _cancel_changes(self):
+        """Cancel pending changes."""
+        self._pending_changes.clear()
+        self._unsaved_label.config(text="")
+        self._select_category(self._current_category)  # Rebuild current view
+
+    def _apply_changes(self):
+        """Apply pending changes without saving to file."""
+        for key, value in self._pending_changes.items():
+            self.settings.set(key, value)
+        self._pending_changes.clear()
+        self._unsaved_label.config(text="✓ Changes applied")
+        self.after(2000, lambda: self._unsaved_label.config(text=""))
+
+    def _save_changes(self):
+        """Apply and save changes to file."""
+        for key, value in self._pending_changes.items():
+            self.settings.set(key, value)
+        self._pending_changes.clear()
+        self.settings.save()
+        self._unsaved_label.config(text="✓ Settings saved")
+        self.after(2000, lambda: self._unsaved_label.config(text=""))
+
+    def _restore_defaults(self):
+        """Restore all settings to defaults."""
+        import tkinter.messagebox as messagebox
+        if messagebox.askyesno("Restore Defaults",
+                               "Are you sure you want to restore all settings to defaults?"):
+            self.settings.reset_to_defaults()
+            self._pending_changes.clear()
+            self._select_category(self._current_category)
+            self._unsaved_label.config(text="✓ Defaults restored")
+
+    def _import_settings(self):
+        """Import settings from file."""
+        import tkinter.filedialog as filedialog
+        filepath = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json")],
+            title="Import Settings"
+        )
+        if filepath:
+            from pathlib import Path
+            if self.settings.import_settings(Path(filepath)):
+                self._select_category(self._current_category)
+                self._unsaved_label.config(text="✓ Settings imported")
+
+    def _export_settings(self):
+        """Export settings to file."""
+        import tkinter.filedialog as filedialog
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            title="Export Settings",
+            initialfile="nibor_settings.json"
+        )
+        if filepath:
+            from pathlib import Path
+            if self.settings.export_settings(Path(filepath)):
+                self._unsaved_label.config(text="✓ Settings exported")
+
+    def _open_log_folder(self):
+        """Open the log folder."""
+        import os
+        from config import NIBOR_LOG_PATH
+        if NIBOR_LOG_PATH.exists():
+            os.startfile(NIBOR_LOG_PATH)
+
+    def _show_license(self):
+        """Show license information."""
+        popup = tk.Toplevel(self)
+        popup.title("License")
+        popup.geometry("500x400")
+        popup.configure(bg=THEME["bg_main"])
+        popup.transient(self.winfo_toplevel())
+
+        tk.Label(popup, text="MIT License", fg=THEME["accent"], bg=THEME["bg_main"],
+                font=("Segoe UI", 14, "bold")).pack(pady=20)
+
+        license_text = """Copyright (c) 2025 Swedbank Treasury
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT."""
+
+        text = tk.Text(popup, bg=THEME["bg_card"], fg=THEME["text"],
+                      font=("Consolas", 9), relief="flat", wrap="word")
+        text.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        text.insert("1.0", license_text)
+        text.config(state="disabled")
+
+        OnyxButtonTK(popup, "Close", command=popup.destroy, variant="default").pack(pady=(0, 20))
+
+    def update(self):
+        """Refresh the settings page."""
+        pass

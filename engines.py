@@ -700,6 +700,106 @@ class ExcelEngine:
         except Exception:
             return None
 
+    def write_confirmation_stamp(self) -> tuple[bool, str]:
+        """
+        Write confirmation stamp to Excel cells AE30-AE33.
+        Format: ✓ CONFIRMED YYYY-MM-DD HH:MM by username
+
+        Uses xlwings to write to open Excel file on Windows.
+        Falls back to openpyxl if xlwings not available or file not open.
+
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        import getpass
+        from config import RECON_FILE
+
+        # Create stamp text
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        user = getpass.getuser()
+        stamp = f"✓ CONFIRMED {timestamp} by {user}"
+
+        log.info(f"[ExcelEngine] Writing confirmation stamp to AE30-AE33: {stamp}")
+
+        # Try xlwings first (works with open Excel files on Windows)
+        try:
+            import xlwings as xw
+
+            # Find the open workbook by name
+            filename = RECON_FILE.name
+            wb = None
+
+            # Try to find the workbook in open Excel instances
+            for app in xw.apps:
+                for book in app.books:
+                    if book.name == filename:
+                        wb = book
+                        break
+                if wb:
+                    break
+
+            if wb is None:
+                # Try to open it
+                wb = xw.Book(str(RECON_FILE))
+
+            # Get the last sheet
+            ws = wb.sheets[-1]
+
+            # Write stamp to cells AE30-AE33
+            for row in range(30, 34):
+                cell = ws.range(f"AE{row}")
+                cell.value = stamp
+                cell.color = (144, 238, 144)  # Light green RGB
+                cell.api.Font.Bold = True
+                cell.api.Font.Size = 9
+
+            # Save the workbook
+            wb.save()
+
+            log.info(f"[ExcelEngine] Confirmation stamp written via xlwings")
+            return True, f"Stamp written: {stamp}"
+
+        except ImportError:
+            log.info("[ExcelEngine] xlwings not available, trying openpyxl...")
+        except Exception as e:
+            log.warning(f"[ExcelEngine] xlwings failed: {e}, trying openpyxl...")
+
+        # Fallback to openpyxl (requires file to be closed)
+        try:
+            from openpyxl import load_workbook
+            from openpyxl.styles import Font, PatternFill, Alignment
+
+            if not RECON_FILE.exists():
+                return False, f"Excel file not found: {RECON_FILE}"
+
+            wb = load_workbook(RECON_FILE, data_only=False)
+            ws = wb.worksheets[-1]
+
+            green_fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+            font = Font(bold=True, size=9)
+
+            for row in range(30, 34):
+                cell = ws.cell(row=row, column=31)  # AE = column 31
+                cell.value = stamp
+                cell.fill = green_fill
+                cell.font = font
+                cell.alignment = Alignment(horizontal="left")
+
+            wb.save(RECON_FILE)
+            wb.close()
+
+            log.info(f"[ExcelEngine] Confirmation stamp written via openpyxl")
+            return True, f"Stamp written: {stamp}"
+
+        except PermissionError:
+            msg = "Excel file is open. Install xlwings (pip install xlwings) to write to open files."
+            log.error(f"[ExcelEngine] {msg}")
+            return False, msg
+        except Exception as e:
+            msg = f"Error writing stamp: {e}"
+            log.error(f"[ExcelEngine] {msg}")
+            return False, msg
+
 
 def _load_mock_defaults_from_excel() -> dict:
     """

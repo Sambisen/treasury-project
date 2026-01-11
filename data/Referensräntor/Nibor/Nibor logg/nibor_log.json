@@ -1,0 +1,70 @@
+{
+  "2025-01-10": {
+    "timestamp": "2025-01-10T11:30:00",
+    "user": "p901sbf",
+    "machine": "DESKTOP-ABC123",
+    "model": "Swedbank Calc Model",
+    "rates": {
+      "1m": {
+        "funding": 4.25,
+        "spread": 0.01,
+        "nibor": 4.26,
+        "eur_impl": 4.245,
+        "usd_impl": 4.255,
+        "nok_cm": 4.27
+      },
+      "2m": {
+        "funding": 4.3,
+        "spread": 0.01,
+        "nibor": 4.31,
+        "eur_impl": 4.295,
+        "usd_impl": 4.305,
+        "nok_cm": 4.32
+      },
+      "3m": {
+        "funding": 4.34,
+        "spread": 0.01,
+        "nibor": 4.35,
+        "eur_impl": 4.345,
+        "usd_impl": 4.355,
+        "nok_cm": 4.37
+      },
+      "6m": {
+        "funding": 4.41,
+        "spread": 0.01,
+        "nibor": 4.42,
+        "eur_impl": 4.415,
+        "usd_impl": 4.425,
+        "nok_cm": 4.44
+      }
+    },
+    "weights": {
+      "USD": 0.33,
+      "EUR": 0.33,
+      "NOK": 0.34
+    },
+    "market_data": {
+      "NOK F033 Curncy": 11.785,
+      "NKEU F033 Curncy": 11.752,
+      "EUCM1M SWET Curncy": 2.538,
+      "EUCM2M SWET Curncy": 2.548,
+      "EUCM3M SWET Curncy": 2.558,
+      "EUCM6M SWET Curncy": 2.578,
+      "USCM1M SWET Curncy": 4.318,
+      "USCM2M SWET Curncy": 4.328,
+      "USCM3M SWET Curncy": 4.338,
+      "USCM6M SWET Curncy": 4.358
+    },
+    "excel_cm_rates": {
+      "EUR_1M": 2.54,
+      "EUR_2M": 2.55,
+      "EUR_3M": 2.56,
+      "EUR_6M": 2.58,
+      "USD_1M": 4.32,
+      "USD_2M": 4.33,
+      "USD_3M": 4.34,
+      "USD_6M": 4.36
+    },
+    "alerts": []
+  }
+}
