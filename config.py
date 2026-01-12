@@ -215,7 +215,8 @@ BBG_LOGO_CANDIDATES = [
 ]
 
 BASE_HISTORY_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor"
-NIBOR_LOG_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Nibor logg"
+# NIBOR_LOG_PATH: Use Stibor folder for backward compatibility with existing data
+NIBOR_LOG_PATH = DATA_DIR / "Stibor"
 STIBOR_GRSS_PATH = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
 
 DAY_FILES = [
