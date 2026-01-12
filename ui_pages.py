@@ -86,51 +86,6 @@ class DashboardPage(tk.Frame):
         content.pack(fill="both", expand=True, padx=20, pady=20)
 
         # ====================================================================
-        # HEADER WITH CLOCK
-        # ====================================================================
-        header_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        header_frame.pack(fill="x", pady=(0, 10))
-
-        # Left side - Title (optional, can be empty)
-        left_header = tk.Frame(header_frame, bg=THEME["bg_panel"])
-        left_header.pack(side="left")
-
-        # Right side - Clock widget
-        clock_frame = tk.Frame(header_frame, bg=THEME["bg_card"],
-                              highlightthickness=1, highlightbackground=THEME["border"])
-        clock_frame.pack(side="right")
-
-        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
-        clock_inner.pack(padx=15, pady=8)
-
-        # Date
-        self._clock_date = tk.Label(clock_inner, text="",
-                                    fg=THEME["muted"], bg=THEME["bg_card"],
-                                    font=("Segoe UI", 9))
-        self._clock_date.pack(side="left", padx=(0, 15))
-
-        # Time with seconds
-        self._clock_time = tk.Label(clock_inner, text="",
-                                    fg=THEME["accent"], bg=THEME["bg_card"],
-                                    font=("Consolas", 20, "bold"))
-        self._clock_time.pack(side="left")
-
-        # Seconds (smaller, separate for nice effect)
-        self._clock_seconds = tk.Label(clock_inner, text="",
-                                       fg=THEME["muted"], bg=THEME["bg_card"],
-                                       font=("Consolas", 12))
-        self._clock_seconds.pack(side="left", anchor="s", pady=(0, 2))
-
-        # Market status indicator
-        self._market_status = tk.Label(clock_inner, text="",
-                                       fg=THEME["muted"], bg=THEME["bg_card"],
-                                       font=("Segoe UI", 8))
-        self._market_status.pack(side="left", padx=(15, 0))
-
-        # Start clock update
-        self._update_clock()
-
-        # ====================================================================
         # NIBOR CALCULATION SECTION
         # ====================================================================
         tk.Label(content, text="NIBOR CALCULATION",
@@ -411,43 +366,6 @@ class DashboardPage(tk.Frame):
         card._status = lbl_status
         card._sub = lbl_sub
         return card
-
-    def _update_clock(self):
-        """Update the dashboard clock every second."""
-        now = datetime.now()
-
-        # Format date: "Fri 10 Jan 2025"
-        days_sv = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]
-        months_sv = ["", "jan", "feb", "mar", "apr", "maj", "jun",
-                     "jul", "aug", "sep", "okt", "nov", "dec"]
-        day_name = days_sv[now.weekday()]
-        date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
-
-        # Format time: "14:32" and ":45" for seconds
-        time_str = now.strftime("%H:%M")
-        sec_str = now.strftime(":%S")
-
-        # Update labels
-        self._clock_date.config(text=date_str)
-        self._clock_time.config(text=time_str)
-        self._clock_seconds.config(text=sec_str)
-
-        # Market status (Norwegian market hours: 09:00 - 16:00 CET, Mon-Fri)
-        hour = now.hour
-        weekday = now.weekday()
-
-        if weekday < 5:  # Monday to Friday
-            if 9 <= hour < 16:
-                self._market_status.config(text="● MARKET OPEN", fg="#4ade80")
-            elif hour < 9:
-                self._market_status.config(text="○ Pre-market", fg="#f59e0b")
-            else:
-                self._market_status.config(text="○ After-hours", fg="#f59e0b")
-        else:
-            self._market_status.config(text="○ Weekend", fg=THEME["muted"])
-
-        # Schedule next update
-        self.after(1000, self._update_clock)
 
     def _show_trend_popup(self):
         """Show popup with NIBOR trend history chart."""

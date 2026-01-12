@@ -50,8 +50,8 @@ class NiborTerminalTK(tk.Tk):
         set_mode("OFFICE")
 
         self.title(f"Nibor Calculation Terminal v{APP_VERSION}")
-        self.geometry("1400x900")
-        self.minsize(1320, 820)
+        self.geometry("1400x1050")
+        self.minsize(1320, 950)
         self.configure(bg=THEME["bg_main"])
 
         style_ttk(self)
@@ -239,80 +239,75 @@ class NiborTerminalTK(tk.Tk):
                     fg=THEME["text"], bg=THEME["bg_main"],
                     font=("Segoe UI", 24, "bold")).pack()
 
-        # RIGHT: Compact status indicators + UPDATE button
+        # RIGHT: Professional clock with NIBOR fixing countdown + UPDATE button
         header_right = tk.Frame(global_header, bg=THEME["bg_main"])
         header_right.pack(side="right")
 
-        # Status bar frame with border
-        status_frame = tk.Frame(header_right, bg=THEME["bg_card"],
-                               highlightthickness=2,
-                               highlightbackground=THEME["border"],
-                               relief="solid")
-        status_frame.pack(side="left", padx=(0, 15))
+        # ====================================================================
+        # CLOCK & NIBOR FIXING TIMER
+        # ====================================================================
+        clock_frame = tk.Frame(header_right, bg="#1a1a2e",
+                              highlightthickness=2,
+                              highlightbackground=THEME["accent"])
+        clock_frame.pack(side="left", padx=(0, 15))
 
-        # Excel status
-        excel_status = tk.Frame(status_frame, bg=THEME["bg_card"])
-        excel_status.pack(side="left", padx=15, pady=10)
-        
-        tk.Label(excel_status, text="EXCEL:", fg=THEME["muted"],
-                bg=THEME["bg_card"],
-                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
-        
-        self.excel_status_dot = tk.Label(excel_status, text="●",
-                                         fg=THEME["good"],
-                                         bg=THEME["bg_card"],
-                                         font=("Segoe UI", 14, "bold"))
-        self.excel_status_dot.pack(side="left", padx=(0, 5))
-        
-        self.excel_conn_lbl = tk.Label(excel_status, text="OK",
-                                       fg=THEME["good"],
-                                       bg=THEME["bg_card"],
-                                       font=("Segoe UI", 10, "bold"))
-        self.excel_conn_lbl.pack(side="left")
+        clock_inner = tk.Frame(clock_frame, bg="#1a1a2e")
+        clock_inner.pack(padx=20, pady=12)
 
-        # Separator
-        tk.Frame(status_frame, bg=THEME["border"], width=2).pack(side="left", fill="y", padx=5)
+        # Left side: Date and time
+        time_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        time_section.pack(side="left", padx=(0, 25))
 
-        # Bloomberg status
-        bbg_status = tk.Frame(status_frame, bg=THEME["bg_card"])
-        bbg_status.pack(side="left", padx=15, pady=10)
-        
-        tk.Label(bbg_status, text="BLOOMBERG:", fg=THEME["muted"],
-                bg=THEME["bg_card"],
-                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
-        
-        self.bbg_status_dot = tk.Label(bbg_status, text="●",
-                                       fg=THEME["good"],
-                                       bg=THEME["bg_card"],
-                                       font=("Segoe UI", 14, "bold"))
-        self.bbg_status_dot.pack(side="left", padx=(0, 5))
-        
-        self.bbg_conn_lbl = tk.Label(bbg_status, text="OK",
-                                     fg=THEME["good"],
-                                     bg=THEME["bg_card"],
-                                     font=("Segoe UI", 10, "bold"))
-        self.bbg_conn_lbl.pack(side="left")
+        # Date label (e.g., "Mån 13 jan 2025")
+        self._header_clock_date = tk.Label(time_section, text="",
+                                           fg=THEME["muted"], bg="#1a1a2e",
+                                           font=("Segoe UI", 10))
+        self._header_clock_date.pack(anchor="w")
 
-        # Separator
-        tk.Frame(status_frame, bg=THEME["border"], width=2).pack(side="left", fill="y", padx=5)
+        # Time display (large)
+        time_row = tk.Frame(time_section, bg="#1a1a2e")
+        time_row.pack(anchor="w")
 
-        # Alerts
-        alerts_status = tk.Frame(status_frame, bg=THEME["bg_card"])
-        alerts_status.pack(side="left", padx=15, pady=10)
-        
-        tk.Label(alerts_status, text="ALERTS:", fg=THEME["muted"],
-                bg=THEME["bg_card"],
-                font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 8))
-        
-        self.alerts_count_lbl = tk.Label(alerts_status, text="0",
-                                        fg=THEME["good"],
-                                        bg=THEME["bg_card"],
-                                        font=("Segoe UI", 10, "bold"))
-        self.alerts_count_lbl.pack(side="left")
+        self._header_clock_time = tk.Label(time_row, text="--:--",
+                                           fg="#ffffff", bg="#1a1a2e",
+                                           font=("Consolas", 28, "bold"))
+        self._header_clock_time.pack(side="left")
+
+        self._header_clock_seconds = tk.Label(time_row, text=":--",
+                                              fg=THEME["muted"], bg="#1a1a2e",
+                                              font=("Consolas", 16))
+        self._header_clock_seconds.pack(side="left", anchor="s", pady=(0, 4))
+
+        # Separator line
+        tk.Frame(clock_inner, bg=THEME["border"], width=2, height=50).pack(side="left", padx=15)
+
+        # Right side: NIBOR Fixing status
+        nibor_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        nibor_section.pack(side="left")
+
+        # NIBOR Fixing label
+        tk.Label(nibor_section, text="NIBOR FIXING",
+                fg=THEME["muted"], bg="#1a1a2e",
+                font=("Segoe UI", 9, "bold")).pack(anchor="w")
+
+        # Fixing status/countdown
+        self._nibor_fixing_status = tk.Label(nibor_section, text="--:--",
+                                             fg=THEME["accent"], bg="#1a1a2e",
+                                             font=("Consolas", 18, "bold"))
+        self._nibor_fixing_status.pack(anchor="w")
+
+        # Fixing indicator (OPEN/CLOSED/countdown)
+        self._nibor_fixing_indicator = tk.Label(nibor_section, text="",
+                                                fg=THEME["muted"], bg="#1a1a2e",
+                                                font=("Segoe UI", 9))
+        self._nibor_fixing_indicator.pack(anchor="w")
+
+        # Start the header clock update
+        self._update_header_clock()
 
         # UPDATE SYSTEM button (in top-right corner)
         from ui_components import OnyxButtonTK
-        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE SYSTEM",
+        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE",
                                              command=self.refresh_data,
                                              variant="primary")
         self.header_update_btn.pack(side="left", padx=(0, 10))
@@ -448,39 +443,91 @@ class NiborTerminalTK(tk.Tk):
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
 
+    def _update_header_clock(self):
+        """Update the header clock and NIBOR fixing countdown every second."""
+        now = datetime.now()
+
+        # Swedish day and month names
+        days_sv = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]
+        months_sv = ["", "jan", "feb", "mar", "apr", "maj", "jun",
+                     "jul", "aug", "sep", "okt", "nov", "dec"]
+        day_name = days_sv[now.weekday()]
+        date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
+
+        # Update date and time
+        self._header_clock_date.config(text=date_str)
+        self._header_clock_time.config(text=now.strftime("%H:%M"))
+        self._header_clock_seconds.config(text=now.strftime(":%S"))
+
+        # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
+        hour = now.hour
+        minute = now.minute
+        weekday = now.weekday()
+        current_minutes = hour * 60 + minute
+
+        fixing_start = 11 * 60  # 11:00 = 660 minutes
+        fixing_end = 11 * 60 + 30  # 11:30 = 690 minutes
+
+        if weekday >= 5:  # Weekend
+            self._nibor_fixing_status.config(text="WEEKEND", fg=THEME["muted"])
+            self._nibor_fixing_indicator.config(text="No fixing", fg=THEME["muted"])
+        elif current_minutes < fixing_start:
+            # Before fixing window - show countdown
+            mins_until = fixing_start - current_minutes
+            if mins_until <= 60:
+                self._nibor_fixing_status.config(text=f"{mins_until} MIN", fg="#f59e0b")
+                self._nibor_fixing_indicator.config(text="Until window opens", fg="#f59e0b")
+            else:
+                hours_until = mins_until // 60
+                mins_rem = mins_until % 60
+                self._nibor_fixing_status.config(text=f"{hours_until}h {mins_rem}m", fg=THEME["muted"])
+                self._nibor_fixing_indicator.config(text="Until window opens", fg=THEME["muted"])
+        elif current_minutes < fixing_end:
+            # FIXING WINDOW OPEN!
+            mins_left = fixing_end - current_minutes
+            self._nibor_fixing_status.config(text=f"● OPEN", fg="#4ade80")
+            self._nibor_fixing_indicator.config(text=f"{mins_left} min remaining", fg="#4ade80")
+        else:
+            # After fixing window
+            self._nibor_fixing_status.config(text="CLOSED", fg=THEME["muted"])
+            self._nibor_fixing_indicator.config(text="Until tomorrow", fg=THEME["muted"])
+
+        # Schedule next update
+        self.after(1000, self._update_header_clock)
+
     def _build_status_bar(self):
         """Build the status bar at the bottom of the window."""
         from config import APP_VERSION
 
-        status_bar = tk.Frame(self, bg="#1e1e2e", height=28)
+        status_bar = tk.Frame(self, bg="#2d2d44", height=36)
         status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
 
-        # Left side - connection status panel (new professional design)
-        self.connection_panel = ConnectionStatusPanel(status_bar, bg="#1e1e2e")
-        self.connection_panel.pack(side="left", padx=10)
+        # Left side - connection status panel
+        self.connection_panel = ConnectionStatusPanel(status_bar, bg="#2d2d44")
+        self.connection_panel.pack(side="left", padx=15, pady=4)
 
         # Right side - version and user
-        right_frame = tk.Frame(status_bar, bg="#1e1e2e")
-        right_frame.pack(side="right", padx=10)
+        right_frame = tk.Frame(status_bar, bg="#2d2d44")
+        right_frame.pack(side="right", padx=15)
 
         # User info
         import getpass
         username = getpass.getuser()
-        tk.Label(right_frame, text=f"👤 {username}", fg="#666666", bg="#1e1e2e", font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
+        tk.Label(right_frame, text=f"👤 {username}", fg="#9999aa", bg="#2d2d44", font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
 
         # Separator
-        tk.Frame(right_frame, bg="#333344", width=1, height=16).pack(side="right", padx=10)
+        tk.Frame(right_frame, bg="#444466", width=1, height=18).pack(side="right", padx=12)
 
         # Version
-        tk.Label(right_frame, text=f"v{APP_VERSION}", fg="#555555", bg="#1e1e2e", font=("Segoe UI", 9)).pack(side="right")
+        tk.Label(right_frame, text=f"v{APP_VERSION}", fg="#7777aa", bg="#2d2d44", font=("Segoe UI", 9)).pack(side="right")
 
         # About button (clickable)
-        about_btn = tk.Label(right_frame, text="ⓘ", fg="#666666", bg="#1e1e2e", font=("Segoe UI", 11), cursor="hand2")
-        about_btn.pack(side="right", padx=(0, 5))
+        about_btn = tk.Label(right_frame, text="ⓘ", fg="#8888aa", bg="#2d2d44", font=("Segoe UI", 12), cursor="hand2")
+        about_btn.pack(side="right", padx=(0, 8))
         about_btn.bind("<Button-1>", lambda e: self._show_about_dialog())
-        about_btn.bind("<Enter>", lambda e: about_btn.config(fg="#e94560"))
-        about_btn.bind("<Leave>", lambda e: about_btn.config(fg="#666666"))
+        about_btn.bind("<Enter>", lambda e: about_btn.config(fg=THEME["accent"]))
+        about_btn.bind("<Leave>", lambda e: about_btn.config(fg="#8888aa"))
 
     def _update_status_bar(self):
         """Update status bar indicators using the new ConnectionStatusPanel."""
@@ -817,18 +864,10 @@ class NiborTerminalTK(tk.Tk):
             self.excel_last_ok_ts = datetime.now()
             self.excel_ok = True
             self.excel_last_update = fmt_ts(self.excel_last_ok_ts)
-            
-            # Update Excel status in global header (compact format)
-            self.excel_status_dot.config(fg=THEME["good"])
-            self.excel_conn_lbl.config(text="OK", fg=THEME["good"])
         else:
             self.cached_excel_data = {}
             self.excel_ok = False
             log.error("Excel failed, cached_excel_data cleared")
-            
-            # Update Excel status (compact format)
-            self.excel_status_dot.config(fg=THEME["bad"])
-            self.excel_conn_lbl.config(text="FAIL", fg=THEME["bad"])
 
         self.active_alerts = []
         self.status_spot = True
@@ -840,14 +879,6 @@ class NiborTerminalTK(tk.Tk):
         self.weights_state = "WAIT"
 
         _ = self.build_recon_rows(view="ALL")
-        
-        # Update alerts count in global header (compact format)
-        alert_count = len(self.active_alerts)
-        if alert_count > 0:
-            self.alerts_count_lbl.config(text=str(alert_count), fg=THEME["bad"])
-        else:
-            self.alerts_count_lbl.config(text="0", fg=THEME["good"])
-        
         self.refresh_ui()
 
     def _apply_bbg_result(self, bbg_data: dict, bbg_meta: dict, bbg_err: str | None):
@@ -861,18 +892,10 @@ class NiborTerminalTK(tk.Tk):
 
             gh = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
             self.group_health = dict(gh)
-
-            # Update Bloomberg status in global header (compact format)
-            self.bbg_status_dot.config(fg=THEME["good"])
-            self.bbg_conn_lbl.config(text="OK", fg=THEME["good"])
         else:
             self.cached_market_data = dict(bbg_data) if bbg_data else {}
             self.bbg_ok = False
             self.group_health = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
-            
-            # Update Bloomberg status (compact format)
-            self.bbg_status_dot.config(fg=THEME["bad"])
-            self.bbg_conn_lbl.config(text="FAIL", fg=THEME["bad"])
 
         self.active_alerts = []
         self.status_spot = True

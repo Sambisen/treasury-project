@@ -377,24 +377,24 @@ class ConnectionStatusIndicator(tk.Frame):
         self._pulse_state = True
 
         # Container frame (pill shape)
-        self._pill = tk.Frame(self, bg="#2d2d44", highlightthickness=1,
-                              highlightbackground="#3d3d54")
+        self._pill = tk.Frame(self, bg="#3a3a55", highlightthickness=1,
+                             highlightbackground="#4a4a66")
         self._pill.pack(padx=2, pady=2)
 
         # Status dot
-        self._dot = tk.Label(self._pill, text=icon, fg="#666666",
-                             bg="#2d2d44", font=("Segoe UI", 10))
-        self._dot.pack(side="left", padx=(8, 4), pady=4)
+        self._dot = tk.Label(self._pill, text=icon, fg="#888899",
+                            bg="#3a3a55", font=("Segoe UI", 11))
+        self._dot.pack(side="left", padx=(10, 5), pady=5)
 
         # Label
-        self._label = tk.Label(self._pill, text=label, fg="#888888",
-                               bg="#2d2d44", font=("Segoe UI", 9))
-        self._label.pack(side="left", padx=(0, 4), pady=4)
+        self._label = tk.Label(self._pill, text=label, fg="#aaaacc",
+                              bg="#3a3a55", font=("Segoe UI", 9, "bold"))
+        self._label.pack(side="left", padx=(0, 5), pady=5)
 
         # Status text (short)
-        self._status_lbl = tk.Label(self._pill, text="--", fg="#666666",
-                                    bg="#2d2d44", font=("Segoe UI", 8))
-        self._status_lbl.pack(side="left", padx=(0, 8), pady=4)
+        self._status_lbl = tk.Label(self._pill, text="--", fg="#888899",
+                                   bg="#3a3a55", font=("Segoe UI", 9))
+        self._status_lbl.pack(side="left", padx=(0, 10), pady=5)
 
         # Make clickable
         self._pill.config(cursor="hand2")
@@ -414,11 +414,11 @@ class ConnectionStatusIndicator(tk.Frame):
 
         # Update colors based on status
         colors = {
-            self.DISCONNECTED: {"dot": "#666666", "text": "--", "bg": "#2d2d44"},
-            self.CONNECTING: {"dot": "#f59e0b", "text": "...", "bg": "#3d3520"},
-            self.CONNECTED: {"dot": "#4ade80", "text": "OK", "bg": "#1e3d2e"},
-            self.ERROR: {"dot": "#ef4444", "text": "ERR", "bg": "#3d1e1e"},
-            self.STALE: {"dot": "#f59e0b", "text": "OLD", "bg": "#3d3520"},
+            self.DISCONNECTED: {"dot": "#888899", "text": "--", "bg": "#3a3a55"},
+            self.CONNECTING: {"dot": "#f59e0b", "text": "...", "bg": "#4a4530"},
+            self.CONNECTED: {"dot": "#4ade80", "text": "OK", "bg": "#2a4a3a"},
+            self.ERROR: {"dot": "#ef4444", "text": "ERR", "bg": "#4a2a2a"},
+            self.STALE: {"dot": "#f59e0b", "text": "OLD", "bg": "#4a4530"},
         }
         style = colors.get(status, colors[self.DISCONNECTED])
 
@@ -548,39 +548,38 @@ class ConnectionStatusPanel(tk.Frame):
     Typically placed in the status bar.
     """
 
-    def __init__(self, master, bg=None):
-        if bg is None:
-            bg = "#1e1e2e"
-        super().__init__(master, bg=bg)
+    def __init__(self, master, **kwargs):
+        bg = kwargs.pop("bg", "#2d2d44")
+        super().__init__(master, bg=bg, **kwargs)
 
         self._indicators = {}
 
         # Bloomberg indicator
         self.bbg = ConnectionStatusIndicator(self, "Bloomberg", "●", bg=bg)
-        self.bbg.pack(side="left", padx=(0, 5))
+        self.bbg.pack(side="left", padx=(0, 8))
         self._indicators["bloomberg"] = self.bbg
 
         # Excel indicator
         self.excel = ConnectionStatusIndicator(self, "Excel", "●", bg=bg)
-        self.excel.pack(side="left", padx=(0, 5))
+        self.excel.pack(side="left", padx=(0, 8))
         self._indicators["excel"] = self.excel
 
         # Separator
-        tk.Frame(self, bg="#333344", width=1, height=20).pack(side="left", padx=8)
+        tk.Frame(self, bg="#555577", width=1, height=20).pack(side="left", padx=10)
 
         # Data freshness indicator
         self._freshness_frame = tk.Frame(self, bg=bg)
         self._freshness_frame.pack(side="left", padx=5)
 
-        tk.Label(self._freshness_frame, text="Data:", fg="#666666", bg=bg,
-                 font=("Segoe UI", 9)).pack(side="left")
+        tk.Label(self._freshness_frame, text="Data:", fg="#9999bb", bg=bg,
+                font=("Segoe UI", 9)).pack(side="left")
 
         self._freshness_lbl = tk.Label(self._freshness_frame, text="--:--:--",
-                                       fg="#888888", bg=bg, font=("Consolas", 9))
-        self._freshness_lbl.pack(side="left", padx=(3, 0))
+                                       fg="#bbbbdd", bg=bg, font=("Consolas", 10, "bold"))
+        self._freshness_lbl.pack(side="left", padx=(5, 0))
 
         self._freshness_ago = tk.Label(self._freshness_frame, text="",
-                                       fg="#666666", bg=bg, font=("Segoe UI", 8))
+                                       fg="#8888aa", bg=bg, font=("Segoe UI", 9))
         self._freshness_ago.pack(side="left", padx=(5, 0))
 
         # Start freshness update timer
