@@ -30,6 +30,17 @@ def get_logger(name):
 # ============================================================================
 DEVELOPMENT_MODE = False  # Set True for testing without Bloomberg/Excel
 
+# ============================================================================
+# NIBOR FIXING TICKERS (Bloomberg)
+# ============================================================================
+NIBOR_FIXING_TICKERS = {
+    "1w": "NIBOR1W Index",
+    "1m": "NIBOR1M Index",
+    "2m": "NIBOR2M Index",
+    "3m": "NIBOR3M Index",
+    "6m": "NIBOR6M Index",
+}
+
 FUNDING_SPREADS = {
     "1w": 0.15,  # 15 bps
     "1m": 0.20,  # 20 bps

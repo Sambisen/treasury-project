@@ -43,22 +43,22 @@ class TrendChart(tk.Frame):
         tk.Label(header, text="NIBOR TREND", fg=THEME["muted"], bg=THEME["bg_card"],
                 font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(side="left")
 
-        # Tenor checkboxes
-        cb_frame = tk.Frame(header, bg=THEME["bg_card"])
-        cb_frame.pack(side="right")
+        # Tenor checkboxes frame
+        self._cb_frame = tk.Frame(header, bg=THEME["bg_card"])
+        self._cb_frame.pack(side="right")
 
-        tenors = [("1M", "#e94560"), ("2M", "#4ade80"), ("3M", "#3b82f6"), ("6M", "#f59e0b")]
-        for tenor, color in tenors:
-            var = tk.BooleanVar(value=True)
-            self._tenor_vars[tenor.lower()] = var
-            cb = tk.Checkbutton(cb_frame, text=tenor, variable=var,
-                               bg=THEME["bg_card"], fg=color,
-                               selectcolor=THEME["bg_card"],
-                               activebackground=THEME["bg_card"],
-                               activeforeground=color,
-                               font=("Segoe UI", 9, "bold"),
-                               command=self._redraw)
-            cb.pack(side="left", padx=5)
+        # Default tenors (contribution view - no 1W)
+        self._data_type = "contribution"
+        self._tenor_colors = {
+            '1w': '#a855f7',  # Purple for 1W
+            '1m': '#e94560',  # Red
+            '2m': '#4ade80',  # Green
+            '3m': '#3b82f6',  # Blue
+            '6m': '#f59e0b'   # Orange
+        }
+
+        # Create checkboxes for contribution tenors initially
+        self._create_tenor_checkboxes(include_1w=False)
 
         # Create matplotlib figure
         self.fig = Figure(figsize=(8, height/100), dpi=100, facecolor=THEME["bg_card"])
@@ -67,6 +67,33 @@ class TrendChart(tk.Frame):
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    def _create_tenor_checkboxes(self, include_1w: bool = False):
+        """Create or update tenor checkboxes."""
+        # Clear existing checkboxes
+        for widget in self._cb_frame.winfo_children():
+            widget.destroy()
+
+        self._tenor_vars = {}
+
+        # Define tenors based on data type
+        if include_1w:
+            tenors = ['1w', '1m', '2m', '3m', '6m']
+        else:
+            tenors = ['1m', '2m', '3m', '6m']
+
+        for tenor in tenors:
+            color = self._tenor_colors.get(tenor, '#ffffff')
+            var = tk.BooleanVar(value=True)
+            self._tenor_vars[tenor] = var
+            cb = tk.Checkbutton(self._cb_frame, text=tenor.upper(), variable=var,
+                               bg=THEME["bg_card"], fg=color,
+                               selectcolor=THEME["bg_card"],
+                               activebackground=THEME["bg_card"],
+                               activeforeground=color,
+                               font=("Segoe UI", 9, "bold"),
+                               command=self._redraw)
+            cb.pack(side="left", padx=5)
 
     def _style_axes(self):
         """Apply dark theme styling to axes."""
@@ -78,14 +105,22 @@ class TrendChart(tk.Frame):
         self.ax.spines['right'].set_visible(False)
         self.ax.grid(True, alpha=0.2, color=THEME["border"])
 
-    def set_data(self, history_data: list):
+    def set_data(self, history_data: list, data_type: str = "contribution"):
         """
         Set history data for chart.
 
         Args:
-            history_data: List of dicts with 'date', '1m', '2m', '3m', '6m' keys
+            history_data: List of dicts with 'date' and rate keys
+            data_type: "contribution" (1M-6M) or "fixing" (1W-6M)
         """
         self._data = history_data
+
+        # Update checkboxes if data type changed
+        if data_type != self._data_type:
+            self._data_type = data_type
+            include_1w = (data_type == "fixing")
+            self._create_tenor_checkboxes(include_1w=include_1w)
+
         self._redraw()
 
     def _redraw(self):
@@ -96,9 +131,15 @@ class TrendChart(tk.Frame):
         self.ax.clear()
         self._style_axes()
 
+        # Determine which tenors to plot based on data type
+        if self._data_type == "fixing":
+            tenor_list = ['1w', '1m', '2m', '3m', '6m']
+        else:
+            tenor_list = ['1m', '2m', '3m', '6m']
+
         # Parse dates
         dates = []
-        rates = {'1m': [], '2m': [], '3m': [], '6m': []}
+        rates = {t: [] for t in tenor_list}
 
         for row in reversed(self._data):  # Oldest first
             try:
@@ -114,10 +155,9 @@ class TrendChart(tk.Frame):
             self.canvas.draw()
             return
 
-        # Plot each tenor
-        colors = {'1m': '#e94560', '2m': '#4ade80', '3m': '#3b82f6', '6m': '#f59e0b'}
-
-        for tenor, color in colors.items():
+        # Plot each tenor with its color
+        for tenor in tenor_list:
+            color = self._tenor_colors.get(tenor, '#ffffff')
             if self._tenor_vars.get(tenor, tk.BooleanVar(value=True)).get():
                 self.ax.plot(dates, rates[tenor], color=color, linewidth=1.5,
                            label=tenor.upper(), marker='o', markersize=3)

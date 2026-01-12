@@ -5,7 +5,7 @@ Contains ExcelEngine and BloombergEngine.
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -1181,6 +1181,115 @@ class BloombergEngine:
                     error_callback(str(e))
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def fetch_fixing_history(self, num_dates: int = 3) -> dict:
+        """
+        Fetch historical NIBOR fixings using Bloomberg BDH.
+
+        Args:
+            num_dates: Number of historical dates to fetch
+
+        Returns:
+            dict: {date_str: {tenor: rate, ...}, ...}
+        """
+        from config import NIBOR_FIXING_TICKERS
+
+        # If in mock mode, return empty to trigger Excel fallback
+        if self._use_mock:
+            log.info("[BloombergEngine] Mock mode - skipping BDH, will use Excel fallback")
+            return {}
+
+        if not blpapi or not self._is_ready:
+            log.warning("[BloombergEngine] Not ready for BDH request")
+            return {}
+
+        try:
+            with self._lock:
+                ok, err = self._ensure_ready_sync()
+                if not ok:
+                    log.error(f"[BloombergEngine] BDH session not ready: {err}")
+                    return {}
+
+                # Calculate date range (14 calendar days to ensure we get at least 3 business days)
+                end_date = datetime.now()
+                start_date = end_date - timedelta(days=14)
+
+                log.info(f"[BloombergEngine] Fetching BDH for NIBOR fixings: {start_date.date()} to {end_date.date()}")
+
+                # Create BDH request
+                req = self._service.createRequest("HistoricalDataRequest")
+
+                # Add all NIBOR fixing tickers
+                for tenor, ticker in NIBOR_FIXING_TICKERS.items():
+                    req.getElement("securities").appendValue(ticker)
+
+                req.getElement("fields").appendValue("PX_LAST")
+                req.set("startDate", start_date.strftime("%Y%m%d"))
+                req.set("endDate", end_date.strftime("%Y%m%d"))
+                req.set("periodicitySelection", "DAILY")
+
+                self._session.sendRequest(req)
+
+                # Collect results by date
+                results_by_date = {}
+                tenor_by_ticker = {v: k for k, v in NIBOR_FIXING_TICKERS.items()}
+
+                while True:
+                    ev = self._session.nextEvent(5000)
+                    if ev.eventType() in (blpapi.Event.RESPONSE, blpapi.Event.PARTIAL_RESPONSE):
+                        for msg in ev:
+                            if not msg.hasElement("securityData"):
+                                continue
+
+                            sec_data = msg.getElement("securityData")
+                            ticker = sec_data.getElementAsString("security")
+                            tenor = tenor_by_ticker.get(ticker)
+
+                            if not tenor:
+                                continue
+
+                            if not sec_data.hasElement("fieldData"):
+                                continue
+
+                            field_data = sec_data.getElement("fieldData")
+
+                            for i in range(field_data.numValues()):
+                                row = field_data.getValueAsElement(i)
+                                if row.hasElement("date") and row.hasElement("PX_LAST"):
+                                    date_val = row.getElementAsDatetime("date")
+                                    date_str = f"{date_val.year()}-{date_val.month():02d}-{date_val.day():02d}"
+                                    price = row.getElementAsFloat("PX_LAST")
+
+                                    if date_str not in results_by_date:
+                                        results_by_date[date_str] = {}
+                                    results_by_date[date_str][tenor] = price
+
+                        if ev.eventType() == blpapi.Event.RESPONSE:
+                            break
+                    elif ev.eventType() == blpapi.Event.TIMEOUT:
+                        log.warning("[BloombergEngine] BDH request timeout")
+                        break
+
+                # Filter to only include dates with all 5 tenors
+                complete_dates = {}
+                required_tenors = set(NIBOR_FIXING_TICKERS.keys())
+
+                for date_str, rates in sorted(results_by_date.items(), reverse=True):
+                    if set(rates.keys()) == required_tenors:
+                        complete_dates[date_str] = rates
+                        log.info(f"[BloombergEngine] BDH fixing for {date_str}: {rates}")
+                        if len(complete_dates) >= num_dates:
+                            break
+                    else:
+                        missing = required_tenors - set(rates.keys())
+                        log.warning(f"[BloombergEngine] Skipping {date_str}: missing tenors {missing}")
+
+                log.info(f"[BloombergEngine] BDH returned {len(complete_dates)} complete fixing dates")
+                return complete_dates
+
+        except Exception as e:
+            log.error(f"[BloombergEngine] BDH request failed: {e}")
+            return {}
 
 
 class MockBloombergEngine:

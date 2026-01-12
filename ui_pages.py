@@ -12,7 +12,10 @@ log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
 from utils import safe_float
 from calculations import calc_implied_yield
-from history import save_snapshot, get_rates_table_data, get_snapshot, load_history, get_previous_day_rates
+from history import (
+    save_snapshot, get_rates_table_data, get_snapshot, load_history,
+    get_previous_day_rates, get_fixing_table_data, get_fixing_history_for_charts
+)
 
 # Import chart components (optional - graceful fallback if matplotlib not available)
 try:
@@ -258,6 +261,20 @@ class DashboardPage(tk.Frame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
+        # CONFIRM RATES BUTTON - Below the NIBOR Rates table
+        # ====================================================================
+        confirm_btn_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        confirm_btn_frame.pack(anchor="center", pady=(15, 0))
+
+        self.confirm_rates_btn = OnyxButtonTK(
+            confirm_btn_frame,
+            "Confirm rates",
+            command=self._on_confirm_rates,
+            variant="primary"
+        )
+        self.confirm_rates_btn.pack()
+
+        # ====================================================================
         # DATA SOURCES BAR - Moved here (after table, before alerts)
         # ====================================================================
         status_bar = tk.Frame(content, bg=THEME["bg_card_2"],
@@ -340,7 +357,60 @@ class DashboardPage(tk.Frame):
         self.app.selected_calc_model = model
         # Trigger re-update of funding rates table
         self._update_funding_rates_with_validation()
-    
+
+    def _on_confirm_rates(self):
+        """Handle Confirm rates button click."""
+        from history import confirm_rates
+        from tkinter import messagebox
+
+        log.info("[Dashboard] Confirm rates button clicked")
+
+        # Disable button during operation
+        self.confirm_rates_btn.configure(state="disabled", text="Confirming...")
+
+        def do_confirm():
+            try:
+                success, message = confirm_rates(self.app)
+
+                # Update UI on main thread
+                def update_ui():
+                    self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
+
+                    if success:
+                        # Show success message
+                        messagebox.showinfo(
+                            "Rates Confirmed",
+                            message
+                        )
+                        # Show toast notification if available
+                        if hasattr(self.app, 'toast'):
+                            self.app.toast.success(message)
+                        log.info(f"[Dashboard] {message}")
+                    else:
+                        # Show error message
+                        messagebox.showerror(
+                            "Confirmation Failed",
+                            message
+                        )
+                        if hasattr(self.app, 'toast'):
+                            self.app.toast.error(message)
+                        log.error(f"[Dashboard] {message}")
+
+                self.after(0, update_ui)
+
+            except Exception as e:
+                def show_error():
+                    self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
+                    error_msg = f"Error confirming rates: {e}"
+                    messagebox.showerror("Error", error_msg)
+                    log.error(f"[Dashboard] {error_msg}")
+
+                self.after(0, show_error)
+
+        # Run in background thread to avoid blocking UI
+        import threading
+        threading.Thread(target=do_confirm, daemon=True).start()
+
     def _status_card(self, master, title, details_cmd):
         card = tk.Frame(master, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
         icon = tk.Label(card, text="●", fg=THEME["muted2"], bg=THEME["bg_card"], font=("Segoe UI", 20, "bold"))
@@ -1914,6 +1984,45 @@ class HistoryPage(tk.Frame):
         OnyxButtonTK(btn_frame, "Save Snapshot", command=self._save_now, variant="default").pack(side="left", padx=5)
         OnyxButtonTK(btn_frame, "Refresh", command=self.update, variant="default").pack(side="left")
 
+        # View toggle (Contribution vs Fixing)
+        view_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        view_frame.pack(fill="x", padx=pad, pady=(10, 5))
+
+        tk.Label(view_frame, text="View:", fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", CURRENT_MODE["body"])).pack(side="left")
+
+        self.history_view_var = tk.StringVar(value="fixing")
+
+        contribution_radio = tk.Radiobutton(
+            view_frame, text="Swedbank Contribution",
+            variable=self.history_view_var, value="contribution",
+            command=self._on_view_change,
+            bg=THEME["bg_panel"], fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=FONTS["body"]
+        )
+        contribution_radio.pack(side="left", padx=(10, 5))
+
+        fixing_radio = tk.Radiobutton(
+            view_frame, text="NIBOR Fixing",
+            variable=self.history_view_var, value="fixing",
+            command=self._on_view_change,
+            bg=THEME["bg_panel"], fg=THEME["text"],
+            selectcolor=THEME["bg_card"],
+            activebackground=THEME["bg_panel"],
+            activeforeground=THEME["accent"],
+            font=FONTS["body"]
+        )
+        fixing_radio.pack(side="left", padx=5)
+
+        # Entry count label
+        self._entry_count_lbl = tk.Label(view_frame, text="",
+                                         fg=THEME["muted"], bg=THEME["bg_panel"],
+                                         font=("Segoe UI", CURRENT_MODE["small"]))
+        self._entry_count_lbl.pack(side="right")
+
         # Trend chart (collapsible)
         if MATPLOTLIB_AVAILABLE and TrendChart:
             chart_section = CollapsibleSection(self, "Trend Graph", expanded=False, accent_color=THEME["accent"])
@@ -1976,10 +2085,19 @@ class HistoryPage(tk.Frame):
         left_frame = tk.Frame(content, bg=THEME["bg_panel"])
         left_frame.pack(side="left", fill="both", expand=True)
 
+        # Table for contribution view (default columns)
+        self._contribution_columns = ["SEL", "DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"]
+        self._contribution_widths = [30, 90, 60, 45, 60, 45, 60, 45, 60, 45, 75, 70]
+
+        # Table for fixing view (includes 1W, no MODEL/USER)
+        self._fixing_columns = ["SEL", "DATE", "1W", "CHG", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG"]
+        self._fixing_widths = [30, 90, 55, 45, 55, 45, 55, 45, 55, 45, 55, 45]
+
+        # Start with fixing view
         self.table = DataTableTree(
             left_frame,
-            columns=["SEL", "DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"],
-            col_widths=[30, 90, 60, 45, 60, 45, 60, 45, 60, 45, 75, 70],
+            columns=self._fixing_columns,
+            col_widths=self._fixing_widths,
             height=18
         )
         self.table.pack(fill="both", expand=True)
@@ -2051,22 +2169,50 @@ class HistoryPage(tk.Frame):
             return f"{chg:.2f}"
         return "0.00"
 
+    def _on_view_change(self):
+        """Handle view toggle between Contribution and Fixing."""
+        self.update()
+
     def update(self):
-        """Update the history table."""
+        """Update the history table based on selected view."""
         self.table.clear()
         self._history_data = load_history()
+        view = self.history_view_var.get()
 
-        table_data = get_rates_table_data(limit=50)
-        self._all_table_data = table_data  # Store for filtering
+        if view == "fixing":
+            # Get fixing history (up to 500 entries for full history)
+            table_data = get_fixing_table_data(limit=500)
+            self._all_table_data = table_data
 
-        # Update trend chart if available
-        if self.trend_chart and table_data:
-            self.trend_chart.set_data(table_data)
+            # Update entry count
+            self._entry_count_lbl.config(text=f"{len(table_data)} fixing entries")
 
-        if not table_data:
-            self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
-            self._show_detail("No snapshots saved yet.\n\nClick 'Save Snapshot' to save current NIBOR calculation.")
-            return
+            # Update trend chart with fixing data
+            if self.trend_chart:
+                chart_data = get_fixing_history_for_charts(limit=90)
+                if chart_data:
+                    self.trend_chart.set_data(chart_data, data_type="fixing")
+
+            if not table_data:
+                self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+                self._show_detail("No NIBOR fixings saved yet.\n\nFixings are imported from Bloomberg BDH or Excel.")
+                return
+
+        else:  # contribution view
+            table_data = get_rates_table_data(limit=50)
+            self._all_table_data = table_data
+
+            # Update entry count
+            self._entry_count_lbl.config(text=f"{len(table_data)} contribution entries")
+
+            # Update trend chart with contribution data
+            if self.trend_chart and table_data:
+                self.trend_chart.set_data(table_data, data_type="contribution")
+
+            if not table_data:
+                self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+                self._show_detail("No snapshots saved yet.\n\nClick 'Save Snapshot' to save current NIBOR calculation.")
+                return
 
         # Apply search filter if active
         search_text = self.search_var.get().strip()
@@ -2076,11 +2222,13 @@ class HistoryPage(tk.Frame):
             self._populate_table(table_data)
 
     def _populate_table(self, table_data, highlight_single=False):
-        """Populate table with data."""
+        """Populate table with data based on current view."""
         self.table.clear()
+        view = self.history_view_var.get()
 
         if not table_data:
-            self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+            empty_cols = 12 if view == "fixing" else 12
+            self.table.add_row([""] + ["-"] * (empty_cols - 1), style="normal")
             return
 
         for row in table_data:
@@ -2088,20 +2236,39 @@ class HistoryPage(tk.Frame):
             is_selected = row['date'] in self._selected_dates
             checkbox = "☑" if is_selected else "☐"
 
-            values = [
-                checkbox,
-                row['date'],
-                f"{row['1m']:.2f}" if row['1m'] is not None else "-",
-                self._format_chg(row['1m_chg']),
-                f"{row['2m']:.2f}" if row['2m'] is not None else "-",
-                self._format_chg(row['2m_chg']),
-                f"{row['3m']:.2f}" if row['3m'] is not None else "-",
-                self._format_chg(row['3m_chg']),
-                f"{row['6m']:.2f}" if row['6m'] is not None else "-",
-                self._format_chg(row['6m_chg']),
-                row.get('model', '-'),
-                row.get('user', '-')
-            ]
+            if view == "fixing":
+                # Fixing view: SEL, DATE, 1W, CHG, 1M, CHG, 2M, CHG, 3M, CHG, 6M, CHG
+                values = [
+                    checkbox,
+                    row['date'],
+                    f"{row['1w']:.2f}" if row.get('1w') is not None else "-",
+                    self._format_chg(row.get('1w_chg')),
+                    f"{row['1m']:.2f}" if row.get('1m') is not None else "-",
+                    self._format_chg(row.get('1m_chg')),
+                    f"{row['2m']:.2f}" if row.get('2m') is not None else "-",
+                    self._format_chg(row.get('2m_chg')),
+                    f"{row['3m']:.2f}" if row.get('3m') is not None else "-",
+                    self._format_chg(row.get('3m_chg')),
+                    f"{row['6m']:.2f}" if row.get('6m') is not None else "-",
+                    self._format_chg(row.get('6m_chg')),
+                ]
+            else:
+                # Contribution view: SEL, DATE, 1M, CHG, 2M, CHG, 3M, CHG, 6M, CHG, MODEL, USER
+                values = [
+                    checkbox,
+                    row['date'],
+                    f"{row['1m']:.2f}" if row.get('1m') is not None else "-",
+                    self._format_chg(row.get('1m_chg')),
+                    f"{row['2m']:.2f}" if row.get('2m') is not None else "-",
+                    self._format_chg(row.get('2m_chg')),
+                    f"{row['3m']:.2f}" if row.get('3m') is not None else "-",
+                    self._format_chg(row.get('3m_chg')),
+                    f"{row['6m']:.2f}" if row.get('6m') is not None else "-",
+                    self._format_chg(row.get('6m_chg')),
+                    row.get('model', '-'),
+                    row.get('user', '-')
+                ]
+
             self.table.add_row(values, style="normal")
 
         self._update_selected_count()

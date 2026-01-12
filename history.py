@@ -1,6 +1,7 @@
 """
 History module for Nibor Calculation Terminal.
 Handles saving and loading NIBOR calculation snapshots.
+Includes NIBOR fixing backfill functionality.
 """
 import json
 import os
@@ -9,13 +10,25 @@ import platform
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from config import NIBOR_LOG_PATH, get_logger
+import pandas as pd
+
+from config import NIBOR_LOG_PATH, DEVELOPMENT_MODE, NIBOR_FIXING_TICKERS, get_logger
 
 log = get_logger("history")
 
 # History file path - uses OneDrive path from config
 HISTORY_DIR = NIBOR_LOG_PATH
-HISTORY_FILE = HISTORY_DIR / "nibor_log.json"
+
+
+def get_history_file_path() -> Path:
+    """Get the history file path based on DEVELOPMENT_MODE."""
+    if DEVELOPMENT_MODE:
+        return HISTORY_DIR / "nibor_log_test.json"
+    return HISTORY_DIR / "nibor_log.json"
+
+
+# For backwards compatibility
+HISTORY_FILE = get_history_file_path()
 
 
 def ensure_history_dir():
@@ -36,31 +49,38 @@ def get_user_info():
 def load_history() -> dict:
     """Load all history from JSON file."""
     ensure_history_dir()
+    history_file = get_history_file_path()
 
-    if not HISTORY_FILE.exists():
-        log.info("No history file found, starting fresh")
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+    log.info(f"[{mode_str}] Loading history from: {history_file}")
+
+    if not history_file.exists():
+        log.info(f"[{mode_str}] No history file found, starting fresh")
         return {}
 
     try:
-        with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+        with open(history_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            log.info(f"Loaded {len(data)} snapshots from history")
+            log.info(f"[{mode_str}] Loaded {len(data)} snapshots from history")
             return data
     except Exception as e:
-        log.error(f"Failed to load history: {e}")
+        log.error(f"[{mode_str}] Failed to load history: {e}")
         return {}
 
 
 def save_history(history: dict):
     """Save history to JSON file."""
     ensure_history_dir()
+    history_file = get_history_file_path()
+
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
 
     try:
-        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(history, f, indent=2, ensure_ascii=False, default=str)
-        log.info(f"Saved {len(history)} snapshots to history")
+        log.info(f"[{mode_str}] Saved {len(history)} snapshots to: {history_file}")
     except Exception as e:
-        log.error(f"Failed to save history: {e}")
+        log.error(f"[{mode_str}] Failed to save history: {e}")
 
 
 def create_snapshot(app) -> dict:
@@ -251,3 +271,436 @@ def get_rates_table_data(limit: int = 30) -> list:
 
     # Reverse to get newest first
     return list(reversed(table_data))
+
+
+# ============================================================================
+# NIBOR FIXING BACKFILL FUNCTIONS
+# ============================================================================
+
+def load_fixings_from_excel(excel_path: Path = None, num_dates: int = 3) -> dict:
+    """
+    Load NIBOR fixings from the Excel file (fallback when Bloomberg is unavailable).
+
+    Args:
+        excel_path: Path to the Excel file with NIBOR history
+        num_dates: Number of most recent dates to load
+
+    Returns:
+        dict: {date_str: {tenor: rate, ...}, ...}
+    """
+    from config import DATA_DIR
+
+    if excel_path is None:
+        excel_path = DATA_DIR / "Nibor history - wide.xlsx"
+
+    if not excel_path.exists():
+        log.warning(f"NIBOR history Excel file not found: {excel_path}")
+        return {}
+
+    try:
+        df = pd.read_excel(excel_path)
+        log.info(f"Loaded NIBOR history Excel with {len(df)} rows")
+
+        # Column mapping: Excel columns -> JSON keys
+        col_map = {
+            '1 Week': '1w',
+            '1 Month': '1m',
+            '2 Months': '2m',
+            '3 Months': '3m',
+            '6 Months': '6m'
+        }
+
+        fixings = {}
+
+        # Get the most recent num_dates rows
+        for i in range(min(num_dates, len(df))):
+            row = df.iloc[i]
+            date_val = row['Date']
+
+            # Convert date to string format YYYY-MM-DD
+            if isinstance(date_val, pd.Timestamp):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val)[:10]
+
+            # Extract rates for all tenors
+            rates = {}
+            all_valid = True
+
+            for excel_col, json_key in col_map.items():
+                if excel_col in df.columns:
+                    val = row[excel_col]
+                    if pd.notna(val):
+                        rates[json_key] = float(val)
+                    else:
+                        all_valid = False
+                        log.warning(f"Missing {json_key} for {date_str}")
+                else:
+                    all_valid = False
+                    log.warning(f"Column {excel_col} not found in Excel")
+
+            if all_valid and len(rates) == 5:
+                fixings[date_str] = rates
+                log.info(f"Loaded fixing for {date_str}: {rates}")
+            else:
+                log.warning(f"Skipping {date_str}: incomplete data (got {len(rates)}/5 tenors)")
+
+        return fixings
+
+    except Exception as e:
+        log.error(f"Failed to load fixings from Excel: {e}")
+        return {}
+
+
+def should_save_fixing(history: dict, date_key: str) -> bool:
+    """
+    Determine if fixing should be saved (idempotent check).
+
+    Returns True if:
+    - history[date_key] doesn't exist, OR
+    - history[date_key] exists but lacks fixing_rates, OR
+    - history[date_key]["fixing_rates"] exists but is incomplete
+
+    Returns False if:
+    - history[date_key]["fixing_rates"] exists with all 5 tenors
+    """
+    if date_key not in history:
+        return True
+
+    entry = history[date_key]
+
+    if 'fixing_rates' not in entry:
+        return True
+
+    fixing_rates = entry['fixing_rates']
+    required_tenors = ['1w', '1m', '2m', '3m', '6m']
+
+    for tenor in required_tenors:
+        if tenor not in fixing_rates or fixing_rates[tenor] is None:
+            return True
+
+    # All tenors present
+    return False
+
+
+def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict) -> bool:
+    """
+    Save fixing rates for a specific date (idempotent).
+
+    Args:
+        history: The history dict (will be modified in place)
+        date_key: Date string YYYY-MM-DD
+        fixing_rates: Dict with keys 1w, 1m, 2m, 3m, 6m
+
+    Returns:
+        True if saved, False if skipped (already exists)
+    """
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+
+    if not should_save_fixing(history, date_key):
+        log.info(f"[{mode_str}] SKIP: Fixing already exists for {date_key}")
+        return False
+
+    # Create entry if doesn't exist
+    if date_key not in history:
+        history[date_key] = {}
+
+    # Add fixing data (merge with existing)
+    history[date_key]['fixing_rates'] = fixing_rates
+    history[date_key]['fixing_saved_at'] = datetime.now().isoformat()
+    history[date_key]['fixing_source'] = 'BDH'
+
+    log.info(f"[{mode_str}] SAVED: Fixing for {date_key}: {fixing_rates}")
+    return True
+
+
+def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
+    """
+    Backfill NIBOR fixings for the last N dates.
+
+    Uses Bloomberg BDH if available, otherwise falls back to Excel file.
+
+    Args:
+        engine: BloombergEngine instance (optional)
+        num_dates: Number of dates to backfill (default 3)
+
+    Returns:
+        tuple: (count_saved, list_of_dates_saved)
+    """
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+    log.info(f"[{mode_str}] Starting backfill for last {num_dates} fixing dates...")
+
+    # Load current history
+    history = load_history()
+
+    # Try to get fixings from Bloomberg BDH first
+    fixings = {}
+
+    if engine is not None:
+        try:
+            fixings = fetch_fixings_from_bloomberg(engine, num_dates)
+        except Exception as e:
+            log.warning(f"Bloomberg BDH failed: {e}, falling back to Excel")
+
+    # Fallback to Excel if Bloomberg didn't work
+    if not fixings:
+        log.info("Using Excel file as data source for fixings")
+        fixings = load_fixings_from_excel(num_dates=num_dates)
+
+    if not fixings:
+        log.error("No fixing data available from any source")
+        return 0, []
+
+    # Save each fixing (idempotent)
+    saved_count = 0
+    saved_dates = []
+
+    for date_key, rates in fixings.items():
+        if save_fixing_for_date(history, date_key, rates):
+            saved_count += 1
+            saved_dates.append(date_key)
+
+    # Only save if we made changes
+    if saved_count > 0:
+        save_history(history)
+        log.info(f"[{mode_str}] Backfill complete: {saved_count} dates saved ({saved_dates})")
+    else:
+        log.info(f"[{mode_str}] Backfill complete: All {len(fixings)} dates already exist")
+
+    return saved_count, saved_dates
+
+
+def fetch_fixings_from_bloomberg(engine, num_dates: int = 3) -> dict:
+    """
+    Fetch NIBOR fixings from Bloomberg using BDH (historical data).
+
+    Args:
+        engine: BloombergEngine instance
+        num_dates: Number of dates to fetch
+
+    Returns:
+        dict: {date_str: {tenor: rate, ...}, ...}
+    """
+    # This will be implemented in engines.py
+    # For now, return empty to trigger Excel fallback
+    if hasattr(engine, 'fetch_fixing_history'):
+        return engine.fetch_fixing_history(num_dates)
+    return {}
+
+
+def import_all_fixings_from_excel(excel_path: Path = None) -> tuple[int, int]:
+    """
+    Import ALL historical fixings from Excel file to JSON.
+
+    This is a one-time bulk import function.
+    Uses idempotent save - won't overwrite existing fixing data.
+
+    Args:
+        excel_path: Path to Excel file (defaults to DATA_DIR / "Nibor history - wide.xlsx")
+
+    Returns:
+        tuple: (total_rows, saved_count)
+    """
+    from config import DATA_DIR
+
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+
+    if excel_path is None:
+        excel_path = DATA_DIR / "Nibor history - wide.xlsx"
+
+    if not excel_path.exists():
+        log.error(f"Excel file not found: {excel_path}")
+        return 0, 0
+
+    try:
+        df = pd.read_excel(excel_path)
+        log.info(f"[{mode_str}] Importing {len(df)} rows from {excel_path.name}")
+
+        # Column mapping
+        col_map = {
+            '1 Week': '1w',
+            '1 Month': '1m',
+            '2 Months': '2m',
+            '3 Months': '3m',
+            '6 Months': '6m'
+        }
+
+        # Load current history
+        history = load_history()
+        saved_count = 0
+        skipped_count = 0
+
+        for i, row in df.iterrows():
+            date_val = row['Date']
+
+            # Convert date to string
+            if isinstance(date_val, pd.Timestamp):
+                date_str = date_val.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_val)[:10]
+
+            # Extract rates
+            rates = {}
+            all_valid = True
+
+            for excel_col, json_key in col_map.items():
+                if excel_col in df.columns:
+                    val = row[excel_col]
+                    if pd.notna(val):
+                        rates[json_key] = float(val)
+                    else:
+                        all_valid = False
+                else:
+                    all_valid = False
+
+            if not all_valid or len(rates) != 5:
+                continue
+
+            # Save (idempotent)
+            if save_fixing_for_date(history, date_str, rates):
+                saved_count += 1
+            else:
+                skipped_count += 1
+
+        # Save history if any changes
+        if saved_count > 0:
+            save_history(history)
+
+        log.info(f"[{mode_str}] Import complete: {saved_count} saved, {skipped_count} skipped (already exist)")
+        return len(df), saved_count
+
+    except Exception as e:
+        log.error(f"Failed to import fixings from Excel: {e}")
+        return 0, 0
+
+
+def get_fixing_history_for_charts(limit: int = 90) -> list[dict]:
+    """
+    Get fixing history formatted for charts.
+
+    Returns list of dicts with date and all tenor rates.
+    Sorted by date (oldest first for charts).
+    """
+    history = load_history()
+
+    # Collect entries that have fixing_rates
+    chart_data = []
+
+    for date_key, entry in history.items():
+        if 'fixing_rates' not in entry:
+            continue
+
+        fixing = entry['fixing_rates']
+
+        chart_data.append({
+            'date': date_key,
+            '1w': fixing.get('1w'),
+            '1m': fixing.get('1m'),
+            '2m': fixing.get('2m'),
+            '3m': fixing.get('3m'),
+            '6m': fixing.get('6m'),
+        })
+
+    # Sort by date (oldest first)
+    chart_data.sort(key=lambda x: x['date'])
+
+    # Return last N entries
+    if limit and len(chart_data) > limit:
+        chart_data = chart_data[-limit:]
+
+    return chart_data
+
+
+def get_fixing_table_data(limit: int = 50) -> list[dict]:
+    """
+    Get fixing history formatted for table display.
+
+    Returns list of dicts with date, all tenor rates, and CHG columns.
+    Sorted by date (newest first for table).
+    """
+    history = load_history()
+
+    # Collect entries that have fixing_rates
+    entries = []
+
+    for date_key, entry in history.items():
+        if 'fixing_rates' not in entry:
+            continue
+
+        fixing = entry['fixing_rates']
+
+        entries.append({
+            'date': date_key,
+            '1w': fixing.get('1w'),
+            '1m': fixing.get('1m'),
+            '2m': fixing.get('2m'),
+            '3m': fixing.get('3m'),
+            '6m': fixing.get('6m'),
+            'source': entry.get('fixing_source', 'Unknown'),
+            # CHG will be calculated below
+            '1w_chg': None,
+            '1m_chg': None,
+            '2m_chg': None,
+            '3m_chg': None,
+            '6m_chg': None,
+        })
+
+    # Sort by date (oldest first for CHG calculation)
+    entries.sort(key=lambda x: x['date'])
+
+    # Calculate CHG (change from previous day)
+    for i in range(1, len(entries)):
+        prev = entries[i - 1]
+        curr = entries[i]
+
+        for tenor in ['1w', '1m', '2m', '3m', '6m']:
+            if curr[tenor] is not None and prev[tenor] is not None:
+                curr[f'{tenor}_chg'] = round(curr[tenor] - prev[tenor], 4)
+
+    # Reverse (newest first) and limit
+    entries.reverse()
+
+    if limit and len(entries) > limit:
+        entries = entries[:limit]
+
+    return entries
+
+
+def confirm_rates(app) -> tuple[bool, str]:
+    """
+    Confirm rates: backfill fixings and save contribution snapshot.
+
+    This is called when the user clicks "Confirm rates" button.
+
+    Args:
+        app: The main application instance
+
+    Returns:
+        tuple: (success, message)
+    """
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    log.info(f"[{mode_str}] Confirm rates started for {today}")
+
+    try:
+        # Step 1: Backfill fixings for last 3 dates
+        engine = getattr(app, 'engine', None)
+        saved_count, saved_dates = backfill_fixings(engine, num_dates=3)
+
+        # Step 2: Save contribution snapshot
+        date_key = save_snapshot(app)
+
+        # Step 3: Build success message
+        if saved_count > 0:
+            msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates."
+        else:
+            msg = f"Rates confirmed and saved for {date_key}. Fixings already up to date."
+
+        log.info(f"[{mode_str}] {msg}")
+        return True, msg
+
+    except Exception as e:
+        error_msg = f"Failed to confirm rates: {e}"
+        log.error(f"[{mode_str}] {error_msg}")
+        return False, error_msg
