@@ -1440,4 +1440,29 @@ if __name__ == "__main__":
 
     # Launch main application
     app = NiborTerminalTK()
+
+    # Import fixing history from Excel on startup (idempotent - only adds new entries)
+    try:
+        from history import import_all_fixings_from_excel
+        from pathlib import Path
+
+        # Look for Excel file in multiple locations
+        excel_candidates = [
+            DATA_DIR / "Nibor history - wide.xlsx",
+            DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",
+            Path(__file__).parent / "data" / "Nibor history - wide.xlsx",
+        ]
+
+        for excel_path in excel_candidates:
+            if excel_path.exists():
+                log.info(f"[Startup] Found NIBOR history Excel: {excel_path}")
+                total, saved = import_all_fixings_from_excel(excel_path)
+                if saved > 0:
+                    log.info(f"[Startup] Imported {saved} new fixing entries from Excel")
+                break
+        else:
+            log.info("[Startup] NIBOR history Excel not found - skipping import")
+    except Exception as e:
+        log.warning(f"[Startup] Failed to import fixing history: {e}")
+
     app.mainloop()
