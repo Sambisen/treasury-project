@@ -121,6 +121,8 @@ class SourceCardTK(tk.Frame):
         self.candidates = candidates
         self.kind = kind
         self.title = title
+
+        # IMPORTANT: keep a strong reference to the image object on self
         self.logo_img = None
         self.src_path = None
 
@@ -130,7 +132,9 @@ class SourceCardTK(tk.Frame):
         else:
             logo_max_w = 160 if CURRENT_MODE["type"] == "OFFICE" else 130
 
-        self.logo_img, self.src_path = self.pipeline.build_tk_image(candidates, max_w=logo_max_w, max_h=logo_max_h, kind=kind)
+        self.logo_img, self.src_path = self.pipeline.build_tk_image(
+            candidates, max_w=logo_max_w, max_h=logo_max_h, kind=kind
+        )
 
         left = tk.Frame(self, bg=THEME["bg_card"])
         left.pack(side="left", padx=(12, 10), pady=12)
@@ -139,23 +143,43 @@ class SourceCardTK(tk.Frame):
             self.logo_label = tk.Label(left, image=self.logo_img, bg=THEME["bg_card"])
             self.logo_label.pack(anchor="w")
         else:
-            self.logo_label = tk.Label(left, text=title[:1].upper(), fg=THEME["text"], bg=THEME["bg_card"],
-                                       font=("Segoe UI", 18, "bold"))
+            self.logo_label = tk.Label(
+                left,
+                text=title[:1].upper(),
+                fg=THEME["text"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 18, "bold"),
+            )
             self.logo_label.pack(anchor="w")
 
         right = tk.Frame(self, bg=THEME["bg_card"])
         right.pack(side="left", fill="both", expand=True, padx=(0, 12), pady=12)
 
-        self.lbl_title = tk.Label(right, text=title.upper(), fg=THEME["muted"], bg=THEME["bg_card"],
-                                  font=("Segoe UI", CURRENT_MODE["small"], "bold"))
+        self.lbl_title = tk.Label(
+            right,
+            text=title.upper(),
+            fg=THEME["muted"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI", CURRENT_MODE["small"], "bold"),
+        )
         self.lbl_title.pack(anchor="w")
 
-        self.lbl_status = tk.Label(right, text="OFFLINE", fg=THEME["bad"], bg=THEME["bg_card"],
-                                   font=("Segoe UI", CURRENT_MODE["body"], "bold"))
+        self.lbl_status = tk.Label(
+            right,
+            text="OFFLINE",
+            fg=THEME["bad"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI", CURRENT_MODE["body"], "bold"),
+        )
         self.lbl_status.pack(anchor="w")
 
-        self.lbl_updated = tk.Label(right, text="Last updated: -", fg=THEME["muted2"], bg=THEME["bg_card"],
-                                    font=("Segoe UI", CURRENT_MODE["small"]))
+        self.lbl_updated = tk.Label(
+            right,
+            text="Last updated: -",
+            fg=THEME["muted2"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI", CURRENT_MODE["small"]),
+        )
         self.lbl_updated.pack(anchor="w")
 
     def set_status(self, ok: bool, last_updated: datetime | None, detail_text: str | None = None):
@@ -190,7 +214,7 @@ class SummaryCard(tk.Frame):
 
     def __init__(self, master, tenor: str, value: str = "-"):
         super().__init__(master, bg=THEME["bg_card"], highlightthickness=1,
-                        highlightbackground=THEME["border"])
+                         highlightbackground=THEME["border"])
 
         self.lbl_tenor = tk.Label(self, text=tenor, fg=THEME["muted"], bg=THEME["bg_card"],
                                   font=("Segoe UI", CURRENT_MODE["small"], "bold"))
@@ -219,7 +243,7 @@ class CollapsibleSection(tk.Frame):
 
         # Header frame (clickable)
         self.header = tk.Frame(self, bg=THEME["bg_card"], cursor="hand2",
-                              highlightthickness=1, highlightbackground=THEME["border"])
+                               highlightthickness=1, highlightbackground=THEME["border"])
         self.header.pack(fill="x", pady=(5, 0))
 
         # Toggle icon
@@ -325,9 +349,12 @@ class ConnectionStatusIndicator(tk.Frame):
     """
     Professional connection status indicator with pill design.
     Shows status for Bloomberg, Excel, etc. with click-for-details.
+
+    FIX:
+    - bg must not be passed twice to tk.Frame.
+    - Therefore: pop bg out of kwargs BEFORE calling super().__init__.
     """
 
-    # Status constants
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -335,7 +362,12 @@ class ConnectionStatusIndicator(tk.Frame):
     STALE = "stale"
 
     def __init__(self, master, label: str, icon: str = "●", **kwargs):
-        super().__init__(master, bg=kwargs.get("bg", THEME["bg_card"]), **kwargs)
+        # --- Critical: remove bg from kwargs so it can't be passed twice ---
+        bg = kwargs.pop("bg", None)
+        if bg is None:
+            bg = THEME["bg_card"]
+
+        super().__init__(master, bg=bg, **kwargs)
 
         self.label_text = label
         self._status = self.DISCONNECTED
@@ -346,22 +378,22 @@ class ConnectionStatusIndicator(tk.Frame):
 
         # Container frame (pill shape)
         self._pill = tk.Frame(self, bg="#2d2d44", highlightthickness=1,
-                             highlightbackground="#3d3d54")
+                              highlightbackground="#3d3d54")
         self._pill.pack(padx=2, pady=2)
 
         # Status dot
         self._dot = tk.Label(self._pill, text=icon, fg="#666666",
-                            bg="#2d2d44", font=("Segoe UI", 10))
+                             bg="#2d2d44", font=("Segoe UI", 10))
         self._dot.pack(side="left", padx=(8, 4), pady=4)
 
         # Label
         self._label = tk.Label(self._pill, text=label, fg="#888888",
-                              bg="#2d2d44", font=("Segoe UI", 9))
+                               bg="#2d2d44", font=("Segoe UI", 9))
         self._label.pack(side="left", padx=(0, 4), pady=4)
 
         # Status text (short)
         self._status_lbl = tk.Label(self._pill, text="--", fg="#666666",
-                                   bg="#2d2d44", font=("Segoe UI", 8))
+                                    bg="#2d2d44", font=("Segoe UI", 8))
         self._status_lbl.pack(side="left", padx=(0, 8), pady=4)
 
         # Make clickable
@@ -372,13 +404,6 @@ class ConnectionStatusIndicator(tk.Frame):
             widget.bind("<Leave>", self._on_leave)
 
     def set_status(self, status: str, details: dict = None):
-        """
-        Set connection status.
-
-        Args:
-            status: One of DISCONNECTED, CONNECTING, CONNECTED, ERROR, STALE
-            details: Optional dict with extra info (message, latency, etc.)
-        """
         self._status = status
         self._details = details or {}
 
@@ -395,7 +420,6 @@ class ConnectionStatusIndicator(tk.Frame):
             self.ERROR: {"dot": "#ef4444", "text": "ERR", "bg": "#3d1e1e"},
             self.STALE: {"dot": "#f59e0b", "text": "OLD", "bg": "#3d3520"},
         }
-
         style = colors.get(status, colors[self.DISCONNECTED])
 
         self._dot.config(fg=style["dot"])
@@ -405,16 +429,13 @@ class ConnectionStatusIndicator(tk.Frame):
         self._label.config(bg=style["bg"])
         self._status_lbl.config(bg=style["bg"])
 
-        # Start pulse animation for connecting state
         if status == self.CONNECTING:
             self._start_pulse()
 
-        # Track update time for connected state
         if status == self.CONNECTED:
             self._last_update = datetime.now()
 
     def _start_pulse(self):
-        """Start pulse animation for connecting state."""
         if self._status != self.CONNECTING:
             return
 
@@ -425,19 +446,15 @@ class ConnectionStatusIndicator(tk.Frame):
         self._pulse_job = self.after(500, self._start_pulse)
 
     def _on_enter(self, event):
-        """Hover enter effect."""
         self._pill.config(highlightbackground=THEME["accent"])
 
     def _on_leave(self, event):
-        """Hover leave effect."""
         self._pill.config(highlightbackground="#3d3d54")
 
     def _on_click(self, event):
-        """Show details popup on click."""
         self._show_details_popup()
 
     def _show_details_popup(self):
-        """Show detailed status popup."""
         popup = tk.Toplevel(self)
         popup.title(f"{self.label_text} Status")
         popup.geometry("350x250")
@@ -445,13 +462,11 @@ class ConnectionStatusIndicator(tk.Frame):
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
 
-        # Center on parent
         popup.update_idletasks()
         x = self.winfo_toplevel().winfo_x() + 100
         y = self.winfo_toplevel().winfo_y() + 100
         popup.geometry(f"+{x}+{y}")
 
-        # Header
         header = tk.Frame(popup, bg=THEME["bg_main"])
         header.pack(fill="x", padx=20, pady=(15, 10))
 
@@ -464,22 +479,19 @@ class ConnectionStatusIndicator(tk.Frame):
         }
 
         tk.Label(header, text=f"● {self.label_text}",
-                fg=status_colors.get(self._status, THEME["muted"]),
-                bg=THEME["bg_main"],
-                font=("Segoe UI", 14, "bold")).pack(side="left")
+                 fg=status_colors.get(self._status, THEME["muted"]),
+                 bg=THEME["bg_main"],
+                 font=("Segoe UI", 14, "bold")).pack(side="left")
 
-        # Status details
         content = tk.Frame(popup, bg=THEME["bg_card"], highlightthickness=1,
-                          highlightbackground=THEME["border"])
+                           highlightbackground=THEME["border"])
         content.pack(fill="both", expand=True, padx=20, pady=10)
 
         details_frame = tk.Frame(content, bg=THEME["bg_card"])
         details_frame.pack(fill="both", expand=True, padx=15, pady=15)
 
-        # Status
         self._add_detail_row(details_frame, "Status:", self._status.upper(), 0)
 
-        # Last update
         if self._last_update:
             time_str = self._last_update.strftime("%H:%M:%S")
             ago = (datetime.now() - self._last_update).seconds
@@ -487,42 +499,35 @@ class ConnectionStatusIndicator(tk.Frame):
         else:
             self._add_detail_row(details_frame, "Last Update:", "--", 1)
 
-        # Extra details from dict
         row = 2
         for key, value in self._details.items():
             self._add_detail_row(details_frame, f"{key}:", str(value), row)
             row += 1
 
-        # Buttons
         btn_frame = tk.Frame(popup, bg=THEME["bg_main"])
         btn_frame.pack(fill="x", padx=20, pady=(0, 15))
 
-        # Refresh button
         refresh_btn = tk.Button(btn_frame, text="🔄 Refresh", bg=THEME["accent"],
-                               fg="white", font=("Segoe UI", 10), relief="flat",
-                               padx=15, pady=5, cursor="hand2",
-                               command=lambda: self._trigger_refresh(popup))
+                                fg="white", font=("Segoe UI", 10), relief="flat",
+                                padx=15, pady=5, cursor="hand2",
+                                command=lambda: self._trigger_refresh(popup))
         refresh_btn.pack(side="left")
 
-        # Close button
         tk.Button(btn_frame, text="Close", bg=THEME["chip2"], fg=THEME["text"],
-                 font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
-                 cursor="hand2", command=popup.destroy).pack(side="right")
+                  font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
+                  cursor="hand2", command=popup.destroy).pack(side="right")
 
-        # Bind Escape
         popup.bind("<Escape>", lambda e: popup.destroy())
 
     def _add_detail_row(self, parent, label: str, value: str, row: int):
-        """Add a detail row to the popup."""
         tk.Label(parent, text=label, fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 10), anchor="w").grid(row=row, column=0, sticky="w", pady=3)
+                 font=("Segoe UI", 10), anchor="w").grid(row=row, column=0, sticky="w", pady=3)
         tk.Label(parent, text=value, fg=THEME["text"], bg=THEME["bg_card"],
-                font=("Consolas", 10), anchor="w").grid(row=row, column=1, sticky="w", padx=(10, 0), pady=3)
+                 font=("Consolas", 10), anchor="w").grid(row=row, column=1, sticky="w",
+                                                        padx=(10, 0), pady=3)
 
     def _trigger_refresh(self, popup):
-        """Trigger a refresh and close popup."""
         popup.destroy()
-        # Try to find app and call refresh
         try:
             app = self.winfo_toplevel()
             if hasattr(app, 'refresh_data'):
@@ -531,11 +536,9 @@ class ConnectionStatusIndicator(tk.Frame):
             pass
 
     def get_status(self) -> str:
-        """Get current status."""
         return self._status
 
     def get_last_update(self) -> datetime:
-        """Get last update time."""
         return self._last_update
 
 
@@ -545,9 +548,10 @@ class ConnectionStatusPanel(tk.Frame):
     Typically placed in the status bar.
     """
 
-    def __init__(self, master, **kwargs):
-        bg = kwargs.pop("bg", "#1e1e2e")
-        super().__init__(master, bg=bg, **kwargs)
+    def __init__(self, master, bg=None):
+        if bg is None:
+            bg = "#1e1e2e"
+        super().__init__(master, bg=bg)
 
         self._indicators = {}
 
@@ -569,7 +573,7 @@ class ConnectionStatusPanel(tk.Frame):
         self._freshness_frame.pack(side="left", padx=5)
 
         tk.Label(self._freshness_frame, text="Data:", fg="#666666", bg=bg,
-                font=("Segoe UI", 9)).pack(side="left")
+                 font=("Segoe UI", 9)).pack(side="left")
 
         self._freshness_lbl = tk.Label(self._freshness_frame, text="--:--:--",
                                        fg="#888888", bg=bg, font=("Consolas", 9))
@@ -583,15 +587,12 @@ class ConnectionStatusPanel(tk.Frame):
         self._update_freshness_display()
 
     def set_bloomberg_status(self, status: str, details: dict = None):
-        """Set Bloomberg connection status."""
         self.bbg.set_status(status, details)
 
     def set_excel_status(self, status: str, details: dict = None):
-        """Set Excel connection status."""
         self.excel.set_status(status, details)
 
     def set_data_time(self, timestamp: datetime = None):
-        """Set the data freshness timestamp."""
         if timestamp:
             self._data_time = timestamp
             self._freshness_lbl.config(text=timestamp.strftime("%H:%M:%S"))
@@ -600,7 +601,6 @@ class ConnectionStatusPanel(tk.Frame):
             self._freshness_lbl.config(text=datetime.now().strftime("%H:%M:%S"))
 
     def _update_freshness_display(self):
-        """Update the 'ago' display for data freshness."""
         if hasattr(self, '_data_time') and self._data_time:
             ago = (datetime.now() - self._data_time).seconds
             if ago < 60:
@@ -615,5 +615,4 @@ class ConnectionStatusPanel(tk.Frame):
 
             self._freshness_ago.config(text=ago_text, fg=color)
 
-        # Schedule next update
         self.after(5000, self._update_freshness_display)
