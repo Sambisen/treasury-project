@@ -26,6 +26,7 @@ from config import (
 # Initialize logging
 setup_logging()
 log = get_logger("main")
+
 from utils import (
     fmt_ts, fmt_date, safe_float, to_date,
     business_day_index_in_month, calendar_days_since_month_start,
@@ -207,11 +208,11 @@ class NiborTerminalTK(tk.Tk):
         from PIL import Image, ImageTk
         
         global_header = tk.Frame(self, bg=THEME["bg_main"])
-        global_header.pack(fill="x", padx=hpad, pady=(hpad, 10))
+        global_header.pack(fill="x", padx=hpad, pady=(hpad, 5))
 
-        # LEFT: Swedbank header image (250px)
+        # --- LEFT: Swedbank header image ---
         header_left = tk.Frame(global_header, bg=THEME["bg_main"])
-        header_left.pack(side="left")
+        header_left.pack(side="left", anchor="n")
 
         image_path = r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Swed.png"
 
@@ -226,7 +227,7 @@ class NiborTerminalTK(tk.Tk):
                 photo = ImageTk.PhotoImage(img)
                 img_label = tk.Label(header_left, image=photo, bg=THEME["bg_main"])
                 img_label.image = photo
-                img_label.pack()
+                img_label.pack(anchor="w")
                 log.info(f"Global Swedbank header loaded: {target_width}x{target_height}px")
             except Exception as e:
                 log.warning(f"Failed to load Swedbank header: {e}")
@@ -239,74 +240,75 @@ class NiborTerminalTK(tk.Tk):
                     fg=THEME["text"], bg=THEME["bg_main"],
                     font=("Segoe UI", 24, "bold")).pack()
 
-        # CENTER-RIGHT: Professional clock with NIBOR fixing countdown
-        header_center = tk.Frame(global_header, bg=THEME["bg_main"])
-        header_center.pack(side="right", padx=(0, 20))
+        # ====================================================================
+        # RIGHT SECTION: UPDATE button + Professional clock
+        # ====================================================================
+        header_right = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_right.pack(side="right", padx=(0, 20))
 
-        # UPDATE button (rightmost)
+        # UPDATE button (to the left of clock)
         from ui_components import OnyxButtonTK
-        self.header_update_btn = OnyxButtonTK(header_center, "UPDATE",
+        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE",
                                              command=self.refresh_data,
                                              variant="primary")
-        self.header_update_btn.pack(side="right", padx=(15, 0))
+        self.header_update_btn.pack(side="left", padx=(0, 20), pady=10)
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
-        # CLOCK & NIBOR FIXING TIMER - Light theme, centered
+        # PROFESSIONAL CLOCK - Rightmost corner
         # ====================================================================
-        clock_frame = tk.Frame(header_center, bg=THEME["bg_card"],
+        clock_frame = tk.Frame(header_right, bg="#1a1a2e",
                               highlightthickness=1,
-                              highlightbackground=THEME["border"])
+                              highlightbackground="#3a3a5a")
         clock_frame.pack(side="right")
 
-        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
-        clock_inner.pack(padx=25, pady=15)
+        clock_inner = tk.Frame(clock_frame, bg="#1a1a2e")
+        clock_inner.pack(padx=20, pady=12)
 
         # Left side: Time and date
-        time_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
-        time_section.pack(side="left", padx=(0, 20))
+        time_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        time_section.pack(side="left", padx=(0, 15))
 
-        # Time display (large, orange)
-        time_row = tk.Frame(time_section, bg=THEME["bg_card"])
-        time_row.pack(anchor="center")
+        # Small label "LOCAL TIME"
+        tk.Label(time_section, text="LOCAL TIME",
+                fg="#6a6a8a", bg="#1a1a2e",
+                font=("Segoe UI", 8)).pack(anchor="center")
 
-        self._header_clock_time = tk.Label(time_row, text="--:--",
-                                           fg=THEME["accent"], bg=THEME["bg_card"],
-                                           font=("Consolas", 32, "bold"))
-        self._header_clock_time.pack(side="left")
-
-        self._header_clock_seconds = tk.Label(time_row, text=":--",
-                                              fg=THEME["muted"], bg=THEME["bg_card"],
-                                              font=("Consolas", 18))
-        self._header_clock_seconds.pack(side="left", anchor="s", pady=(0, 5))
+        # Time display - unified size
+        self._header_clock_time = tk.Label(time_section, text="--:--:--",
+                                           fg=THEME["accent"], bg="#1a1a2e",
+                                           font=("Consolas", 22, "bold"))
+        self._header_clock_time.pack(anchor="center")
 
         # Date label below time
         self._header_clock_date = tk.Label(time_section, text="",
-                                           fg=THEME["muted"], bg=THEME["bg_card"],
-                                           font=("Segoe UI", 10))
+                                           fg="#7a7a9a", bg="#1a1a2e",
+                                           font=("Segoe UI", 9))
         self._header_clock_date.pack(anchor="center")
 
-        # Separator line
-        tk.Frame(clock_inner, bg=THEME["border"], width=1, height=55).pack(side="left", padx=20)
+        # Vertical separator
+        sep_frame = tk.Frame(clock_inner, bg="#1a1a2e")
+        sep_frame.pack(side="left", padx=10, fill="y")
+        tk.Frame(sep_frame, bg="#3a3a5a", width=1).pack(fill="y", expand=True, pady=5)
 
         # Right side: NIBOR Fixing countdown
-        nibor_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
-        nibor_section.pack(side="left")
+        nibor_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        nibor_section.pack(side="left", padx=(15, 0))
 
         # NIBOR Fixing label
         tk.Label(nibor_section, text="NIBOR FIXING",
-                fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 9, "bold")).pack(anchor="center")
+                fg="#6a6a8a", bg="#1a1a2e",
+                font=("Segoe UI", 8)).pack(anchor="center")
 
-        # Fixing countdown (large)
-        self._nibor_fixing_status = tk.Label(nibor_section, text="--:--",
-                                             fg=THEME["accent_secondary"], bg=THEME["bg_card"],
-                                             font=("Consolas", 24, "bold"))
+        # Fixing countdown - same size as clock
+        self._nibor_fixing_status = tk.Label(nibor_section, text="--:--:--",
+                                             fg=THEME["accent_secondary"], bg="#1a1a2e",
+                                             font=("Consolas", 22, "bold"))
         self._nibor_fixing_status.pack(anchor="center")
 
         # Fixing indicator text
         self._nibor_fixing_indicator = tk.Label(nibor_section, text="",
-                                                fg=THEME["muted"], bg=THEME["bg_card"],
+                                                fg="#7a7a9a", bg="#1a1a2e",
                                                 font=("Segoe UI", 9))
         self._nibor_fixing_indicator.pack(anchor="center")
 
@@ -360,7 +362,7 @@ class NiborTerminalTK(tk.Tk):
             ("settings", "⚙ Settings", SettingsPage),
         ]
 
-        for page_key, page_name in [(k, n) for k, n, _ in self.PAGES_CONFIG]:
+        for page_key, page_name, _ in self.PAGES_CONFIG:
             btn = tk.Button(sidebar,
                           text=page_name,
                           command=lambda pk=page_key: self.show_page(pk),
@@ -454,10 +456,9 @@ class NiborTerminalTK(tk.Tk):
         day_name = days_sv[now.weekday()]
         date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
 
-        # Update date and time
+        # Update date and time (unified HH:MM:SS format)
         self._header_clock_date.config(text=date_str)
-        self._header_clock_time.config(text=now.strftime("%H:%M"))
-        self._header_clock_seconds.config(text=now.strftime(":%S"))
+        self._header_clock_time.config(text=now.strftime("%H:%M:%S"))
 
         # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
         hour = now.hour
@@ -470,7 +471,7 @@ class NiborTerminalTK(tk.Tk):
         fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
 
         if weekday >= 5:  # Weekend
-            self._nibor_fixing_status.config(text="—", fg=THEME["muted"])
+            self._nibor_fixing_status.config(text="— — —", fg=THEME["muted"])
             self._nibor_fixing_indicator.config(text="Weekend", fg=THEME["muted"])
         elif current_seconds < fixing_start:
             # Before fixing window - countdown to open
@@ -479,22 +480,18 @@ class NiborTerminalTK(tk.Tk):
             mins = (secs_until % 3600) // 60
             secs = secs_until % 60
 
-            if hrs > 0:
-                countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
-                self._nibor_fixing_status.config(text=countdown_str, fg=THEME["muted"])
-                self._nibor_fixing_indicator.config(text="until open", fg=THEME["muted"])
-            else:
-                countdown_str = f"{mins:02d}:{secs:02d}"
-                # Orange warning when less than 30 min
-                color = THEME["warning"] if mins < 30 else THEME["muted"]
-                self._nibor_fixing_status.config(text=countdown_str, fg=color)
-                self._nibor_fixing_indicator.config(text="until open", fg=color)
+            # Always show H:MM:SS format for consistency
+            countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
+            # Orange warning when less than 30 min
+            color = THEME["warning"] if hrs == 0 and mins < 30 else THEME["muted"]
+            self._nibor_fixing_status.config(text=countdown_str, fg=color)
+            self._nibor_fixing_indicator.config(text="until open", fg=color)
         elif current_seconds < fixing_end:
             # FIXING WINDOW OPEN - countdown to close
             secs_left = fixing_end - current_seconds
             mins = secs_left // 60
             secs = secs_left % 60
-            countdown_str = f"{mins:02d}:{secs:02d}"
+            countdown_str = f"0:{mins:02d}:{secs:02d}"
             self._nibor_fixing_status.config(text=countdown_str, fg=THEME["good"])
             self._nibor_fixing_indicator.config(text="● OPEN", fg=THEME["good"])
         else:
@@ -687,10 +684,10 @@ class NiborTerminalTK(tk.Tk):
 
         self.settings_autosave_var = tk.BooleanVar(value=True)
         autosave_check = tk.Checkbutton(autosave_frame, text="Auto-save snapshots on data refresh",
-                                        variable=self.settings_autosave_var,
-                                        font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
-                                        selectcolor="#333344", activebackground="#1a1a2e",
-                                        activeforeground="#aaaaaa")
+                                       variable=self.settings_autosave_var,
+                                       font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
+                                       selectcolor="#333344", activebackground="#1a1a2e",
+                                       activeforeground="#aaaaaa")
         autosave_check.pack(side="left")
 
         # Show notifications
@@ -1440,4 +1437,29 @@ if __name__ == "__main__":
 
     # Launch main application
     app = NiborTerminalTK()
+
+    # Import fixing history from Excel on startup (idempotent - only adds new entries)
+    try:
+        from history import import_all_fixings_from_excel
+        from pathlib import Path
+
+        # Look for Excel file in multiple locations
+        excel_candidates = [
+            DATA_DIR / "Nibor history - wide.xlsx",
+            DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",
+            Path(__file__).parent / "data" / "Nibor history - wide.xlsx",
+        ]
+
+        for excel_path in excel_candidates:
+            if excel_path.exists():
+                log.info(f"[Startup] Found NIBOR history Excel: {excel_path}")
+                total, saved = import_all_fixings_from_excel(excel_path)
+                if saved > 0:
+                    log.info(f"[Startup] Imported {saved} new fixing entries from Excel")
+                break
+        else:
+            log.info("[Startup] NIBOR history Excel not found - skipping import")
+    except Exception as e:
+        log.warning(f"[Startup] Failed to import fixing history: {e}")
+
     app.mainloop()

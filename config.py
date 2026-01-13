@@ -215,7 +215,8 @@ BBG_LOGO_CANDIDATES = [
 ]
 
 BASE_HISTORY_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor"
-NIBOR_LOG_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Nibor logg"
+# NIBOR_LOG_PATH: Use Stibor folder for backward compatibility with existing data
+NIBOR_LOG_PATH = DATA_DIR / "Stibor"
 STIBOR_GRSS_PATH = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
 
 DAY_FILES = [
@@ -428,6 +429,13 @@ MARKET_STRUCTURE = {
         ("USCM2M SWET Curncy", "USD CM 2M"),
         ("USCM3M SWET Curncy", "USD CM 3M"),
         ("USCM6M SWET Curncy", "USD CM 6M"),
+    ],
+    "OFFICIAL NIBOR FIXINGS": [
+        ("NIBOR1W Index", "NIBOR Fixing 1W"),
+        ("NIBOR1M Index", "NIBOR Fixing 1M"),
+        ("NIBOR2M Index", "NIBOR Fixing 2M"),
+        ("NIBOR3M Index", "NIBOR Fixing 3M"),
+        ("NIBOR6M Index", "NIBOR Fixing 6M"),
     ],
     "NIBOR FIXINGS (MARKET)": [
         ("NKCM1M SWET Curncy", "NOK CM 1M"),

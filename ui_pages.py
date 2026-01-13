@@ -241,13 +241,17 @@ class DashboardPage(tk.Frame):
             tenor_key_capture = tenor["key"]
             ToolTip(final_lbl, lambda t=tenor_key_capture: self._get_nibor_tooltip(t))
 
-            # CHG (Change from previous day)
+            # CHG (Change from last saved snapshot)
             chg_lbl = tk.Label(funding_frame, text="-",
                               fg=THEME["muted"], bg=THEME["bg_card"],
                               font=("Consolas", CURRENT_MODE["body"]),
                               width=8, anchor="center")
             chg_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
             cells["chg"] = chg_lbl
+
+            # Tooltip showing previous NIBOR rate for sanity check
+            tenor_key_chg = tenor["key"]
+            ToolTip(chg_lbl, lambda t=tenor_key_chg: self._get_chg_tooltip(t))
 
             # Match indicator - Professional text badge
             match_lbl = tk.Label(funding_frame, text="PEND",
@@ -442,13 +446,12 @@ class DashboardPage(tk.Frame):
         if not TrendPopup:
             return
 
-        # Get history data
-        history_data = get_rates_table_data(limit=30)
-
-        # Create popup
-        popup = TrendPopup(self.winfo_toplevel(), history_data)
+        # ÄNDRING: Vi hämtar inte data här längre, och skickar inte med det.
+        # Popupen hämtar sin egen data (både fixing och contribution).
+        
+        popup = TrendPopup(self.winfo_toplevel())
         popup.grab_set()
-
+        
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
         if not hasattr(self.app, 'funding_calc_data'):
@@ -857,8 +860,12 @@ class DashboardPage(tk.Frame):
         weights = self._get_weights()
         self.app.funding_calc_data = {}
 
-        # Get previous day rates for CHG calculation
-        prev_rates = get_previous_day_rates()
+        # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
+        try:
+            prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        except Exception as e:
+            log.warning(f"[Dashboard] Failed to get previous sheet rates for CHG: {e}")
+            prev_rates = None
 
         alert_messages = []
 
@@ -897,7 +904,7 @@ class DashboardPage(tk.Frame):
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
 
-            # CHG (Change from previous day)
+            # CHG (Change from last saved snapshot)
             if "chg" in cells:
                 prev_nibor = None
                 if prev_rates and tenor_key in prev_rates:
@@ -907,11 +914,14 @@ class DashboardPage(tk.Frame):
                     chg = final_rate - prev_nibor
                     if chg > 0:
                         chg_text = f"+{chg:.2f}"
+                        chg_color = THEME["good"]  # Green for increase
                     elif chg < 0:
                         chg_text = f"{chg:.2f}"
+                        chg_color = THEME["bad"]   # Red for decrease
                     else:
                         chg_text = "0.00"
-                    cells["chg"].config(text=chg_text, fg=THEME["text"])
+                        chg_color = THEME["muted"]
+                    cells["chg"].config(text=chg_text, fg=chg_color)
                 else:
                     cells["chg"].config(text="-", fg=THEME["muted"])
 
@@ -1049,6 +1059,28 @@ class DashboardPage(tk.Frame):
         if final_rate is not None:
             return f"NIBOR {tenor_key.upper()}: {final_rate:.4f}%"
         return None
+
+    def _get_chg_tooltip(self, tenor_key):
+        """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
+        try:
+            prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        except Exception:
+            return "Error loading data"
+
+        if not prev_rates or tenor_key not in prev_rates:
+            return "No previous data"
+
+        prev_nibor = prev_rates[tenor_key].get('nibor')
+        if prev_nibor is None:
+            return "No previous rate"
+
+        # Get the date from the sheet name
+        prev_date = prev_rates.get("_date", "")
+
+        if prev_date:
+            return f"Prev: {prev_nibor:.2f}%\nSheet: {prev_date}"
+        else:
+            return f"Prev: {prev_nibor:.2f}%"
 
     def _get_funding_tooltip(self, tenor_key):
         """Get Funding Rate breakdown: EUR/USD implied (4 dec), NOK (2 dec)."""

@@ -12,19 +12,34 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import NIBOR_LOG_PATH, DEVELOPMENT_MODE, NIBOR_FIXING_TICKERS, get_logger
+from config import DEVELOPMENT_MODE, NIBOR_FIXING_TICKERS, get_logger
 
 log = get_logger("history")
 
-# History file path - uses OneDrive path from config
-HISTORY_DIR = NIBOR_LOG_PATH
+# ============================================================================
+# OVERRIDE: Force history file location (PROD) to the user-specified path
+# ============================================================================
+NIBOR_LOG_FILE_OVERRIDE = Path(
+    r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Nibor logg\nibor_log.json"
+)
+
+# History directory derived from the override file
+HISTORY_DIR = NIBOR_LOG_FILE_OVERRIDE.parent
 
 
 def get_history_file_path() -> Path:
-    """Get the history file path based on DEVELOPMENT_MODE."""
+    r"""
+    Get the history file path based on DEVELOPMENT_MODE.
+
+    PROD:
+      ...\Nibor logg\nibor_log.json
+
+    TEST:
+      ...\Nibor logg\nibor_log_test.json
+    """
     if DEVELOPMENT_MODE:
-        return HISTORY_DIR / "nibor_log_test.json"
-    return HISTORY_DIR / "nibor_log.json"
+        return NIBOR_LOG_FILE_OVERRIDE.with_name("nibor_log_test.json")
+    return NIBOR_LOG_FILE_OVERRIDE
 
 
 # For backwards compatibility
@@ -280,13 +295,6 @@ def get_rates_table_data(limit: int = 30) -> list:
 def load_fixings_from_excel(excel_path: Path = None, num_dates: int = 3) -> dict:
     """
     Load NIBOR fixings from the Excel file (fallback when Bloomberg is unavailable).
-
-    Args:
-        excel_path: Path to the Excel file with NIBOR history
-        num_dates: Number of most recent dates to load
-
-    Returns:
-        dict: {date_str: {tenor: rate, ...}, ...}
     """
     from config import DATA_DIR
 
@@ -355,14 +363,6 @@ def load_fixings_from_excel(excel_path: Path = None, num_dates: int = 3) -> dict
 def should_save_fixing(history: dict, date_key: str) -> bool:
     """
     Determine if fixing should be saved (idempotent check).
-
-    Returns True if:
-    - history[date_key] doesn't exist, OR
-    - history[date_key] exists but lacks fixing_rates, OR
-    - history[date_key]["fixing_rates"] exists but is incomplete
-
-    Returns False if:
-    - history[date_key]["fixing_rates"] exists with all 5 tenors
     """
     if date_key not in history:
         return True
@@ -379,21 +379,12 @@ def should_save_fixing(history: dict, date_key: str) -> bool:
         if tenor not in fixing_rates or fixing_rates[tenor] is None:
             return True
 
-    # All tenors present
     return False
 
 
 def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict) -> bool:
     """
     Save fixing rates for a specific date (idempotent).
-
-    Args:
-        history: The history dict (will be modified in place)
-        date_key: Date string YYYY-MM-DD
-        fixing_rates: Dict with keys 1w, 1m, 2m, 3m, 6m
-
-    Returns:
-        True if saved, False if skipped (already exists)
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
 
@@ -417,15 +408,6 @@ def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict) -> bo
 def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
     """
     Backfill NIBOR fixings for the last N dates.
-
-    Uses Bloomberg BDH if available, otherwise falls back to Excel file.
-
-    Args:
-        engine: BloombergEngine instance (optional)
-        num_dates: Number of dates to backfill (default 3)
-
-    Returns:
-        tuple: (count_saved, list_of_dates_saved)
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
     log.info(f"[{mode_str}] Starting backfill for last {num_dates} fixing dates...")
@@ -473,16 +455,7 @@ def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
 def fetch_fixings_from_bloomberg(engine, num_dates: int = 3) -> dict:
     """
     Fetch NIBOR fixings from Bloomberg using BDH (historical data).
-
-    Args:
-        engine: BloombergEngine instance
-        num_dates: Number of dates to fetch
-
-    Returns:
-        dict: {date_str: {tenor: rate, ...}, ...}
     """
-    # This will be implemented in engines.py
-    # For now, return empty to trigger Excel fallback
     if hasattr(engine, 'fetch_fixing_history'):
         return engine.fetch_fixing_history(num_dates)
     return {}
@@ -491,15 +464,6 @@ def fetch_fixings_from_bloomberg(engine, num_dates: int = 3) -> dict:
 def import_all_fixings_from_excel(excel_path: Path = None) -> tuple[int, int]:
     """
     Import ALL historical fixings from Excel file to JSON.
-
-    This is a one-time bulk import function.
-    Uses idempotent save - won't overwrite existing fixing data.
-
-    Args:
-        excel_path: Path to Excel file (defaults to DATA_DIR / "Nibor history - wide.xlsx")
-
-    Returns:
-        tuple: (total_rows, saved_count)
     """
     from config import DATA_DIR
 
@@ -577,13 +541,9 @@ def import_all_fixings_from_excel(excel_path: Path = None) -> tuple[int, int]:
 def get_fixing_history_for_charts(limit: int = 90) -> list[dict]:
     """
     Get fixing history formatted for charts.
-
-    Returns list of dicts with date and all tenor rates.
-    Sorted by date (oldest first for charts).
     """
     history = load_history()
 
-    # Collect entries that have fixing_rates
     chart_data = []
 
     for date_key, entry in history.items():
@@ -601,10 +561,8 @@ def get_fixing_history_for_charts(limit: int = 90) -> list[dict]:
             '6m': fixing.get('6m'),
         })
 
-    # Sort by date (oldest first)
     chart_data.sort(key=lambda x: x['date'])
 
-    # Return last N entries
     if limit and len(chart_data) > limit:
         chart_data = chart_data[-limit:]
 
@@ -614,13 +572,9 @@ def get_fixing_history_for_charts(limit: int = 90) -> list[dict]:
 def get_fixing_table_data(limit: int = 50) -> list[dict]:
     """
     Get fixing history formatted for table display.
-
-    Returns list of dicts with date, all tenor rates, and CHG columns.
-    Sorted by date (newest first for table).
     """
     history = load_history()
 
-    # Collect entries that have fixing_rates
     entries = []
 
     for date_key, entry in history.items():
@@ -637,7 +591,6 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
             '3m': fixing.get('3m'),
             '6m': fixing.get('6m'),
             'source': entry.get('fixing_source', 'Unknown'),
-            # CHG will be calculated below
             '1w_chg': None,
             '1m_chg': None,
             '2m_chg': None,
@@ -645,10 +598,8 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
             '6m_chg': None,
         })
 
-    # Sort by date (oldest first for CHG calculation)
     entries.sort(key=lambda x: x['date'])
 
-    # Calculate CHG (change from previous day)
     for i in range(1, len(entries)):
         prev = entries[i - 1]
         curr = entries[i]
@@ -657,7 +608,6 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
             if curr[tenor] is not None and prev[tenor] is not None:
                 curr[f'{tenor}_chg'] = round(curr[tenor] - prev[tenor], 4)
 
-    # Reverse (newest first) and limit
     entries.reverse()
 
     if limit and len(entries) > limit:
@@ -669,14 +619,6 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
 def confirm_rates(app) -> tuple[bool, str]:
     """
     Confirm rates: backfill fixings and save contribution snapshot.
-
-    This is called when the user clicks "Confirm rates" button.
-
-    Args:
-        app: The main application instance
-
-    Returns:
-        tuple: (success, message)
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
     today = datetime.now().strftime("%Y-%m-%d")
@@ -684,14 +626,11 @@ def confirm_rates(app) -> tuple[bool, str]:
     log.info(f"[{mode_str}] Confirm rates started for {today}")
 
     try:
-        # Step 1: Backfill fixings for last 3 dates
         engine = getattr(app, 'engine', None)
         saved_count, saved_dates = backfill_fixings(engine, num_dates=3)
 
-        # Step 2: Save contribution snapshot
         date_key = save_snapshot(app)
 
-        # Step 3: Build success message
         if saved_count > 0:
             msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates."
         else:

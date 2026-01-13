@@ -4,8 +4,8 @@ Provides trend graphs and comparison views using matplotlib.
 """
 import tkinter as tk
 from tkinter import ttk
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+import math
 
 try:
     import matplotlib
@@ -19,48 +19,110 @@ except ImportError:
 
 from config import THEME, CURRENT_MODE
 
+# Tenor colors mapping
+TENOR_COLORS = {
+    '1w': '#a855f7',  # Purple
+    '1m': '#e94560',  # Red
+    '2m': '#4ade80',  # Green
+    '3m': '#3b82f6',  # Blue (Default)
+    '6m': '#f59e0b'   # Orange
+}
 
 class TrendChart(tk.Frame):
-    """Interactive trend chart for NIBOR history."""
+    """Interactive trend chart with robust state management via Variable Tracing."""
 
     def __init__(self, master, height=250):
         super().__init__(master, bg=THEME["bg_card"], highlightthickness=1,
-                        highlightbackground=THEME["border"])
+                         highlightbackground=THEME["border"])
         self.height = height
-        self._tenor_vars = {}
-        self._data = []
+        
+        # --- DATA STATE ---
+        self._contrib_data = [] 
+        self._fixing_data = []
+        
+        # --- UI STATE VARIABLES ---
+        # Vi skapar variablerna här och lägger till en "trace" (bevakning) på dem.
+        # Detta garanterar att _redraw kallas så fort värdet ändras.
+        
+        # 1. Source (Swedbank vs Fixing)
+        self._source_var = tk.StringVar(value="contribution")
+        self._source_var.trace_add("write", self._on_trace_change)
+        
+        # 2. Time Range (1M, 3M, 1Y...)
+        self._range_var = tk.StringVar(value="3M")
+        # Range uppdateras via vanliga knappar, så vi behöver ingen trace här, 
+        # men vi sparar den för state.
+        
+        # 3. Tenor Checkboxes (1W, 1M, 2M, 3M, 6M)
+        self._tenor_vars = {
+            '1w': tk.BooleanVar(value=False),
+            '1m': tk.BooleanVar(value=False),
+            '2m': tk.BooleanVar(value=False),
+            '3m': tk.BooleanVar(value=True), # Default ON
+            '6m': tk.BooleanVar(value=False)
+        }
+        
+        # Lägg till trace på varje tenor-variabel
+        for var in self._tenor_vars.values():
+            var.trace_add("write", self._on_trace_change)
+        
+        self._range_btns = {}
 
         if not MATPLOTLIB_AVAILABLE:
-            tk.Label(self, text="Matplotlib not available - install with: pip install matplotlib",
-                    fg=THEME["muted"], bg=THEME["bg_card"],
-                    font=("Segoe UI", 10)).pack(pady=20)
+            tk.Label(self, text="Matplotlib missing", fg="white", bg=THEME["bg_card"]).pack(pady=20)
             return
 
-        # Header
-        header = tk.Frame(self, bg=THEME["bg_card"])
-        header.pack(fill="x", padx=10, pady=(10, 5))
+        # ==========================
+        # 1. CONTROLS HEADER
+        # ==========================
+        controls_frame = tk.Frame(self, bg=THEME["bg_card"])
+        controls_frame.pack(fill="x", padx=10, pady=(10, 5))
 
-        tk.Label(header, text="NIBOR TREND", fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(side="left")
+        # --- LEFT: Source Selection ---
+        source_frame = tk.Frame(controls_frame, bg=THEME["bg_card"])
+        source_frame.pack(side="left")
+        
+        # Notera: Inget 'command=' här, vi förlitar oss på trace
+        for text, val in [("Swedbank", "contribution"), ("Fixing", "fixing")]:
+            rb = tk.Radiobutton(source_frame, text=text, variable=self._source_var, value=val,
+                               bg=THEME["bg_card"], fg=THEME["text"],
+                               selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
+                               activeforeground=THEME["accent"], font=("Segoe UI", 9))
+            rb.pack(side="left", padx=5)
 
-        # Tenor checkboxes frame
-        self._cb_frame = tk.Frame(header, bg=THEME["bg_card"])
-        self._cb_frame.pack(side="right")
+        # --- CENTER: Time Range Buttons ---
+        range_frame = tk.Frame(controls_frame, bg=THEME["bg_card"])
+        range_frame.pack(side="left", padx=30)
+        
+        for label in ["1M", "3M", "1Y", "MAX"]:
+            btn = tk.Button(range_frame, text=label, 
+                           command=lambda l=label: self._set_range(l),
+                           font=("Segoe UI", 8, "bold"),
+                           relief="flat", bd=0, padx=8, pady=2, cursor="hand2")
+            btn.pack(side="left", padx=1)
+            self._range_btns[label] = btn
+        
+        self._update_range_buttons_ui()
 
-        # Default tenors (contribution view - no 1W)
-        self._data_type = "contribution"
-        self._tenor_colors = {
-            '1w': '#a855f7',  # Purple for 1W
-            '1m': '#e94560',  # Red
-            '2m': '#4ade80',  # Green
-            '3m': '#3b82f6',  # Blue
-            '6m': '#f59e0b'   # Orange
-        }
+        # --- RIGHT: Tenor Checkboxes ---
+        cb_frame = tk.Frame(controls_frame, bg=THEME["bg_card"])
+        cb_frame.pack(side="right")
+        
+        for tenor in ['1w', '1m', '2m', '3m', '6m']:
+            color = TENOR_COLORS.get(tenor, '#fff')
+            # Inget 'command=' här heller, trace sköter det
+            cb = tk.Checkbutton(cb_frame, text=tenor.upper(), 
+                               variable=self._tenor_vars[tenor],
+                               bg=THEME["bg_card"], fg=color,
+                               selectcolor=THEME["bg_card"],
+                               activebackground=THEME["bg_card"],
+                               activeforeground=color,
+                               font=("Segoe UI", 9, "bold"))
+            cb.pack(side="left", padx=4)
 
-        # Create checkboxes for contribution tenors initially
-        self._create_tenor_checkboxes(include_1w=False)
-
-        # Create matplotlib figure
+        # ==========================
+        # 2. CHART CANVAS
+        # ==========================
         self.fig = Figure(figsize=(8, height/100), dpi=100, facecolor=THEME["bg_card"])
         self.ax = self.fig.add_subplot(111)
         self._style_axes()
@@ -68,166 +130,243 @@ class TrendChart(tk.Frame):
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-    def _create_tenor_checkboxes(self, include_1w: bool = False):
-        """Create or update tenor checkboxes."""
-        # Clear existing checkboxes
-        for widget in self._cb_frame.winfo_children():
-            widget.destroy()
-
-        self._tenor_vars = {}
-
-        # Define tenors based on data type
-        if include_1w:
-            tenors = ['1w', '1m', '2m', '3m', '6m']
-        else:
-            tenors = ['1m', '2m', '3m', '6m']
-
-        for tenor in tenors:
-            color = self._tenor_colors.get(tenor, '#ffffff')
-            var = tk.BooleanVar(value=True)
-            self._tenor_vars[tenor] = var
-            cb = tk.Checkbutton(self._cb_frame, text=tenor.upper(), variable=var,
-                               bg=THEME["bg_card"], fg=color,
-                               selectcolor=THEME["bg_card"],
-                               activebackground=THEME["bg_card"],
-                               activeforeground=color,
-                               font=("Segoe UI", 9, "bold"),
-                               command=self._redraw)
-            cb.pack(side="left", padx=5)
-
-    def _style_axes(self):
-        """Apply dark theme styling to axes."""
-        self.ax.set_facecolor(THEME["bg_card"])
-        self.ax.tick_params(colors=THEME["muted"], labelsize=8)
-        self.ax.spines['bottom'].set_color(THEME["border"])
-        self.ax.spines['left'].set_color(THEME["border"])
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.grid(True, alpha=0.2, color=THEME["border"])
-
-    def set_data(self, history_data: list, data_type: str = "contribution"):
-        """
-        Set history data for chart.
-
-        Args:
-            history_data: List of dicts with 'date' and rate keys
-            data_type: "contribution" (1M-6M) or "fixing" (1W-6M)
-        """
-        self._data = history_data
-
-        # Update checkboxes if data type changed
-        if data_type != self._data_type:
-            self._data_type = data_type
-            include_1w = (data_type == "fixing")
-            self._create_tenor_checkboxes(include_1w=include_1w)
-
+    def _on_trace_change(self, *args):
+        """Called automatically when any variable changes."""
+        # print(f"DEBUG: Variable changed! Redrawing...") 
         self._redraw()
 
+    def _set_range(self, range_val):
+        """Handle range button click."""
+        self._range_var.set(range_val)
+        self._update_range_buttons_ui()
+        self._redraw()
+
+    def _update_range_buttons_ui(self):
+        """Update visual state of range buttons."""
+        current = self._range_var.get()
+        for label, btn in self._range_btns.items():
+            if label == current:
+                btn.config(bg=THEME["accent"], fg="white")
+            else:
+                btn.config(bg=THEME["bg_card_2"], fg=THEME["muted"])
+
+    def _process_data(self, raw_data):
+        """Normalize keys and convert dates."""
+        processed = []
+        if not raw_data:
+            return processed
+            
+        print(f"[Chart] Processing {len(raw_data)} rows...")
+        
+        # Helper to normalize keys
+        def normalize_key(k):
+            k = str(k).lower().strip()
+            if k in ['1 week', '1week', '1 w']: return '1w'
+            if k in ['1 month', '1month', '1 m', '1m_days']: return '1m'
+            if k in ['2 months', '2months', '2 month', '2 m', '2m_days']: return '2m'
+            if k in ['3 months', '3months', '3 month', '3 m', '3m_days']: return '3m'
+            if k in ['6 months', '6months', '6 month', '6 m', '6m_days']: return '6m'
+            return k
+
+        for row in raw_data:
+            try:
+                new_row = {}
+                for k, v in row.items():
+                    norm_k = normalize_key(k)
+                    new_row[norm_k] = v
+                
+                # Handle Date
+                date_val = new_row.get('date') or new_row.get('timestamp')
+                if date_val:
+                    d_str = str(date_val).split("T")[0].split(" ")[0]
+                    new_row['dt'] = datetime.strptime(d_str, "%Y-%m-%d").date()
+                    processed.append(new_row)
+            except Exception:
+                continue
+        
+        processed.sort(key=lambda x: x['dt'])
+        return processed
+
+    def set_data(self, contribution_data: list, fixing_data: list):
+        """Load data from backend."""
+        print("[Chart] Setting data in chart component...")
+        self._contrib_data = self._process_data(contribution_data)
+        self._fixing_data = self._process_data(fixing_data)
+        self._redraw()
+
+    def _style_axes(self):
+        """Apply dark theme styling."""
+        self.ax.set_facecolor(THEME["bg_card"])
+        self.ax.tick_params(axis='x', colors=THEME["muted"], labelsize=8)
+        self.ax.tick_params(axis='y', colors=THEME["muted"], labelsize=8)
+        for spine in self.ax.spines.values():
+            spine.set_color(THEME["border"])
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.grid(True, alpha=0.15, color=THEME["border"], linestyle='--')
+
     def _redraw(self):
-        """Redraw the chart with current data and settings."""
-        if not MATPLOTLIB_AVAILABLE or not self._data:
+        """Main drawing logic."""
+        if not MATPLOTLIB_AVAILABLE:
             return
 
         self.ax.clear()
         self._style_axes()
 
-        # Determine which tenors to plot based on data type
-        if self._data_type == "fixing":
-            tenor_list = ['1w', '1m', '2m', '3m', '6m']
+        # 1. Get current states
+        source = self._source_var.get()
+        time_range = self._range_var.get()
+        
+        # print(f"DEBUG: Redrawing. Source={source}, Range={time_range}")
+        
+        # 2. Choose Data Source
+        if source == "fixing":
+            data_source = self._fixing_data
+            title = "NIBOR FIXING (Official)"
+            color_title = "#4ade80"
         else:
-            tenor_list = ['1m', '2m', '3m', '6m']
+            data_source = self._contrib_data
+            title = "SWEDBANK (Internal)"
+            color_title = THEME["accent"]
 
-        # Parse dates
-        dates = []
-        rates = {t: [] for t in tenor_list}
+        self.ax.set_title(title, color=color_title, loc='left', fontsize=10, pad=10)
 
-        for row in reversed(self._data):  # Oldest first
-            try:
-                d = datetime.strptime(row['date'], "%Y-%m-%d")
-                dates.append(d)
-                for tenor in rates:
-                    val = row.get(tenor)
-                    rates[tenor].append(val if val is not None else float('nan'))
-            except (ValueError, KeyError):
-                continue
-
-        if not dates:
+        if not data_source:
+            self.ax.text(0.5, 0.5, "NO DATA", ha='center', va='center', 
+                        color=THEME["muted"], transform=self.ax.transAxes)
             self.canvas.draw()
             return
 
-        # Plot each tenor with its color
-        for tenor in tenor_list:
-            color = self._tenor_colors.get(tenor, '#ffffff')
-            if self._tenor_vars.get(tenor, tk.BooleanVar(value=True)).get():
-                self.ax.plot(dates, rates[tenor], color=color, linewidth=1.5,
-                           label=tenor.upper(), marker='o', markersize=3)
+        # 3. Filter Time Range
+        if time_range == "MAX":
+            plot_data = data_source
+        else:
+            today = datetime.now().date()
+            cutoff = today # Default fallback
+            
+            if time_range == "1M":
+                cutoff = today - timedelta(days=30)
+            elif time_range == "3M":
+                cutoff = today - timedelta(days=90)
+            elif time_range == "1Y":
+                cutoff = today - timedelta(days=365)
+            else:
+                cutoff = today - timedelta(days=90)
+            
+            plot_data = [d for d in data_source if d['dt'] >= cutoff]
 
-        # Format x-axis
-        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-        self.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-        self.fig.autofmt_xdate(rotation=45)
+        if not plot_data:
+            self.ax.text(0.5, 0.5, f"NO DATA FOR {time_range}", ha='center', va='center', 
+                        color=THEME["muted"], transform=self.ax.transAxes)
+            self.canvas.draw()
+            return
 
-        # Labels
-        self.ax.set_ylabel('Rate (%)', color=THEME["muted"], fontsize=9)
-        self.ax.legend(loc='upper left', fontsize=8, framealpha=0.8,
-                      facecolor=THEME["bg_card"], labelcolor=THEME["text"])
+        dates = [d['dt'] for d in plot_data]
+        has_lines = False
+
+        # 4. Plot Lines based on Checked Boxes
+        tenors = ['1w', '1m', '2m', '3m', '6m']
+        for tenor in tenors:
+            # Skip 1W for contribution if empty (usually is)
+            if source == "contribution" and tenor == '1w':
+                # Check if data exists just in case
+                if not any(row.get('1w') for row in plot_data):
+                    continue
+
+            # If checked
+            if self._tenor_vars[tenor].get():
+                rates = []
+                for row in plot_data:
+                    val = row.get(tenor)
+                    # Convert to float, handle None
+                    try:
+                        rates.append(float(val) if val is not None and val != "" else float('nan'))
+                    except (ValueError, TypeError):
+                        rates.append(float('nan'))
+                
+                # Only plot if we have at least one valid number
+                valid_points = [r for r in rates if not math.isnan(r)]
+                if valid_points:
+                    self.ax.plot(dates, rates, 
+                               color=TENOR_COLORS.get(tenor, '#fff'), 
+                               linewidth=1.5, label=tenor.upper())
+                    has_lines = True
+
+        # Formatting
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+        
+        # Adaptive ticks
+        if time_range == "1M":
+            self.ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO))
+        elif time_range == "3M":
+            self.ax.xaxis.set_major_locator(mdates.DayLocator(interval=14))
+        else:
+            self.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+
+        self.fig.autofmt_xdate(rotation=0, ha='center')
+        
+        if has_lines:
+            self.ax.legend(loc='upper left', fontsize=8, framealpha=0.9,
+                          facecolor=THEME["bg_card"], labelcolor=THEME["text"])
+        else:
+             self.ax.text(0.5, 0.5, "SELECT TENOR", ha='center', va='center', 
+                        color=THEME["muted"], transform=self.ax.transAxes)
 
         self.fig.tight_layout()
         self.canvas.draw()
 
 
 class TrendPopup(tk.Toplevel):
-    """Popup window showing NIBOR trend chart."""
+    """Popup wrapper for TrendChart."""
 
-    def __init__(self, parent, history_data: list = None):
+    def __init__(self, parent):
         super().__init__(parent)
-        self.title("NIBOR Trend History")
-        self.geometry("700x450")
+        self.title("NIBOR Trend Analysis")
+        self.geometry("900x550")
         self.configure(bg=THEME["bg_main"])
         self.transient(parent)
 
-        # Center on parent
+        # Center
         self.update_idletasks()
-        x = parent.winfo_rootx() + (parent.winfo_width() - 700) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 450) // 2
+        x = parent.winfo_rootx() + (parent.winfo_width() - 900) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - 550) // 2
         self.geometry(f"+{x}+{y}")
 
         # Header
         header = tk.Frame(self, bg=THEME["bg_main"])
-        header.pack(fill="x", padx=20, pady=(15, 10))
+        header.pack(fill="x", padx=20, pady=(15, 5))
 
-        tk.Label(header, text="📈 NIBOR TREND HISTORY",
-                fg=THEME["accent"], bg=THEME["bg_main"],
-                font=("Segoe UI", 14, "bold")).pack(side="left")
+        tk.Label(header, text="📈 NIBOR ANALYTICS", 
+                 fg=THEME["accent"], bg=THEME["bg_main"],
+                 font=("Segoe UI", 16, "bold")).pack(side="left")
 
-        # Close button in header
-        close_btn = tk.Label(header, text="✕", font=("Segoe UI", 16),
+        close_btn = tk.Label(header, text="✕", font=("Segoe UI", 14),
                             fg=THEME["muted"], bg=THEME["bg_main"], cursor="hand2")
         close_btn.pack(side="right")
         close_btn.bind("<Button-1>", lambda e: self.destroy())
         close_btn.bind("<Enter>", lambda e: close_btn.config(fg=THEME["accent"]))
         close_btn.bind("<Leave>", lambda e: close_btn.config(fg=THEME["muted"]))
 
-        # Chart
         if MATPLOTLIB_AVAILABLE:
-            self.chart = TrendChart(self, height=320)
+            self.chart = TrendChart(self, height=400)
             self.chart.pack(fill="both", expand=True, padx=15, pady=(0, 15))
-
-            if history_data:
-                self.chart.set_data(history_data)
+            
+            # Start loading data immediately
+            # Using .after to allow UI to render first
+            self.after(100, self._load_data)
         else:
-            tk.Label(self, text="Matplotlib not available\nInstall with: pip install matplotlib",
-                    fg=THEME["muted"], bg=THEME["bg_main"],
-                    font=("Segoe UI", 12)).pack(expand=True)
+            tk.Label(self, text="Matplotlib missing", fg="white", bg=THEME["bg_main"]).pack()
 
-        # Bind Escape to close
         self.bind("<Escape>", lambda e: self.destroy())
         self.focus_set()
 
-    def set_data(self, history_data: list):
-        """Update chart data."""
-        if hasattr(self, 'chart') and self.chart:
-            self.chart.set_data(history_data)
+    def _load_data(self):
+        from history import get_rates_table_data, get_fixing_table_data
+        contrib = get_rates_table_data(limit=500)
+        fixing = get_fixing_table_data(limit=500)
+        
+        if self.chart:
+            self.chart.set_data(contribution_data=contrib, fixing_data=fixing)
 
 
 class ComparisonView(tk.Toplevel):
@@ -240,7 +379,6 @@ class ComparisonView(tk.Toplevel):
         self.configure(bg=THEME["bg_main"])
         self.transient(parent)
 
-        # Center on parent
         self.update_idletasks()
         x = parent.winfo_x() + (parent.winfo_width() - 700) // 2
         y = parent.winfo_y() + (parent.winfo_height() - 550) // 2
@@ -249,33 +387,28 @@ class ComparisonView(tk.Toplevel):
         snap1 = history_data.get(date1, {})
         snap2 = history_data.get(date2, {})
 
-        # Header
         header = tk.Frame(self, bg=THEME["bg_main"])
         header.pack(fill="x", padx=20, pady=15)
 
         tk.Label(header, text="NIBOR COMPARISON", fg=THEME["accent"], bg=THEME["bg_main"],
-                font=("Segoe UI", 14, "bold")).pack()
+                 font=("Segoe UI", 14, "bold")).pack()
 
-        # Main content
         content = tk.Frame(self, bg=THEME["bg_main"])
         content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        # Column headers
         col_header = tk.Frame(content, bg=THEME["bg_main"])
         col_header.pack(fill="x", pady=(0, 10))
 
         tk.Label(col_header, text="", width=15, bg=THEME["bg_main"]).pack(side="left")
         tk.Label(col_header, text=date1, width=15, fg=THEME["accent"], bg=THEME["bg_main"],
-                font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
+                 font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
         tk.Label(col_header, text=date2, width=15, fg="#4ade80", bg=THEME["bg_main"],
-                font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
+                 font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
         tk.Label(col_header, text="DIFF", width=10, fg=THEME["muted"], bg=THEME["bg_main"],
-                font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
+                 font=("Segoe UI", 11, "bold")).pack(side="left", padx=10)
 
-        # Separator
         tk.Frame(content, bg=THEME["border"], height=2).pack(fill="x", pady=5)
 
-        # Scrollable content
         canvas = tk.Canvas(content, bg=THEME["bg_main"], highlightthickness=0)
         scrollbar = ttk.Scrollbar(content, orient="vertical", command=canvas.yview)
         scroll_frame = tk.Frame(canvas, bg=THEME["bg_main"])
@@ -287,9 +420,7 @@ class ComparisonView(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # NIBOR Rates section
         self._add_section_header(scroll_frame, "NIBOR RATES")
-
         rates1 = snap1.get('rates', {})
         rates2 = snap2.get('rates', {})
 
@@ -298,18 +429,14 @@ class ComparisonView(tk.Toplevel):
             r2 = rates2.get(tenor, {}).get('nibor')
             self._add_comparison_row(scroll_frame, tenor.upper(), r1, r2)
 
-        # Weights section
         self._add_section_header(scroll_frame, "WEIGHTS")
-
         w1 = snap1.get('weights', {})
         w2 = snap2.get('weights', {})
-
         for curr in ['USD', 'EUR', 'NOK']:
             v1 = w1.get(curr)
             v2 = w2.get(curr)
             self._add_comparison_row(scroll_frame, curr, v1, v2, is_pct=True)
 
-        # Implied rates section
         self._add_section_header(scroll_frame, "IMPLIED EUR")
         for tenor in ['1m', '2m', '3m', '6m']:
             r1 = rates1.get(tenor, {}).get('eur_impl')
@@ -322,31 +449,24 @@ class ComparisonView(tk.Toplevel):
             r2 = rates2.get(tenor, {}).get('usd_impl')
             self._add_comparison_row(scroll_frame, tenor.upper(), r1, r2)
 
-        # Close button
         btn_frame = tk.Frame(self, bg=THEME["bg_main"])
         btn_frame.pack(fill="x", padx=20, pady=10)
-
         tk.Button(btn_frame, text="Close", command=self.destroy,
-                 bg=THEME["chip2"], fg=THEME["text"], font=("Segoe UI", 10),
-                 relief="flat", padx=20, pady=8, cursor="hand2").pack(side="right")
+                  bg=THEME["chip2"], fg=THEME["text"], font=("Segoe UI", 10),
+                  relief="flat", padx=20, pady=8, cursor="hand2").pack(side="right")
 
     def _add_section_header(self, parent, text: str):
-        """Add a section header."""
         frame = tk.Frame(parent, bg=THEME["bg_card"])
         frame.pack(fill="x", pady=(15, 5))
-
         tk.Label(frame, text=text, fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 10, "bold")).pack(side="left", padx=10, pady=5)
+                 font=("Segoe UI", 10, "bold")).pack(side="left", padx=10, pady=5)
 
     def _add_comparison_row(self, parent, label: str, val1, val2, is_pct=False):
-        """Add a comparison row."""
         row = tk.Frame(parent, bg=THEME["bg_main"])
         row.pack(fill="x", pady=2)
-
         tk.Label(row, text=label, width=15, anchor="w", fg=THEME["text"],
-                bg=THEME["bg_main"], font=("Segoe UI", 10)).pack(side="left")
+                 bg=THEME["bg_main"], font=("Segoe UI", 10)).pack(side="left")
 
-        # Format values
         if is_pct:
             v1_str = f"{val1*100:.2f}%" if val1 is not None else "-"
             v2_str = f"{val2*100:.2f}%" if val2 is not None else "-"
@@ -355,113 +475,18 @@ class ComparisonView(tk.Toplevel):
             v2_str = f"{val2:.4f}" if val2 is not None else "-"
 
         tk.Label(row, text=v1_str, width=15, anchor="center", fg=THEME["accent"],
-                bg=THEME["bg_main"], font=("Consolas", 10)).pack(side="left", padx=10)
-
+                 bg=THEME["bg_main"], font=("Consolas", 10)).pack(side="left", padx=10)
         tk.Label(row, text=v2_str, width=15, anchor="center", fg="#4ade80",
-                bg=THEME["bg_main"], font=("Consolas", 10)).pack(side="left", padx=10)
+                 bg=THEME["bg_main"], font=("Consolas", 10)).pack(side="left", padx=10)
 
-        # Calculate diff
         if val1 is not None and val2 is not None:
             diff = val2 - val1
-            if is_pct:
-                diff_str = f"{diff*100:+.2f}%"
-            else:
-                diff_str = f"{diff:+.4f}"
+            if is_pct: diff_str = f"{diff*100:+.2f}%"
+            else: diff_str = f"{diff:+.4f}"
             diff_color = THEME["good"] if diff >= 0 else THEME["bad"]
         else:
             diff_str = "-"
             diff_color = THEME["muted"]
 
         tk.Label(row, text=diff_str, width=10, anchor="center", fg=diff_color,
-                bg=THEME["bg_main"], font=("Consolas", 10, "bold")).pack(side="left", padx=10)
-
-
-class AuditLogViewer(tk.Frame):
-    """Audit log viewer showing all system events."""
-
-    def __init__(self, master, app):
-        super().__init__(master, bg=THEME["bg_panel"])
-        self.app = app
-        self._log_entries = []
-
-        # Header
-        header = tk.Frame(self, bg=THEME["bg_panel"])
-        header.pack(fill="x", padx=15, pady=10)
-
-        tk.Label(header, text="AUDIT LOG", fg=THEME["muted"], bg=THEME["bg_panel"],
-                font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
-
-        # Filter frame
-        filter_frame = tk.Frame(header, bg=THEME["bg_panel"])
-        filter_frame.pack(side="right")
-
-        tk.Label(filter_frame, text="Filter:", fg=THEME["text"], bg=THEME["bg_panel"],
-                font=("Segoe UI", 10)).pack(side="left", padx=(0, 5))
-
-        self.filter_var = tk.StringVar(value="ALL")
-        for level in ["ALL", "INFO", "WARNING", "ERROR"]:
-            tk.Radiobutton(filter_frame, text=level, variable=self.filter_var, value=level,
-                          bg=THEME["bg_panel"], fg=THEME["text"],
-                          selectcolor=THEME["bg_card"],
-                          command=self._apply_filter).pack(side="left", padx=3)
-
-        # Log text area
-        log_frame = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
-                            highlightbackground=THEME["border"])
-        log_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
-
-        self.log_text = tk.Text(log_frame, bg=THEME["bg_card"], fg=THEME["text"],
-                               font=("Consolas", 9), relief="flat", wrap="word",
-                               highlightthickness=0)
-        self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
-
-        # Configure tags for different log levels
-        self.log_text.tag_configure("info", foreground="#3b82f6")
-        self.log_text.tag_configure("warning", foreground="#f59e0b")
-        self.log_text.tag_configure("error", foreground="#ef4444")
-        self.log_text.tag_configure("success", foreground="#4ade80")
-        self.log_text.tag_configure("timestamp", foreground=THEME["muted"])
-
-        self.log_text.config(state="disabled")
-
-    def add_entry(self, level: str, message: str, timestamp: Optional[datetime] = None):
-        """Add a log entry."""
-        ts = timestamp or datetime.now()
-        entry = {
-            'timestamp': ts,
-            'level': level.upper(),
-            'message': message
-        }
-        self._log_entries.append(entry)
-        self._apply_filter()
-
-    def _apply_filter(self):
-        """Apply the current filter to log display."""
-        filter_level = self.filter_var.get()
-
-        self.log_text.config(state="normal")
-        self.log_text.delete("1.0", "end")
-
-        for entry in self._log_entries:
-            if filter_level != "ALL" and entry['level'] != filter_level:
-                continue
-
-            ts_str = entry['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
-            level = entry['level']
-            msg = entry['message']
-
-            self.log_text.insert("end", f"[{ts_str}] ", "timestamp")
-
-            tag = level.lower() if level in ["INFO", "WARNING", "ERROR"] else "info"
-            self.log_text.insert("end", f"[{level}] ", tag)
-            self.log_text.insert("end", f"{msg}\n")
-
-        self.log_text.config(state="disabled")
-        self.log_text.see("end")
-
-    def clear(self):
-        """Clear all log entries."""
-        self._log_entries.clear()
-        self.log_text.config(state="normal")
-        self.log_text.delete("1.0", "end")
-        self.log_text.config(state="disabled")
+                 bg=THEME["bg_main"], font=("Consolas", 10, "bold")).pack(side="left", padx=10)

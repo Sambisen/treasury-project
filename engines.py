@@ -255,7 +255,9 @@ class ExcelEngine:
             self.excel_cm_rates = cm_rates
             self.last_loaded_ts = datetime.now()
 
-            return True, "OK"
+            self.load_weights_file()
+
+            return True, f"{self.current_year_loaded} / {self.current_filename}"
         except Exception as e:
             return False, str(e)
 
@@ -354,9 +356,78 @@ class ExcelEngine:
             
             wb.close()
             return rates
-            
+
         except Exception as e:
             log.info(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
+            return None
+
+    def get_previous_sheet_nibor_rates(self):
+        """
+        Get NIBOR rates from the SECOND-TO-LAST sheet in the workbook.
+
+        Used for CHG calculation - compares current rates with previous saved sheet.
+        Reads cells AA30-AA33 for 1M, 2M, 3M, 6M NIBOR rates.
+
+        Returns:
+            dict: {"1m": {"nibor": 4.52}, "2m": {...}, ...} or None if failed
+            Also returns the sheet name (date) as "_date" key
+        """
+        from config import NIBOR_WORKBOOK_PATH
+
+        log.info("[ExcelEngine] Loading previous sheet NIBOR rates for CHG calculation...")
+        log.info(f"[ExcelEngine] Workbook path: {NIBOR_WORKBOOK_PATH}")
+
+        # Mapping: tenor -> cell address for NIBOR rates
+        nibor_cell_mapping = {
+            "1m": "AA30",
+            "2m": "AA31",
+            "3m": "AA32",
+            "6m": "AA33"
+        }
+
+        # Check if file exists
+        if not NIBOR_WORKBOOK_PATH.exists():
+            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
+            return None
+
+        try:
+            # Try to load workbook
+            try:
+                wb = load_workbook(NIBOR_WORKBOOK_PATH, data_only=True, read_only=True)
+            except Exception as e:
+                log.info(f"[ExcelEngine] Direct load failed ({e}), trying cache...")
+                temp_path = copy_to_cache_fast(NIBOR_WORKBOOK_PATH)
+                wb = load_workbook(temp_path, data_only=True, read_only=True)
+
+            # Find date-formatted sheets (YYYY-MM-DD format)
+            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+            date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
+
+            if len(date_sheets) < 2:
+                log.info(f"[ExcelEngine] Not enough sheets for CHG calculation (found {len(date_sheets)})")
+                wb.close()
+                return None
+
+            # Get second-to-last sheet (sorted by date)
+            sorted_sheets = sorted(date_sheets)
+            prev_sheet_name = sorted_sheets[-2]  # Second to last
+            prev_sheet = wb[prev_sheet_name]
+
+            log.info(f"[ExcelEngine] Using previous sheet for CHG: {prev_sheet_name}")
+
+            # Extract NIBOR rates from cells
+            rates = {"_date": prev_sheet_name}
+            for tenor, cell_addr in nibor_cell_mapping.items():
+                value = prev_sheet[cell_addr].value
+                nibor_value = safe_float(value, None)
+                rates[tenor] = {"nibor": nibor_value}
+                log.info(f"[ExcelEngine]   {tenor} ({cell_addr}): {nibor_value}")
+
+            wb.close()
+            return rates
+
+        except Exception as e:
+            log.info(f"[ExcelEngine] ERROR loading previous sheet NIBOR rates: {e}")
             return None
 
     def get_latest_weights(self, weights_path):
@@ -556,149 +627,6 @@ class ExcelEngine:
             import traceback
             traceback.print_exc()
             return []
-    def resolve_latest_path(self):
-        if RECON_FILE.exists():
-            self.current_folder_path = RECON_FILE.parent
-            self.current_year_loaded = RECON_FILE.parent.name
-            self.current_filename = RECON_FILE.name
-            return RECON_FILE, "OK"
-        return None, "File Not Found"
-
-    def load_weights_file(self) -> bool:
-        """Load EXACT cells from Weights.xlsx."""
-        try:
-            if not WEIGHTS_FILE.exists():
-                self.weights_ok = False
-                self.weights_err = f"Missing file: {WEIGHTS_FILE}"
-                self.weights_cells_raw = {}
-                self.weights_cells_parsed = {}
-                return False
-
-            wb = None
-            try:
-                wb = load_workbook(WEIGHTS_FILE, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(WEIGHTS_FILE)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-
-            ws = wb[wb.sheetnames[0]]
-
-            raw = {}
-            parsed = {}
-
-            for k in ("H3", "H4", "H5", "H6"):
-                cell = WEIGHTS_FILE_CELLS[k]
-                v = ws[cell].value
-                raw[k] = v
-                parsed[k] = to_date(v)
-
-            for k in ("USD", "EUR", "NOK"):
-                cell = WEIGHTS_FILE_CELLS[k]
-                v = ws[cell].value
-                raw[k] = v
-                parsed[k] = safe_float(v, None)
-
-            wb.close()
-
-            self.weights_cells_raw = dict(raw)
-            self.weights_cells_parsed = dict(parsed)
-            self.weights_ok = True
-            self.weights_err = None
-            self.weights_last_loaded_ts = datetime.now()
-            return True
-        except Exception as e:
-            self.weights_ok = False
-            self.weights_err = str(e)
-            self.weights_cells_raw = {}
-            self.weights_cells_parsed = {}
-            return False
-
-    def load_recon_direct(self):
-        try:
-            file_path, msg = self.resolve_latest_path()
-            if not file_path:
-                return False, msg
-
-            try:
-                st = file_path.stat()
-                self._last_src = file_path
-                self._last_mtime = st.st_mtime
-                self._last_size = st.st_size
-            except Exception:
-                pass
-
-            wb = None
-            try:
-                wb = load_workbook(file_path, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(file_path)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-
-            sheet_name = wb.sheetnames[-1]
-            ws = wb[sheet_name]
-
-            recon = {}
-            for (r, c) in REQUIRED_CELLS:
-                recon[(r, c)] = ws.cell(row=r, column=c).value
-
-            # Read Excel CM rates (EUR and USD)
-            cm_rates = {}
-            for key, cell_ref in EXCEL_CM_RATES_MAPPING.items():
-                val = ws[cell_ref].value
-                cm_rates[key] = safe_float(val, None)
-
-            wb.close()
-
-            self.recon_data = recon
-            self.excel_cm_rates = cm_rates
-            self.last_loaded_ts = datetime.now()
-
-            self.load_weights_file()
-
-            return True, f"{self.current_year_loaded} / {self.current_filename}"
-        except Exception as e:
-            return False, str(e)
-
-    def get_days_for_date(self, date_str):
-        if self.day_data.empty or "date" not in self.day_data.columns:
-            return None
-        try:
-            target_date = pd.to_datetime(date_str)
-            target_date = target_date.normalize()
-
-            row = self.day_data[self.day_data["date"] == target_date]
-            if not row.empty:
-                r = row.iloc[0]
-                return {
-                    "1w": r.get("1w_Days", "-"),
-                    "1m": r.get("1m_Days", "-"),
-                    "2m": r.get("2m_Days", "-"),
-                    "3m": r.get("3m_Days", "-"),
-                    "6m": r.get("6m_Days", "-"),
-                }
-        except Exception:
-            return None
-        return None
-
-    def get_future_days_data(self, limit_rows=300):
-        if self.day_data.empty or "date" not in self.day_data.columns:
-            return pd.DataFrame()
-        today = pd.Timestamp(datetime.now().date()).normalize()
-        future_df = self.day_data[self.day_data["date"] >= today].copy()
-        for c in ["date", "settlement"]:
-            if c in future_df.columns:
-                future_df[c] = pd.to_datetime(future_df[c], errors="coerce").dt.strftime("%Y-%m-%d")
-        future_df = future_df.reset_index(drop=True)
-        if len(future_df) > limit_rows:
-            future_df = future_df.iloc[:limit_rows].copy()
-        return future_df
-
-    def get_recon_value(self, cell_ref):
-        try:
-            row, col = coordinate_to_tuple(cell_ref)
-            return self.recon_data.get((row, col), None)
-        except Exception:
-            return None
 
     def write_confirmation_stamp(self) -> tuple[bool, str]:
         """
