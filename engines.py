@@ -370,7 +370,10 @@ class ExcelEngine:
             dict: {"1m": {"nibor": 4.52}, "2m": {...}, ...} or None if failed
             Also returns the sheet name (date) as "_date" key
         """
+        from config import NIBOR_WORKBOOK_PATH
+
         log.info("[ExcelEngine] Loading previous sheet NIBOR rates for CHG calculation...")
+        log.info(f"[ExcelEngine] Workbook path: {NIBOR_WORKBOOK_PATH}")
 
         # Mapping: tenor -> cell address for NIBOR rates
         nibor_cell_mapping = {
@@ -380,11 +383,17 @@ class ExcelEngine:
             "6m": "AA33"
         }
 
+        # Check if file exists
+        if not NIBOR_WORKBOOK_PATH.exists():
+            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
+            return None
+
         try:
             # Try to load workbook
             try:
                 wb = load_workbook(NIBOR_WORKBOOK_PATH, data_only=True, read_only=True)
-            except Exception:
+            except Exception as e:
+                log.info(f"[ExcelEngine] Direct load failed ({e}), trying cache...")
                 temp_path = copy_to_cache_fast(NIBOR_WORKBOOK_PATH)
                 wb = load_workbook(temp_path, data_only=True, read_only=True)
 
