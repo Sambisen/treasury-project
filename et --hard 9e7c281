@@ -1,0 +1,27 @@
+[33m6647fa3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Redesign header clock with consistent sizing and professional look
+[33mdfc3b4f[m Uppdaterat charts.py med ny logik och fixat trace bugg
+[33m64b9cd9[m Update
+[33m9e7c281[m Add automatic fixing history import from Excel on app startup
+[33me43474c[m Fix NIBOR_LOG_PATH to use Stibor folder and merge fixing history
+[33m956a59d[m Add NIBOR fixing history with automatic backfill and dual-view History page
+[33mc56ecbe[m Redesign header clock with light theme and countdown timer
+[33mc3f4335[m Move clock to global header with NIBOR fixing countdown
+[33mf3436e8[m Fix ConnectionStatusIndicator bg parameter bug and splash screen issues
+[33m8373241[m Add professional UI features: Settings, Audit Log, Connection Status, Clock
+[33m4d83811[m Add NIBOR history tracking with CHG column and auto-save
+[33m3f009cf[m Add summary cards and collapsible sections to NOK Implied page
+[33m80e3832[m Code quality improvements and new features
+[33meff18bd[m Highlight active Nibor Days row in orange
+[33m98220bd[m Add 4-decimal tooltip on hover for NIBOR rates
+[33me087798[m Improve Active Alerts box with timestamps, priorities, and dynamic scrollbar
+[33m23330e0[m Increase Swedbank logo size from 250 to 350px
+[33m7cc11c3[m Beskrivning av ändring
+[33m3c4b9ef[m Beskrivning av ändring
+[33mc4db19b[m Complete UI overhaul
+[33maa2b3c6[m UI improvements: 3x2 layout, 4-decimal tooltips, default radio
+[33m1cc5689[m    Fix: NOK Implied rates calculation
+[33mdbbc2f4[m feat: Add Funding Rate table to Dashboard
+[33m28631ff[m Add Excel files and update all modules
+[33mf1d7383[m Add implied rates section on dashboard
+[33me545dbd[m Add project files
+[33m03942f8[m Initial commit
