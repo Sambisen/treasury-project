@@ -141,6 +141,17 @@ WEIGHTS_FILE = DATA_DIR / "Nibor" / "Vikter" / "Weights.xlsx"
 CACHE_DIR = DATA_DIR / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+# Swedbank contribution cell mapping (Nibor fixing workbook)
+SWEDBANK_CONTRIBUTION_CELLS = {
+    "1M": {"Z": "Z7", "AA": "AA7"},
+    "2M": {"Z": "Z8", "AA": "AA8"},
+    "3M": {"Z": "Z9", "AA": "AA9"},
+    "6M": {"Z": "Z10", "AA": "AA10"},
+}
+
+# Chart configuration
+CHART_LOOKBACK_DAYS = 30  # Antal dagar att visa i graf
+
 # ==============================================================================
 #  RULES / MAPPINGS
 # ==============================================================================

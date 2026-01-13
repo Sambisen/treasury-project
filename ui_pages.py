@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from config import THEME, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE
-from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree
+from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, TimeSeriesChartTK
 from utils import safe_float
 from calculations import calc_implied_yield
 
@@ -124,6 +124,15 @@ class DashboardPage(tk.Frame):
                 cells[cell_type] = cell_label
 
             self.funding_cells[tenor["key"]] = cells
+
+        # Historical Nibor Chart
+        chart_title = tk.Label(self, text="NIBOR HISTORICAL TRENDS (30 DAYS)",
+                              fg=THEME["muted"], bg=THEME["bg_panel"],
+                              font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
+        chart_title.pack(anchor="w", padx=pad, pady=(pad, 8))
+
+        self.nibor_chart = TimeSeriesChartTK(self, title="NIBOR RATES - 30 DAY TREND")
+        self.nibor_chart.pack(fill="both", expand=True, padx=pad, pady=(0, 12))
 
         title2 = tk.Label(self, text="ACTIVE ALERTS", fg=THEME["muted"], bg=THEME["bg_panel"],
                           font=("Segoe UI", CURRENT_MODE["h2"], "bold"))
@@ -296,6 +305,9 @@ class DashboardPage(tk.Frame):
         # Update funding rates table
         self._update_funding_rates()
 
+        # Update historical chart
+        self._update_nibor_chart()
+
         if not self.app.active_alerts:
             self.alert_table.pack_forget()
             self.ok_panel.pack(fill="both", expand=True)
@@ -391,6 +403,53 @@ class DashboardPage(tk.Frame):
                 'weights': weights, 'funding_rate': funding_rate,
                 'spread': spread, 'final_rate': final_rate
             }
+
+    def _update_nibor_chart(self):
+        """Load historical snapshots and update chart."""
+        from datetime import datetime, timedelta
+        from config import CHART_LOOKBACK_DAYS
+
+        if not hasattr(self.app, 'snapshot_engine'):
+            self.nibor_chart.clear_chart()
+            return
+
+        # Get last N days of snapshots
+        today = datetime.now().date()
+        lookback_days = CHART_LOOKBACK_DAYS
+        dates = []
+        rates_by_tenor = {"1M": [], "2M": [], "3M": [], "6M": []}
+
+        for i in range(lookback_days, -1, -1):
+            check_date = today - timedelta(days=i)
+            date_str = check_date.strftime("%Y-%m-%d")
+
+            snapshot = self.app.snapshot_engine.load_snapshot(date_str)
+            if snapshot:
+                dates.append(check_date)
+
+                # Extract NIBOR rates from snapshot
+                nibor_rates = snapshot.get("bloomberg", {}).get("nibor_rates", {})
+
+                # Map tickers to tenors
+                tenor_map = {
+                    "1M": "NKCM1M SWET Curncy",
+                    "2M": "NKCM2M SWET Curncy",
+                    "3M": "NKCM3M SWET Curncy",
+                    "6M": "NKCM6M SWET Curncy"
+                }
+
+                for tenor, ticker in tenor_map.items():
+                    rate_data = nibor_rates.get(ticker, {})
+                    price = rate_data.get("price")
+                    if price is not None:
+                        rates_by_tenor[tenor].append(price)
+                    else:
+                        rates_by_tenor[tenor].append(None)
+
+        if dates:
+            self.nibor_chart.plot_nibor_history(dates, rates_by_tenor)
+        else:
+            self.nibor_chart.clear_chart()
 
 
 class ReconPage(tk.Frame):

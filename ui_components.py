@@ -6,6 +6,11 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
+import matplotlib
+matplotlib.use('TkAgg')
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 from config import THEME, CURRENT_MODE
 from utils import fmt_ts, LogoPipelineTK
 
@@ -234,3 +239,105 @@ class DataTableTree(tk.Frame):
 
         self.tree.insert("", "end", values=[("" if v is None else str(v)) for v in values], tags=(tag,))
         self._row_idx += 1
+
+
+class TimeSeriesChartTK(tk.Frame):
+    """
+    Matplotlib chart component for displaying historical Nibor rates.
+    Embedded in Tkinter using FigureCanvasTkAgg.
+    """
+
+    def __init__(self, master, title: str = "NIBOR HISTORICAL RATES"):
+        super().__init__(master, bg=THEME["bg_card"],
+                        highlightthickness=1, highlightbackground=THEME["border"])
+
+        self.title = title
+
+        # Create figure with dark theme
+        self.fig = Figure(figsize=(10, 4), dpi=100, facecolor=THEME["bg_card"])
+        self.ax = self.fig.add_subplot(111)
+
+        # Style axis with THEME colors
+        self.ax.set_facecolor(THEME["bg_card"])
+        self.ax.tick_params(colors=THEME["text"], labelsize=9)
+        self.ax.spines['bottom'].set_color(THEME["border"])
+        self.ax.spines['top'].set_color(THEME["border"])
+        self.ax.spines['left'].set_color(THEME["border"])
+        self.ax.spines['right'].set_color(THEME["border"])
+
+        # Embed in Tkinter
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Initialize with empty message
+        self.clear_chart()
+
+    def plot_nibor_history(self, dates: list, rates_by_tenor: dict):
+        """
+        Plot historical Nibor rates.
+
+        Args:
+            dates: List of datetime objects
+            rates_by_tenor: Dict like {"1M": [4.6, 4.55, ...], "3M": [...]}
+        """
+        self.ax.clear()
+
+        # Color mapping for tenors
+        colors = {
+            "1M": THEME["accent"],
+            "2M": "#FFA500",  # Orange
+            "3M": THEME["good"],
+            "6M": THEME["warn"]
+        }
+
+        # Plot each tenor
+        for tenor, rates in rates_by_tenor.items():
+            if len(rates) == len(dates):
+                # Filter out None values for gap handling
+                valid_indices = [i for i, r in enumerate(rates) if r is not None]
+                valid_dates = [dates[i] for i in valid_indices]
+                valid_rates = [rates[i] for i in valid_indices]
+
+                if valid_dates:
+                    self.ax.plot(valid_dates, valid_rates,
+                               label=f"{tenor} NIBOR",
+                               color=colors.get(tenor, THEME["text"]),
+                               linewidth=2,
+                               marker='o',
+                               markersize=4)
+
+        # Styling
+        self.ax.set_title(self.title, color=THEME["accent"], fontsize=12, fontweight='bold', pad=10)
+        self.ax.set_xlabel("Date", color=THEME["muted"], fontsize=10)
+        self.ax.set_ylabel("Rate (%)", color=THEME["muted"], fontsize=10)
+
+        # Legend
+        if any(rates_by_tenor.values()):
+            self.ax.legend(loc='upper right', facecolor=THEME["bg_card_2"],
+                          edgecolor=THEME["border"], labelcolor=THEME["text"],
+                          fontsize=9, framealpha=0.9)
+
+        # Grid
+        self.ax.grid(True, alpha=0.2, color=THEME["border"], linestyle='--', linewidth=0.5)
+
+        # Rotate date labels
+        self.fig.autofmt_xdate()
+
+        # Tight layout
+        self.fig.tight_layout()
+
+        # Refresh canvas
+        self.canvas.draw()
+
+    def clear_chart(self):
+        """Clear the chart and show 'No data available' message."""
+        self.ax.clear()
+        self.ax.text(0.5, 0.5, "No historical data available",
+                    ha='center', va='center',
+                    color=THEME["muted"],
+                    fontsize=11,
+                    transform=self.ax.transAxes)
+        self.ax.set_facecolor(THEME["bg_card"])
+        self.ax.axis('off')
+        self.canvas.draw()

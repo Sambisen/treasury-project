@@ -26,7 +26,8 @@ from utils import (
     business_day_index_in_month, calendar_days_since_month_start,
     LogoPipelineTK
 )
-from engines import ExcelEngine, BloombergEngine, blpapi
+from engines import ExcelEngine, BloombergEngine, HistoricalDataManager, blpapi
+from snapshot_engine import SnapshotEngine
 from ui_components import style_ttk, NavButtonTK, SourceCardTK
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
@@ -52,6 +53,8 @@ class OnyxTerminalTK(tk.Tk):
         self.logo_pipeline = LogoPipelineTK()
         self.engine = BloombergEngine(cache_ttl_sec=3.0)
         self.excel_engine = ExcelEngine()
+        self.snapshot_engine = SnapshotEngine()
+        self.historical_manager = HistoricalDataManager(self.excel_engine, self.snapshot_engine)
 
         self.status_spot = True
         self.status_fwds = True
@@ -329,6 +332,11 @@ class OnyxTerminalTK(tk.Tk):
             self.run_status.configure(text="● PARTIAL", fg=THEME["warn"])
 
         self.set_busy(False)
+
+        # Save daily snapshot after successful data fetch
+        if bbg_data and not bbg_err and self.cached_excel_data:
+            self._save_daily_snapshot()
+
         self.refresh_ui()
 
     def refresh_ui(self):
@@ -337,6 +345,42 @@ class OnyxTerminalTK(tk.Tk):
                 self._pages[self._current_page].update()
             except Exception:
                 pass
+
+    def _save_daily_snapshot(self):
+        """Save daily snapshot of Bloomberg and Swedbank data."""
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+
+            # Prepare Swedbank contribution
+            swedbank_contrib = {}
+            if hasattr(self.excel_engine, 'swedbank_contribution'):
+                for tenor, cells in self.excel_engine.swedbank_contribution.items():
+                    z_cell = f"Z{7 + ['1M','2M','3M','6M'].index(tenor)}"
+                    aa_cell = f"AA{7 + ['1M','2M','3M','6M'].index(tenor)}"
+                    swedbank_contrib[tenor] = {
+                        z_cell: cells.get("Z"),
+                        aa_cell: cells.get("AA")
+                    }
+
+            # Excel metadata
+            excel_meta = {
+                "workbook_name": self.excel_engine.current_filename,
+                "sheet_name": "latest",
+                "last_modified": fmt_ts(self.excel_engine.last_loaded_ts)
+            }
+
+            # Save
+            success, msg = self.snapshot_engine.save_daily_snapshot(
+                date_str=today,
+                bloomberg_data=self.cached_market_data,
+                swedbank_contribution=swedbank_contrib,
+                excel_metadata=excel_meta
+            )
+
+            if success:
+                print(f"[Snapshot] {msg}")
+        except Exception as e:
+            print(f"[Snapshot Error] {str(e)}")
 
     def update_days_from_date(self, date_str):
         days_map = self.excel_engine.get_days_for_date(date_str)

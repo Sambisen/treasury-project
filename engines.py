@@ -83,6 +83,9 @@ class ExcelEngine:
         # Excel CM rates cache (from Nibor fixing workbook)
         self.excel_cm_rates: dict[str, float] = {}
 
+        # Swedbank contribution data (from Nibor fixing workbook)
+        self.swedbank_contribution: dict[str, dict] = {}
+
         threading.Thread(target=self._load_day_files_bg, daemon=True).start()
 
     def _load_day_files_bg(self):
@@ -205,10 +208,20 @@ class ExcelEngine:
                 val = ws[cell_ref].value
                 cm_rates[key] = safe_float(val, None)
 
+            # Extract Swedbank contribution data
+            from config import SWEDBANK_CONTRIBUTION_CELLS
+            swedbank_contrib = {}
+            for tenor, cells in SWEDBANK_CONTRIBUTION_CELLS.items():
+                swedbank_contrib[tenor] = {
+                    "Z": safe_float(ws[cells["Z"]].value, None),
+                    "AA": safe_float(ws[cells["AA"]].value, None)
+                }
+
             wb.close()
 
             self.recon_data = recon
             self.excel_cm_rates = cm_rates
+            self.swedbank_contribution = swedbank_contrib
             self.last_loaded_ts = datetime.now()
 
             self.load_weights_file()
@@ -257,6 +270,140 @@ class ExcelEngine:
             return self.recon_data.get((row, col), None)
         except Exception:
             return None
+
+
+class HistoricalDataManager:
+    """
+    Manages historical snapshot comparison and sheet identification.
+    Handles multi-sheet Excel workbook parsing.
+    """
+
+    def __init__(self, excel_engine: ExcelEngine, snapshot_engine):
+        self.excel_engine = excel_engine
+        self.snapshot_engine = snapshot_engine
+
+    def identify_sheet_date(self, sheet_name: str) -> str | None:
+        """
+        Extract date from sheet name.
+        Patterns: "2025-01-13", "13-01-2025", "13.01.2025", etc.
+
+        Returns: Date string in YYYY-MM-DD format or None
+        """
+        import re
+
+        patterns = [
+            r'(\d{4})-(\d{2})-(\d{2})',  # 2025-01-13
+            r'(\d{2})-(\d{2})-(\d{4})',  # 13-01-2025
+            r'(\d{2})\.(\d{2})\.(\d{4})',  # 13.01.2025
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, sheet_name)
+            if match:
+                groups = match.groups()
+                # Determine format and convert to YYYY-MM-DD
+                if len(groups[0]) == 4:  # YYYY-MM-DD
+                    return f"{groups[0]}-{groups[1]}-{groups[2]}"
+                else:  # DD-MM-YYYY or DD.MM.YYYY
+                    return f"{groups[2]}-{groups[1]}-{groups[0]}"
+
+        return None
+
+    def get_all_workbook_sheets(self, workbook_path: Path) -> list[tuple[str, str]]:
+        """
+        Get all sheets from workbook with their dates.
+
+        Returns: List of (sheet_name, date_str) tuples
+        """
+        from openpyxl import load_workbook
+
+        try:
+            wb = load_workbook(workbook_path, data_only=True, read_only=True)
+            sheets_with_dates = []
+
+            for sheet_name in wb.sheetnames:
+                date_str = self.identify_sheet_date(sheet_name)
+                if date_str:
+                    sheets_with_dates.append((sheet_name, date_str))
+
+            wb.close()
+            return sheets_with_dates
+
+        except Exception:
+            return []
+
+    def load_sheet_by_date(self, workbook_path: Path, target_date: str) -> dict | None:
+        """
+        Load specific sheet by date and extract contribution data.
+
+        Returns: Dict with cell data or None
+        """
+        from openpyxl import load_workbook
+
+        try:
+            wb = load_workbook(workbook_path, data_only=True, read_only=True)
+
+            # Find sheet matching target_date
+            target_sheet = None
+            for sheet_name in wb.sheetnames:
+                if self.identify_sheet_date(sheet_name) == target_date:
+                    target_sheet = sheet_name
+                    break
+
+            if not target_sheet:
+                wb.close()
+                return None
+
+            ws = wb[target_sheet]
+
+            # Extract contribution cells (Z7-Z10, AA7-AA10)
+            contribution_cells = {
+                "Z7": ws["Z7"].value,
+                "AA7": ws["AA7"].value,
+                "Z8": ws["Z8"].value,
+                "AA8": ws["AA8"].value,
+                "Z9": ws["Z9"].value,
+                "AA9": ws["AA9"].value,
+                "Z10": ws["Z10"].value,
+                "AA10": ws["AA10"].value,
+            }
+
+            wb.close()
+            return contribution_cells
+
+        except Exception:
+            return None
+
+    def compare_contributions(self, today_date: str, yesterday_date: str) -> dict:
+        """
+        Compare Swedbank contributions between two dates.
+
+        Returns: Dict with changes per tenor
+        """
+        today_snapshot = self.snapshot_engine.load_snapshot(today_date)
+        yesterday_snapshot = self.snapshot_engine.load_snapshot(yesterday_date)
+
+        if not today_snapshot or not yesterday_snapshot:
+            return {"error": "Missing snapshot data"}
+
+        today_contrib = today_snapshot.get("swedbank_contribution", {})
+        yesterday_contrib = yesterday_snapshot.get("swedbank_contribution", {})
+
+        changes = {}
+        for tenor in ["1M", "2M", "3M", "6M"]:
+            # Get Z cell values
+            z_cell_key = f"Z{7 + ['1M','2M','3M','6M'].index(tenor)}"
+            today_val = today_contrib.get(tenor, {}).get(z_cell_key)
+            yesterday_val = yesterday_contrib.get(tenor, {}).get(z_cell_key)
+
+            if today_val is not None and yesterday_val is not None:
+                changes[tenor] = {
+                    "today": today_val,
+                    "yesterday": yesterday_val,
+                    "change": today_val - yesterday_val
+                }
+
+        return changes
 
 
 def _load_mock_defaults_from_excel() -> dict:

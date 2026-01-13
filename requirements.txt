@@ -1,0 +1,16 @@
+# Treasury Project Dependencies
+
+# Data processing
+pandas>=2.0.0
+
+# Excel file handling
+openpyxl>=3.1.0
+
+# Image handling
+Pillow>=10.0.0
+
+# Charting and visualization
+matplotlib>=3.8.0
+
+# Bloomberg API (Windows only, installed separately)
+# blpapi
