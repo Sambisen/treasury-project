@@ -26,6 +26,7 @@ from config import (
 # Initialize logging
 setup_logging()
 log = get_logger("main")
+
 from utils import (
     fmt_ts, fmt_date, safe_float, to_date,
     business_day_index_in_month, calendar_days_since_month_start,
@@ -109,6 +110,9 @@ class NiborTerminalTK(tk.Tk):
         self._busy = False
         self._update_buttons: list[tk.Button] = []
         self._update_btn_original_text: dict[int, str] = {}
+
+        # Used for pulsing effect in header
+        self._pulse_state = False
 
         self.build_ui()
         self._setup_keyboard_shortcuts()
@@ -207,11 +211,11 @@ class NiborTerminalTK(tk.Tk):
         from PIL import Image, ImageTk
         
         global_header = tk.Frame(self, bg=THEME["bg_main"])
-        global_header.pack(fill="x", padx=hpad, pady=(hpad, 10))
+        global_header.pack(fill="x", padx=hpad, pady=(hpad, 5))
 
-        # LEFT: Swedbank header image (250px)
+        # --- LEFT: Swedbank header image ---
         header_left = tk.Frame(global_header, bg=THEME["bg_main"])
-        header_left.pack(side="left")
+        header_left.pack(side="left", anchor="n")
 
         image_path = r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Swed.png"
 
@@ -226,7 +230,7 @@ class NiborTerminalTK(tk.Tk):
                 photo = ImageTk.PhotoImage(img)
                 img_label = tk.Label(header_left, image=photo, bg=THEME["bg_main"])
                 img_label.image = photo
-                img_label.pack()
+                img_label.pack(anchor="w")
                 log.info(f"Global Swedbank header loaded: {target_width}x{target_height}px")
             except Exception as e:
                 log.warning(f"Failed to load Swedbank header: {e}")
@@ -239,76 +243,41 @@ class NiborTerminalTK(tk.Tk):
                     fg=THEME["text"], bg=THEME["bg_main"],
                     font=("Segoe UI", 24, "bold")).pack()
 
-        # CENTER-RIGHT: Professional clock with NIBOR fixing countdown
-        header_center = tk.Frame(global_header, bg=THEME["bg_main"])
-        header_center.pack(side="right", padx=(0, 20))
+        # --- RIGHT: Update Button & Prominent Clock ---
+        header_right = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_right.pack(side="right", anchor="ne")
 
-        # UPDATE button (rightmost)
+        # 1. UPDATE BUTTON (Left side of right block)
         from ui_components import OnyxButtonTK
-        self.header_update_btn = OnyxButtonTK(header_center, "UPDATE",
-                                             command=self.refresh_data,
-                                             variant="primary")
-        self.header_update_btn.pack(side="right", padx=(15, 0))
+        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE",
+                                              command=self.refresh_data,
+                                              variant="primary")
+        # Add some padding to separate from clock
+        self.header_update_btn.pack(side="left", padx=(0, 30), anchor="center")
         self.register_update_button(self.header_update_btn)
 
-        # ====================================================================
-        # CLOCK & NIBOR FIXING TIMER - Light theme, centered
-        # ====================================================================
-        clock_frame = tk.Frame(header_center, bg=THEME["bg_card"],
-                              highlightthickness=1,
-                              highlightbackground=THEME["border"])
-        clock_frame.pack(side="right")
+        # 2. CLOCK CONTAINER (Vertical stack)
+        clock_container = tk.Frame(header_right, bg=THEME["bg_main"])
+        clock_container.pack(side="right", anchor="e")
 
-        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
-        clock_inner.pack(padx=25, pady=15)
+        # Row 1: NIBOR Status (Prominent & Pulsing)
+        # Initial state is muted, update_clock will handle colors and pulsing
+        self._nibor_status_lbl = tk.Label(clock_container, text="--",
+                                          fg=THEME["muted"], bg=THEME["bg_main"],
+                                          font=("Segoe UI", 15, "bold"))
+        self._nibor_status_lbl.pack(anchor="e", pady=(0, 2))
 
-        # Left side: Time and date
-        time_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
-        time_section.pack(side="left", padx=(0, 20))
+        # Row 2: Tiden (Stor, monospaced för att förhindra hopp)
+        self._clock_time_lbl = tk.Label(clock_container, text="--:--:--",
+                                        fg=THEME["text"], bg=THEME["bg_main"],
+                                        font=("Consolas", 26, "bold"))
+        self._clock_time_lbl.pack(anchor="e", pady=(0, 0))
 
-        # Time display (large, orange)
-        time_row = tk.Frame(time_section, bg=THEME["bg_card"])
-        time_row.pack(anchor="center")
-
-        self._header_clock_time = tk.Label(time_row, text="--:--",
-                                           fg=THEME["accent"], bg=THEME["bg_card"],
-                                           font=("Consolas", 32, "bold"))
-        self._header_clock_time.pack(side="left")
-
-        self._header_clock_seconds = tk.Label(time_row, text=":--",
-                                              fg=THEME["muted"], bg=THEME["bg_card"],
-                                              font=("Consolas", 18))
-        self._header_clock_seconds.pack(side="left", anchor="s", pady=(0, 5))
-
-        # Date label below time
-        self._header_clock_date = tk.Label(time_section, text="",
-                                           fg=THEME["muted"], bg=THEME["bg_card"],
-                                           font=("Segoe UI", 10))
-        self._header_clock_date.pack(anchor="center")
-
-        # Separator line
-        tk.Frame(clock_inner, bg=THEME["border"], width=1, height=55).pack(side="left", padx=20)
-
-        # Right side: NIBOR Fixing countdown
-        nibor_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
-        nibor_section.pack(side="left")
-
-        # NIBOR Fixing label
-        tk.Label(nibor_section, text="NIBOR FIXING",
-                fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 9, "bold")).pack(anchor="center")
-
-        # Fixing countdown (large)
-        self._nibor_fixing_status = tk.Label(nibor_section, text="--:--",
-                                             fg=THEME["accent_secondary"], bg=THEME["bg_card"],
-                                             font=("Consolas", 24, "bold"))
-        self._nibor_fixing_status.pack(anchor="center")
-
-        # Fixing indicator text
-        self._nibor_fixing_indicator = tk.Label(nibor_section, text="",
-                                                fg=THEME["muted"], bg=THEME["bg_card"],
-                                                font=("Segoe UI", 9))
-        self._nibor_fixing_indicator.pack(anchor="center")
+        # Row 3: Datum (Mindre rad under tiden)
+        self._clock_date_lbl = tk.Label(clock_container, text="",
+                                        fg=THEME["muted"], bg=THEME["bg_main"],
+                                        font=("Segoe UI", 10))
+        self._clock_date_lbl.pack(anchor="e")
 
         # Start the header clock update
         self._update_header_clock()
@@ -360,7 +329,7 @@ class NiborTerminalTK(tk.Tk):
             ("settings", "⚙ Settings", SettingsPage),
         ]
 
-        for page_key, page_name in [(k, n) for k, n, _ in self.PAGES_CONFIG]:
+        for page_key, page_name, _ in self.PAGES_CONFIG:
             btn = tk.Button(sidebar,
                           text=page_name,
                           command=lambda pk=page_key: self.show_page(pk),
@@ -444,22 +413,22 @@ class NiborTerminalTK(tk.Tk):
             self.show_page(self.PAGES_CONFIG[0][0])
 
     def _update_header_clock(self):
-        """Update the header clock and NIBOR fixing countdown every second."""
+        """Update the header clock and prominent NIBOR status with pulsing effect."""
         now = datetime.now()
 
-        # Swedish day and month names
+        # 1. Update Time (Unified HH:MM:SS)
+        time_str = now.strftime("%H:%M:%S")
+        self._clock_time_lbl.config(text=time_str)
+
+        # 2. Update Date
         days_sv = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]
         months_sv = ["", "jan", "feb", "mar", "apr", "maj", "jun",
                      "jul", "aug", "sep", "okt", "nov", "dec"]
         day_name = days_sv[now.weekday()]
-        date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
+        date_str = f"{day_name} {now.day} {months_sv[now.month]}"
+        self._clock_date_lbl.config(text=date_str)
 
-        # Update date and time
-        self._header_clock_date.config(text=date_str)
-        self._header_clock_time.config(text=now.strftime("%H:%M"))
-        self._header_clock_seconds.config(text=now.strftime(":%S"))
-
-        # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
+        # 3. Update Nibor Status Logic & Pulsing
         hour = now.hour
         minute = now.minute
         second = now.second
@@ -469,38 +438,50 @@ class NiborTerminalTK(tk.Tk):
         fixing_start = 11 * 3600  # 11:00:00
         fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
 
-        if weekday >= 5:  # Weekend
-            self._nibor_fixing_status.config(text="—", fg=THEME["muted"])
-            self._nibor_fixing_indicator.config(text="Weekend", fg=THEME["muted"])
-        elif current_seconds < fixing_start:
-            # Before fixing window - countdown to open
-            secs_until = fixing_start - current_seconds
-            hrs = secs_until // 3600
-            mins = (secs_until % 3600) // 60
-            secs = secs_until % 60
+        status_text = ""
+        target_color = THEME["muted"]
+        is_active_period = False
+        font_size = 13 # Base size for closed/weekend
 
-            if hrs > 0:
-                countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
-                self._nibor_fixing_status.config(text=countdown_str, fg=THEME["muted"])
-                self._nibor_fixing_indicator.config(text="until open", fg=THEME["muted"])
+        if weekday >= 5:  # Weekend
+            status_text = "WEEKEND — CLOSED"
+        elif current_seconds < fixing_start:
+            # Before fixing
+            secs_until = fixing_start - current_seconds
+            mins = (secs_until % 3600) // 60
+            
+            if secs_until > 3600:
+                # More than 1 hour away
+                status_text = "PRE-FIXING"
             else:
-                countdown_str = f"{mins:02d}:{secs:02d}"
-                # Orange warning when less than 30 min
-                color = THEME["warning"] if mins < 30 else THEME["muted"]
-                self._nibor_fixing_status.config(text=countdown_str, fg=color)
-                self._nibor_fixing_indicator.config(text="until open", fg=color)
+                # Countdown last hour - Orange warning & Pulsing
+                target_color = THEME["warning"]
+                status_text = f"OPENS IN {mins + 1} MIN"
+                is_active_period = True
+                font_size = 15
         elif current_seconds < fixing_end:
-            # FIXING WINDOW OPEN - countdown to close
+            # --- OPEN ---
             secs_left = fixing_end - current_seconds
-            mins = secs_left // 60
-            secs = secs_left % 60
-            countdown_str = f"{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.config(text=countdown_str, fg=THEME["good"])
-            self._nibor_fixing_indicator.config(text="● OPEN", fg=THEME["good"])
+            mins_left = secs_left // 60
+            secs_left_rem = secs_left % 60
+            status_text = f"● NIBOR OPEN ({mins_left:02d}:{secs_left_rem:02d})"
+            target_color = THEME["good"]
+            is_active_period = True
+            font_size = 15
         else:
-            # After fixing window - closed
-            self._nibor_fixing_status.config(text="CLOSED", fg=THEME["muted"])
-            self._nibor_fixing_indicator.config(text="until tomorrow", fg=THEME["muted"])
+            # Closed
+            status_text = "CLOSED"
+
+        # Apply pulsing effect if active period
+        final_color = target_color
+        if is_active_period:
+            # Toggle pulse state
+            self._pulse_state = not self._pulse_state
+            # Alternate between the target color (green/orange) and standard text color (whiteish)
+            if self._pulse_state:
+                 final_color = THEME["text"]
+
+        self._nibor_status_lbl.config(text=status_text, fg=final_color, font=("Segoe UI", font_size, "bold"))
 
         # Schedule next update
         self.after(1000, self._update_header_clock)
@@ -687,10 +668,10 @@ class NiborTerminalTK(tk.Tk):
 
         self.settings_autosave_var = tk.BooleanVar(value=True)
         autosave_check = tk.Checkbutton(autosave_frame, text="Auto-save snapshots on data refresh",
-                                        variable=self.settings_autosave_var,
-                                        font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
-                                        selectcolor="#333344", activebackground="#1a1a2e",
-                                        activeforeground="#aaaaaa")
+                                       variable=self.settings_autosave_var,
+                                       font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
+                                       selectcolor="#333344", activebackground="#1a1a2e",
+                                       activeforeground="#aaaaaa")
         autosave_check.pack(side="left")
 
         # Show notifications

@@ -442,13 +442,12 @@ class DashboardPage(tk.Frame):
         if not TrendPopup:
             return
 
-        # Get history data
-        history_data = get_rates_table_data(limit=30)
-
-        # Create popup
-        popup = TrendPopup(self.winfo_toplevel(), history_data)
+        # ÄNDRING: Vi hämtar inte data här längre, och skickar inte med det.
+        # Popupen hämtar sin egen data (både fixing och contribution).
+        
+        popup = TrendPopup(self.winfo_toplevel())
         popup.grab_set()
-
+        
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
         if not hasattr(self.app, 'funding_calc_data'):

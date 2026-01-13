@@ -430,6 +430,13 @@ MARKET_STRUCTURE = {
         ("USCM3M SWET Curncy", "USD CM 3M"),
         ("USCM6M SWET Curncy", "USD CM 6M"),
     ],
+    "OFFICIAL NIBOR FIXINGS": [
+        ("NIBOR1W Index", "NIBOR Fixing 1W"),
+        ("NIBOR1M Index", "NIBOR Fixing 1M"),
+        ("NIBOR2M Index", "NIBOR Fixing 2M"),
+        ("NIBOR3M Index", "NIBOR Fixing 3M"),
+        ("NIBOR6M Index", "NIBOR Fixing 6M"),
+    ],
     "NIBOR FIXINGS (MARKET)": [
         ("NKCM1M SWET Curncy", "NOK CM 1M"),
         ("NKCM2M SWET Curncy", "NOK CM 2M"),
