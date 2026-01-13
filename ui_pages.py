@@ -861,7 +861,11 @@ class DashboardPage(tk.Frame):
         self.app.funding_calc_data = {}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
-        prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        try:
+            prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        except Exception as e:
+            log.warning(f"[Dashboard] Failed to get previous sheet rates for CHG: {e}")
+            prev_rates = None
 
         alert_messages = []
 
@@ -1058,7 +1062,10 @@ class DashboardPage(tk.Frame):
 
     def _get_chg_tooltip(self, tenor_key):
         """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
-        prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        try:
+            prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
+        except Exception:
+            return "Error loading data"
 
         if not prev_rates or tenor_key not in prev_rates:
             return "No previous data"
