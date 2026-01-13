@@ -85,6 +85,8 @@ class ExcelEngine:
 
         # Swedbank contribution data (from Nibor fixing workbook)
         self.swedbank_contribution: dict[str, dict] = {}
+        self.swedbank_contribution_previous: dict[str, dict] = {}
+        self.swedbank_contribution_change: dict[str, dict] = {}
 
         threading.Thread(target=self._load_day_files_bg, daemon=True).start()
 
@@ -208,7 +210,7 @@ class ExcelEngine:
                 val = ws[cell_ref].value
                 cm_rates[key] = safe_float(val, None)
 
-            # Extract Swedbank contribution data
+            # Extract Swedbank contribution data from latest sheet
             from config import SWEDBANK_CONTRIBUTION_CELLS
             swedbank_contrib = {}
             for tenor, cells in SWEDBANK_CONTRIBUTION_CELLS.items():
@@ -217,11 +219,46 @@ class ExcelEngine:
                     "AA": safe_float(ws[cells["AA"]].value, None)
                 }
 
+            # Extract Swedbank contribution from second-to-last sheet for change calculation
+            swedbank_contrib_prev = {}
+            swedbank_change = {}
+            if len(wb.sheetnames) >= 2:
+                # Read second-to-last sheet
+                prev_sheet_name = wb.sheetnames[-2]
+                ws_prev = wb[prev_sheet_name]
+
+                for tenor, cells in SWEDBANK_CONTRIBUTION_CELLS.items():
+                    prev_z = safe_float(ws_prev[cells["Z"]].value, None)
+                    prev_aa = safe_float(ws_prev[cells["AA"]].value, None)
+
+                    swedbank_contrib_prev[tenor] = {
+                        "Z": prev_z,
+                        "AA": prev_aa
+                    }
+
+                    # Calculate change (current - previous) with 2 decimals
+                    curr_z = swedbank_contrib[tenor]["Z"]
+                    curr_aa = swedbank_contrib[tenor]["AA"]
+
+                    change_z = None
+                    change_aa = None
+                    if curr_z is not None and prev_z is not None:
+                        change_z = round(curr_z - prev_z, 2)
+                    if curr_aa is not None and prev_aa is not None:
+                        change_aa = round(curr_aa - prev_aa, 2)
+
+                    swedbank_change[tenor] = {
+                        "Z": change_z,
+                        "AA": change_aa
+                    }
+
             wb.close()
 
             self.recon_data = recon
             self.excel_cm_rates = cm_rates
             self.swedbank_contribution = swedbank_contrib
+            self.swedbank_contribution_previous = swedbank_contrib_prev
+            self.swedbank_contribution_change = swedbank_change
             self.last_loaded_ts = datetime.now()
 
             self.load_weights_file()

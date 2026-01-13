@@ -70,9 +70,9 @@ class DashboardPage(tk.Frame):
         self.funding_table_frame.pack(fill="x", padx=pad, pady=(0, pad))
 
         # Headers
-        headers = ["TENOR", "FUNDING RATE", "SPREAD", "FINAL RATE"]
+        headers = ["TENOR", "FUNDING RATE", "SPREAD", "FINAL RATE", "CHANGE"]
         header_frame = tk.Frame(self.funding_table_frame, bg=THEME["bg_card_2"])
-        header_frame.grid(row=0, column=0, columnspan=4, sticky="ew", padx=10, pady=(10, 5))
+        header_frame.grid(row=0, column=0, columnspan=5, sticky="ew", padx=10, pady=(10, 5))
 
         for i, header_text in enumerate(headers):
             tk.Label(header_frame, text=header_text, fg=THEME["muted"],
@@ -99,19 +99,27 @@ class DashboardPage(tk.Frame):
                                                padx=10, pady=8, sticky="w")
 
             cells = {}
-            for col_idx, cell_type in enumerate(["funding", "spread", "final"], start=1):
+            for col_idx, cell_type in enumerate(["funding", "spread", "final", "change"], start=1):
+                # Determine color based on cell type
+                if cell_type == "final":
+                    fg_color = THEME["accent"]
+                elif cell_type == "change":
+                    fg_color = THEME["text"]  # Will be set dynamically based on +/-
+                else:
+                    fg_color = THEME["text"]
+
                 cell_label = tk.Label(self.funding_table_frame, text="-",
-                                    fg=THEME["accent"] if cell_type == "final" else THEME["text"],
-                                    bg=THEME["chip"] if cell_type != "spread" else THEME["bg_card_2"],
+                                    fg=fg_color,
+                                    bg=THEME["chip"] if cell_type not in ["spread", "change"] else THEME["bg_card_2"],
                                     font=("Consolas", CURRENT_MODE["body"], "bold"),
                                     width=18,
-                                    cursor="hand2" if cell_type != "spread" else "arrow",
-                                    relief="raised" if cell_type != "spread" else "flat",
-                                    bd=1 if cell_type != "spread" else 0,
+                                    cursor="hand2" if cell_type not in ["spread", "change"] else "arrow",
+                                    relief="raised" if cell_type not in ["spread", "change"] else "flat",
+                                    bd=1 if cell_type not in ["spread", "change"] else 0,
                                     anchor="e")
                 cell_label.grid(row=row_idx, column=col_idx, padx=5, pady=8, sticky="e")
 
-                if cell_type != "spread":
+                if cell_type not in ["spread", "change"]:
                     cell_label.bind("<Button-1>",
                                   lambda e, t=tenor["key"]: self._show_funding_details(t))
                     cell_label.bind("<Enter>",
@@ -357,6 +365,8 @@ class DashboardPage(tk.Frame):
                     cells["spread"].config(text=f"{spread:.2f}%")
                 if "final" in cells:
                     cells["final"].config(text="N/A")
+                if "change" in cells:
+                    cells["change"].config(text="-", fg=THEME["text"])
             return
 
         weights = self._get_weights()
@@ -384,6 +394,15 @@ class DashboardPage(tk.Frame):
             if funding_rate is not None:
                 final_rate = funding_rate + spread
 
+            # Get change from Excel engine (comparison between latest and second-to-last sheet)
+            change_val = None
+            if hasattr(self.app, 'excel_engine') and hasattr(self.app.excel_engine, 'swedbank_contribution_change'):
+                # Map tenor_key (1m, 2m, etc.) to Excel tenor (1M, 2M, etc.)
+                excel_tenor = tenor_key.upper()  # "1m" -> "1M"
+                if excel_tenor in self.app.excel_engine.swedbank_contribution_change:
+                    # Use Z cell change (could also use AA)
+                    change_val = self.app.excel_engine.swedbank_contribution_change[excel_tenor].get("Z")
+
             # Update UI cells
             cells = self.funding_cells.get(tenor_key, {})
             if "funding" in cells:
@@ -392,6 +411,15 @@ class DashboardPage(tk.Frame):
                 cells["spread"].config(text=f"{spread:.2f}%")
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate is not None else "N/A")
+            if "change" in cells:
+                if change_val is not None:
+                    # Format with +/- sign and 2 decimals
+                    change_text = f"{change_val:+.2f}"
+                    # Color based on positive/negative
+                    change_color = THEME["good"] if change_val > 0 else (THEME["bad"] if change_val < 0 else THEME["text"])
+                    cells["change"].config(text=change_text, fg=change_color)
+                else:
+                    cells["change"].config(text="-", fg=THEME["text"])
 
             # Store for popup
             self.app.funding_calc_data[tenor_key] = {
