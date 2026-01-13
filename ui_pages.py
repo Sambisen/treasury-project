@@ -241,13 +241,17 @@ class DashboardPage(tk.Frame):
             tenor_key_capture = tenor["key"]
             ToolTip(final_lbl, lambda t=tenor_key_capture: self._get_nibor_tooltip(t))
 
-            # CHG (Change from previous day)
+            # CHG (Change from last saved snapshot)
             chg_lbl = tk.Label(funding_frame, text="-",
                               fg=THEME["muted"], bg=THEME["bg_card"],
                               font=("Consolas", CURRENT_MODE["body"]),
                               width=8, anchor="center")
             chg_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
             cells["chg"] = chg_lbl
+
+            # Tooltip showing previous NIBOR rate for sanity check
+            tenor_key_chg = tenor["key"]
+            ToolTip(chg_lbl, lambda t=tenor_key_chg: self._get_chg_tooltip(t))
 
             # Match indicator - Professional text badge
             match_lbl = tk.Label(funding_frame, text="PEND",
@@ -1051,6 +1055,34 @@ class DashboardPage(tk.Frame):
         if final_rate is not None:
             return f"NIBOR {tenor_key.upper()}: {final_rate:.4f}%"
         return None
+
+    def _get_chg_tooltip(self, tenor_key):
+        """Get previous NIBOR rate and date for CHG tooltip."""
+        from history import get_previous_day_rates, load_history
+
+        prev_rates = get_previous_day_rates()
+        if not prev_rates or tenor_key not in prev_rates:
+            return "No previous data"
+
+        prev_nibor = prev_rates[tenor_key].get('nibor')
+        if prev_nibor is None:
+            return "No previous rate"
+
+        # Get the date of the previous snapshot
+        history = load_history()
+        dates = sorted(history.keys(), reverse=True)
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        prev_date = None
+        for d in dates:
+            if d < today:
+                prev_date = d
+                break
+
+        if prev_date:
+            return f"Prev: {prev_nibor:.2f}%\nDate: {prev_date}"
+        else:
+            return f"Prev: {prev_nibor:.2f}%"
 
     def _get_funding_tooltip(self, tenor_key):
         """Get Funding Rate breakdown: EUR/USD implied (4 dec), NOK (2 dec)."""
