@@ -896,7 +896,7 @@ class DashboardPage(tk.Frame):
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
 
-            # CHG (Change from previous day)
+            # CHG (Change from last saved snapshot)
             if "chg" in cells:
                 prev_nibor = None
                 if prev_rates and tenor_key in prev_rates:
@@ -906,11 +906,14 @@ class DashboardPage(tk.Frame):
                     chg = final_rate - prev_nibor
                     if chg > 0:
                         chg_text = f"+{chg:.2f}"
+                        chg_color = THEME["good"]  # Green for increase
                     elif chg < 0:
                         chg_text = f"{chg:.2f}"
+                        chg_color = THEME["bad"]   # Red for decrease
                     else:
                         chg_text = "0.00"
-                    cells["chg"].config(text=chg_text, fg=THEME["text"])
+                        chg_color = THEME["muted"]
+                    cells["chg"].config(text=chg_text, fg=chg_color)
                 else:
                     cells["chg"].config(text="-", fg=THEME["muted"])
 
