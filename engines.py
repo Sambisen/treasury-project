@@ -354,9 +354,69 @@ class ExcelEngine:
             
             wb.close()
             return rates
-            
+
         except Exception as e:
             log.info(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
+            return None
+
+    def get_previous_sheet_nibor_rates(self):
+        """
+        Get NIBOR rates from the SECOND-TO-LAST sheet in the workbook.
+
+        Used for CHG calculation - compares current rates with previous saved sheet.
+        Reads cells AA30-AA33 for 1M, 2M, 3M, 6M NIBOR rates.
+
+        Returns:
+            dict: {"1m": {"nibor": 4.52}, "2m": {...}, ...} or None if failed
+            Also returns the sheet name (date) as "_date" key
+        """
+        log.info("[ExcelEngine] Loading previous sheet NIBOR rates for CHG calculation...")
+
+        # Mapping: tenor -> cell address for NIBOR rates
+        nibor_cell_mapping = {
+            "1m": "AA30",
+            "2m": "AA31",
+            "3m": "AA32",
+            "6m": "AA33"
+        }
+
+        try:
+            # Try to load workbook
+            try:
+                wb = load_workbook(NIBOR_WORKBOOK_PATH, data_only=True, read_only=True)
+            except Exception:
+                temp_path = copy_to_cache_fast(NIBOR_WORKBOOK_PATH)
+                wb = load_workbook(temp_path, data_only=True, read_only=True)
+
+            # Find date-formatted sheets (YYYY-MM-DD format)
+            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+            date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
+
+            if len(date_sheets) < 2:
+                log.info(f"[ExcelEngine] Not enough sheets for CHG calculation (found {len(date_sheets)})")
+                wb.close()
+                return None
+
+            # Get second-to-last sheet (sorted by date)
+            sorted_sheets = sorted(date_sheets)
+            prev_sheet_name = sorted_sheets[-2]  # Second to last
+            prev_sheet = wb[prev_sheet_name]
+
+            log.info(f"[ExcelEngine] Using previous sheet for CHG: {prev_sheet_name}")
+
+            # Extract NIBOR rates from cells
+            rates = {"_date": prev_sheet_name}
+            for tenor, cell_addr in nibor_cell_mapping.items():
+                value = prev_sheet[cell_addr].value
+                nibor_value = safe_float(value, None)
+                rates[tenor] = {"nibor": nibor_value}
+                log.info(f"[ExcelEngine]   {tenor} ({cell_addr}): {nibor_value}")
+
+            wb.close()
+            return rates
+
+        except Exception as e:
+            log.info(f"[ExcelEngine] ERROR loading previous sheet NIBOR rates: {e}")
             return None
 
     def get_latest_weights(self, weights_path):

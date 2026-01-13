@@ -860,8 +860,8 @@ class DashboardPage(tk.Frame):
         weights = self._get_weights()
         self.app.funding_calc_data = {}
 
-        # Get previous day rates for CHG calculation
-        prev_rates = get_previous_day_rates()
+        # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
+        prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
 
         alert_messages = []
 
@@ -1057,10 +1057,9 @@ class DashboardPage(tk.Frame):
         return None
 
     def _get_chg_tooltip(self, tenor_key):
-        """Get previous NIBOR rate and date for CHG tooltip."""
-        from history import get_previous_day_rates, load_history
+        """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
+        prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
 
-        prev_rates = get_previous_day_rates()
         if not prev_rates or tenor_key not in prev_rates:
             return "No previous data"
 
@@ -1068,19 +1067,11 @@ class DashboardPage(tk.Frame):
         if prev_nibor is None:
             return "No previous rate"
 
-        # Get the date of the previous snapshot
-        history = load_history()
-        dates = sorted(history.keys(), reverse=True)
-        today = datetime.now().strftime("%Y-%m-%d")
-
-        prev_date = None
-        for d in dates:
-            if d < today:
-                prev_date = d
-                break
+        # Get the date from the sheet name
+        prev_date = prev_rates.get("_date", "")
 
         if prev_date:
-            return f"Prev: {prev_nibor:.2f}%\nDate: {prev_date}"
+            return f"Prev: {prev_nibor:.2f}%\nSheet: {prev_date}"
         else:
             return f"Prev: {prev_nibor:.2f}%"
 
