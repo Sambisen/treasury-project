@@ -359,47 +359,69 @@ class NiborTerminalCTK(ctk.CTk):
                     text_color=THEME["text_light"],
                     font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(20, 15))
 
-        # Navigation buttons with icons
+        # Navigation buttons with line-art icons (icon, name, page_class)
         self.PAGES_CONFIG = [
-            ("dashboard", "📊  NIBOR", DashboardPage),
-            ("nibor_recon", "📈  Nibor Recon", ReconPage),
-            ("nok_implied", "💱  NOK Implied", NokImpliedPage),
-            ("weights", "⚖️  Weights", WeightsPage),
-            ("history", "📜  History", HistoryPage),
-            ("audit_log", "📋  Audit Log", AuditLogPage),
-            ("nibor_meta", "📊  Meta Data", NiborMetaDataPage),
-            ("rules_logic", "📐  Rules & Logic", RulesPage),
-            ("bloomberg", "🔷  Bloomberg", BloombergPage),
-            ("nibor_days", "📅  Nibor Days", NiborDaysPage),
-            ("settings", "⚙️  Settings", SettingsPage),
+            ("dashboard", "◈", "NIBOR", DashboardPage),
+            ("nibor_recon", "◇", "Nibor Recon", ReconPage),
+            ("nok_implied", "⬡", "NOK Implied", NokImpliedPage),
+            ("weights", "◎", "Weights", WeightsPage),
+            ("history", "☰", "History", HistoryPage),
+            ("audit_log", "▤", "Audit Log", AuditLogPage),
+            ("nibor_meta", "◫", "Meta Data", NiborMetaDataPage),
+            ("rules_logic", "△", "Rules & Logic", RulesPage),
+            ("bloomberg", "◆", "Bloomberg", BloombergPage),
+            ("nibor_days", "▦", "Nibor Days", NiborDaysPage),
+            ("settings", "⚙", "Settings", SettingsPage),
         ]
 
-        for page_key, page_name, _ in self.PAGES_CONFIG:
-            # Container frame for active indicator
-            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=40)
-            btn_container.pack(fill="x", pady=1)
+        # Hover color: rgba(255,255,255,0.05) = #FFFFFF with 5% opacity on dark bg
+        hover_color = "#1A1F2E"  # Approximation of white 5% on dark navy
+        # Active bg: rgba(238,118,35,0.1) = orange with 10% opacity
+        active_bg = "#1E1714"  # Approximation of orange 10% on dark navy
+
+        for page_key, icon, page_name, _ in self.PAGES_CONFIG:
+            # Container frame - 44px height as per spec
+            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=44)
+            btn_container.pack(fill="x", pady=0)
             btn_container.pack_propagate(False)
 
-            # Active indicator (orange bar on left)
-            indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3)
+            # Active indicator (orange bar on left - 3px)
+            indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3, corner_radius=0)
             indicator.pack(side="left", fill="y")
 
-            # Modern CTk button for navigation
+            # Icon label (20x20px area, 16px gap to text)
+            icon_label = ctk.CTkLabel(
+                btn_container,
+                text=icon,
+                text_color=THEME["muted"],
+                font=("Segoe UI", 14),
+                width=20
+            )
+            icon_label.pack(side="left", padx=(12, 16))
+
+            # Text button
             btn = ctk.CTkButton(
                 btn_container,
                 text=page_name,
                 command=lambda pk=page_key: self.show_page(pk),
                 fg_color="transparent",
-                hover_color=THEME["bg_nav_sel"],
+                hover_color=hover_color,
                 text_color=THEME["text"],
-                font=FONTS["body"],
+                font=("Segoe UI", 11),
                 anchor="w",
                 corner_radius=0,
-                height=38
+                height=44
             )
-            btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
+            btn.pack(side="left", fill="x", expand=True)
 
-            self._nav_buttons[page_key] = {"btn": btn, "indicator": indicator, "container": btn_container}
+            self._nav_buttons[page_key] = {
+                "btn": btn,
+                "indicator": indicator,
+                "container": btn_container,
+                "icon": icon_label,
+                "hover_color": hover_color,
+                "active_bg": active_bg
+            }
 
         # Divider
         ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
@@ -454,7 +476,7 @@ class NiborTerminalCTK(ctk.CTk):
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
-        for key, _, page_class in self.PAGES_CONFIG:
+        for key, icon, name, page_class in self.PAGES_CONFIG:
             page_instance = page_class(self.content, self)
             self._pages[key] = page_instance
             page_instance.grid(row=0, column=0, sticky="nsew")
@@ -811,23 +833,29 @@ class NiborTerminalCTK(ctk.CTk):
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
             indicator = btn_data.get("indicator") if isinstance(btn_data, dict) else None
             container = btn_data.get("container") if isinstance(btn_data, dict) else None
+            icon = btn_data.get("icon") if isinstance(btn_data, dict) else None
+            active_bg = btn_data.get("active_bg", "#1E1714") if isinstance(btn_data, dict) else "#1E1714"
 
             if btn_key == key:
-                # Active state - orange text and indicator bar
-                btn.configure(text_color=THEME["accent"], fg_color=THEME["bg_nav_sel"],
+                # Active state: orange text, orange left border (3px), subtle orange bg
+                btn.configure(text_color=THEME["accent"], fg_color="transparent",
                              font=("Segoe UI Semibold", 11))
                 if indicator:
                     indicator.configure(fg_color=THEME["accent"])
                 if container:
-                    container.configure(fg_color=THEME["bg_nav_sel"])
+                    container.configure(fg_color=active_bg)
+                if icon:
+                    icon.configure(text_color=THEME["accent"])
             else:
                 # Inactive state
                 btn.configure(text_color=THEME["text"], fg_color="transparent",
-                             font=FONTS["body"])
+                             font=("Segoe UI", 11))
                 if indicator:
                     indicator.configure(fg_color="transparent")
                 if container:
                     container.configure(fg_color="transparent")
+                if icon:
+                    icon.configure(text_color=THEME["muted"])
 
         if key == "nibor_recon" and focus:
             self._pages["nibor_recon"].set_focus_mode(focus)

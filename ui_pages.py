@@ -170,45 +170,41 @@ class DashboardPage(BaseFrame):
         funding_frame.pack(padx=10, pady=10)
 
         # ================================================================
-        # TABLE HEADER - Dark theme
+        # TABLE HEADER - Grey text on transparent background
         # ================================================================
+        header_text_color = "#8B92A8"  # Grey header text
+        row_separator_color = "#1A1F2E"  # rgba(255,255,255,0.05) approximation
 
-        # ROW 0-1: Empty for alignment
-        for col in range(5):
-            tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=0, column=col, sticky="nsew")
-            tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=1, column=col, sticky="nsew")
-
-        # Separator
-        tk.Frame(funding_frame, bg=THEME["table_border"], width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=8)
-
-        # ROW 0-1: Empty for recon column
-        tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=0, column=6, sticky="nsew")
-        tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=1, column=6, sticky="nsew")
-
-        # ROW 2: Main headers - dark header row
+        # ROW 2: Main headers - grey text, transparent bg
         headers = [
-            ("TENOR", 10),
-            ("FUNDING RATE", 15),
-            ("SPREAD", 11),
-            ("NIBOR", 15),
+            ("TENOR", 12),
+            ("FUNDING RATE", 16),
+            ("SPREAD", 12),
+            ("NIBOR", 16),
             ("CHG", 10),
         ]
         for col, (text, width) in enumerate(headers):
             tk.Label(funding_frame, text=text,
-                    fg=THEME["text"],
-                    bg=THEME["table_header"],
-                    font=FONTS["table_header"],
-                    width=width, pady=12).grid(row=2, column=col, sticky="nsew")
+                    fg=header_text_color,
+                    bg=THEME["bg_card"],
+                    font=("Segoe UI Semibold", 9),
+                    width=width, pady=16, padx=20).grid(row=0, column=col, sticky="nsew")
 
-        # ROW 2: Recon header
+        # Vertical separator between main cols and recon
+        tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=12)
+
+        # Recon header
         tk.Label(funding_frame, text="NIBOR Contribution",
-                fg=THEME["text"],
-                bg=THEME["table_header"],
-                font=FONTS["table_header"],
-                width=18, pady=12).grid(row=2, column=6, sticky="nsew")
+                fg=header_text_color,
+                bg=THEME["bg_card"],
+                font=("Segoe UI Semibold", 9),
+                width=18, pady=16, padx=20).grid(row=0, column=6, sticky="nsew")
+
+        # Header separator line
+        tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=1, column=0, columnspan=7, sticky="ew")
 
         # ================================================================
-        # DATA ROWS
+        # DATA ROWS - Transparent background with row separators
         # ================================================================
         self.funding_cells = {}
         tenors = [
@@ -219,25 +215,29 @@ class DashboardPage(BaseFrame):
             {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "disabled": False}
         ]
 
+        row_bg = THEME["bg_card"]  # Transparent/card background for all rows
+
         for i, tenor in enumerate(tenors):
-            row_idx = i + 3
-            row_bg = THEME["row_even"] if i % 2 == 0 else THEME["row_odd"]
+            row_idx = (i * 2) + 2  # Leave room for separator rows
 
             # Disabled tenor (1W)
             if tenor.get("disabled"):
                 tk.Label(funding_frame, text=tenor["label"],
                         fg=THEME["text_light"], bg=row_bg,
-                        font=FONTS["body"], width=10, pady=12).grid(row=row_idx, column=0, sticky="ew")
+                        font=("Segoe UI", 11), width=12, pady=16, padx=20).grid(row=row_idx, column=0, sticky="ew")
 
                 for col in range(1, 5):
-                    tk.Label(funding_frame, text="---", fg="#CBD5E0",
+                    tk.Label(funding_frame, text="---", fg=THEME["text_light"],
                             bg=row_bg, font=("Consolas", 11),
-                            anchor="center", pady=14).grid(row=row_idx, column=col, sticky="ew")
+                            anchor="center", pady=16, padx=20).grid(row=row_idx, column=col, sticky="ew")
 
                 # Single recon column for disabled row
-                tk.Label(funding_frame, text="---", fg="#CBD5E0",
+                tk.Label(funding_frame, text="---", fg=THEME["text_light"],
                         bg=row_bg, font=("Consolas", 10),
-                        anchor="center", pady=14).grid(row=row_idx, column=6, sticky="ew")
+                        anchor="center", pady=16, padx=20).grid(row=row_idx, column=6, sticky="ew")
+
+                # Row separator
+                tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
 
                 self.funding_cells[tenor["key"]] = {}
                 continue
@@ -245,16 +245,16 @@ class DashboardPage(BaseFrame):
             # TENOR label - bold and prominent
             tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
                     bg=row_bg, font=("Segoe UI Semibold", 12),
-                    width=10, anchor="center", pady=14).grid(row=row_idx, column=0, sticky="ew")
+                    width=12, anchor="center", pady=16, padx=20).grid(row=row_idx, column=0, sticky="ew")
 
             cells = {}
             hover_bg = THEME["bg_card_2"]
 
-            # FUNDING RATE - clickable with hover
+            # FUNDING RATE - monospace, clickable with hover
             funding_lbl = tk.Label(funding_frame, text="-",
                                   fg=THEME["text"], bg=row_bg,
                                   font=("Consolas", 11),
-                                  width=15, cursor="hand2", pady=14)
+                                  width=16, cursor="hand2", pady=16, padx=20)
             funding_lbl.grid(row=row_idx, column=1, sticky="ew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             funding_lbl.bind("<Enter>", lambda e, lbl=funding_lbl, hbg=hover_bg: lbl.config(bg=hbg))
@@ -262,19 +262,19 @@ class DashboardPage(BaseFrame):
             cells["funding"] = funding_lbl
             ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
 
-            # SPREAD
+            # SPREAD - monospace
             spread_lbl = tk.Label(funding_frame, text="-",
                                  fg=THEME["muted"], bg=row_bg,
                                  font=("Consolas", 11),
-                                 width=11, pady=14)
+                                 width=12, pady=16, padx=20)
             spread_lbl.grid(row=row_idx, column=2, sticky="ew")
             cells["spread"] = spread_lbl
 
-            # NIBOR - Large, bold, accent color
+            # NIBOR - Large, bold, accent color, monospace
             final_lbl = tk.Label(funding_frame, text="-",
-                                fg=THEME["accent_secondary"], bg=row_bg,
+                                fg=THEME["accent"], bg=row_bg,
                                 font=("Consolas", 14, "bold"),
-                                width=15, cursor="hand2", pady=14)
+                                width=16, cursor="hand2", pady=16, padx=20)
             final_lbl.grid(row=row_idx, column=3, sticky="ew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             final_lbl.bind("<Enter>", lambda e, lbl=final_lbl, hbg=hover_bg: lbl.config(bg=hbg))
@@ -282,22 +282,25 @@ class DashboardPage(BaseFrame):
             cells["final"] = final_lbl
             ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
 
-            # CHG
+            # CHG - monospace
             chg_lbl = tk.Label(funding_frame, text="-",
                               fg=THEME["muted"], bg=row_bg,
                               font=("Consolas", 11),
-                              width=9, pady=14)
+                              width=10, pady=16, padx=20)
             chg_lbl.grid(row=row_idx, column=4, sticky="ew")
             cells["chg"] = chg_lbl
             ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            # Single NIBOR Contribution reconciliation column
+            # NIBOR Contribution - will be replaced with pill badge
             nibor_contrib_lbl = tk.Label(funding_frame, text="-",
                                         fg=THEME["text_light"], bg=row_bg,
                                         font=("Consolas", 11),
-                                        width=18, pady=14)
+                                        width=18, pady=16, padx=20)
             nibor_contrib_lbl.grid(row=row_idx, column=6, sticky="ew")
             cells["nibor_contrib"] = nibor_contrib_lbl
+
+            # Row separator
+            tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
 
             cells["excel_row"] = tenor["excel_row"]
             cells["excel_col"] = tenor["excel_col"]
@@ -305,66 +308,119 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # CONFIRM RATES BUTTON - Below the NIBOR Rates table
+        # CONFIRM RATES BUTTON - Gradient style with rounded corners
         # ====================================================================
-        confirm_btn_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        confirm_btn_frame.pack(anchor="center", pady=(15, 0))
+        if CTK_AVAILABLE:
+            confirm_btn_frame = ctk.CTkFrame(content, fg_color="transparent")
+        else:
+            confirm_btn_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        confirm_btn_frame.pack(anchor="center", pady=(20, 0))
 
-        self.confirm_rates_btn = OnyxButtonTK(
-            confirm_btn_frame,
-            "Confirm rates",
-            command=self._on_confirm_rates,
-            variant="primary"
-        )
+        if CTK_AVAILABLE:
+            self.confirm_rates_btn = ctk.CTkButton(
+                confirm_btn_frame,
+                text="Confirm rates",
+                command=self._on_confirm_rates,
+                fg_color=THEME["accent"],
+                hover_color=THEME["accent_hover"],
+                text_color="#FFFFFF",
+                font=("Segoe UI Semibold", 13),
+                corner_radius=12,
+                width=200,
+                height=48
+            )
+        else:
+            self.confirm_rates_btn = OnyxButtonTK(
+                confirm_btn_frame,
+                "Confirm rates",
+                command=self._on_confirm_rates,
+                variant="primary"
+            )
         self.confirm_rates_btn.pack()
 
         # ====================================================================
-        # DATA SOURCES BAR - Moved here (after table, before alerts)
+        # DATA SOURCES BAR - Pill badges style
         # ====================================================================
-        status_bar = tk.Frame(content, bg=THEME["bg_card_2"],
-                             highlightthickness=1,
-                             highlightbackground=THEME["border"])
-        status_bar.pack(fill="x", pady=(15, 0))
-        
-        tk.Label(status_bar, text="Data Sources:",
-                fg=THEME["muted"],
-                bg=THEME["bg_card_2"],
-                font=FONTS["body"]).pack(side="left", padx=(20, 15), pady=12)
-        
-        self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card_2"])
-        self.status_badges_frame.pack(side="left", fill="x", expand=True)
-        
+        if CTK_AVAILABLE:
+            status_bar = ctk.CTkFrame(content, fg_color=THEME["bg_card"],
+                                      corner_radius=CTK_CORNER_RADIUS["frame"],
+                                      border_width=1, border_color=THEME["border"])
+        else:
+            status_bar = tk.Frame(content, bg=THEME["bg_card_2"],
+                                 highlightthickness=1,
+                                 highlightbackground=THEME["border"])
+        status_bar.pack(fill="x", pady=(20, 0))
+
+        # Data Sources label
+        if CTK_AVAILABLE:
+            ctk.CTkLabel(status_bar, text="Data Sources:",
+                        text_color=THEME["muted"],
+                        font=("Segoe UI", 11)).pack(side="left", padx=(20, 15), pady=14)
+        else:
+            tk.Label(status_bar, text="Data Sources:",
+                    fg=THEME["muted"],
+                    bg=THEME["bg_card_2"],
+                    font=FONTS["body"]).pack(side="left", padx=(20, 15), pady=12)
+
+        # Pill badges container
+        if CTK_AVAILABLE:
+            self.status_badges_frame = ctk.CTkFrame(status_bar, fg_color="transparent")
+        else:
+            self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card_2"])
+        self.status_badges_frame.pack(side="left", fill="x", expand=True, pady=10)
+
         self.status_badges = {}
-        
-        self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
-                                          fg=THEME["muted"],
-                                          bg=THEME["bg_card_2"],
-                                          font=FONTS["body"])
-        self.status_summary_lbl.pack(side="right", padx=20, pady=12)
+
+        # Summary label (right side)
+        if CTK_AVAILABLE:
+            self.status_summary_lbl = ctk.CTkLabel(status_bar, text="",
+                                                   text_color=THEME["muted"],
+                                                   font=("Segoe UI", 10))
+        else:
+            self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
+                                              fg=THEME["muted"],
+                                              bg=THEME["bg_card_2"],
+                                              font=FONTS["body"])
+        self.status_summary_lbl.pack(side="right", padx=20, pady=14)
 
         # ===================================================================
-        # ACTIVE ALERTS - ALWAYS VISIBLE
+        # ACTIVE ALERTS - Card style with left border
         # ===================================================================
-        alerts_container = tk.Frame(content, bg=THEME["bg_panel"])
-        alerts_container.pack(fill="x", pady=(15, 10))
+        if CTK_AVAILABLE:
+            alerts_container = ctk.CTkFrame(content, fg_color="transparent")
+        else:
+            alerts_container = tk.Frame(content, bg=THEME["bg_panel"])
+        alerts_container.pack(fill="x", pady=(20, 10))
 
-        # Alert header with icon
-        alerts_header = tk.Frame(alerts_container, bg=THEME["bg_panel"])
-        alerts_header.pack(fill="x", pady=(0, 10))
+        # Alert header
+        if CTK_AVAILABLE:
+            alerts_header = ctk.CTkFrame(alerts_container, fg_color="transparent")
+            alerts_header.pack(fill="x", pady=(0, 12))
+            ctk.CTkLabel(alerts_header, text="⚠", text_color=THEME["warning"],
+                        font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
+            ctk.CTkLabel(alerts_header, text="ACTIVE ALERTS", text_color="#8B92A8",
+                        font=("Segoe UI Semibold", 10)).pack(side="left")
+        else:
+            alerts_header = tk.Frame(alerts_container, bg=THEME["bg_panel"])
+            alerts_header.pack(fill="x", pady=(0, 10))
+            tk.Label(alerts_header, text="⚠", fg=THEME["warning"],
+                    bg=THEME["bg_panel"],
+                    font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
+            tk.Label(alerts_header, text="ACTIVE ALERTS", fg=THEME["text"],
+                    bg=THEME["bg_panel"],
+                    font=FONTS["h3"]).pack(side="left")
 
-        tk.Label(alerts_header, text="⚠", fg=THEME["warning"],
-                bg=THEME["bg_panel"],
-                font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
-
-        tk.Label(alerts_header, text="ACTIVE ALERTS", fg=THEME["text"],
-                bg=THEME["bg_panel"],
-                font=FONTS["h3"]).pack(side="left")
-
-        # Fixed height scrollable box
-        self.alerts_box = tk.Frame(alerts_container, bg=THEME["bg_card"],
-                                  highlightthickness=1,
-                                  highlightbackground=THEME["border"],
-                                  height=ALERTS_BOX_HEIGHT)
+        # Fixed height scrollable box with rounded corners
+        if CTK_AVAILABLE:
+            self.alerts_box = ctk.CTkFrame(alerts_container, fg_color=THEME["bg_card"],
+                                          corner_radius=CTK_CORNER_RADIUS["frame"],
+                                          border_width=1, border_color=THEME["border"],
+                                          height=ALERTS_BOX_HEIGHT)
+        else:
+            self.alerts_box = tk.Frame(alerts_container, bg=THEME["bg_card"],
+                                      highlightthickness=1,
+                                      highlightbackground=THEME["border"],
+                                      height=ALERTS_BOX_HEIGHT)
         self.alerts_box.pack(fill="x")
         self.alerts_box.pack_propagate(False)
 
