@@ -92,12 +92,12 @@ class DashboardPage(tk.Frame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE with Norway flag 🇳🇴
+        # NIBOR RATES TABLE
         # ====================================================================
         header_row = tk.Frame(content, bg=THEME["bg_panel"])
         header_row.pack(anchor="center", pady=(10, 15))
 
-        tk.Label(header_row, text="🇳🇴 NIBOR RATES (LIVE)",
+        tk.Label(header_row, text="NIBOR RATES",
                 fg=THEME["accent_secondary"],
                 bg=THEME["bg_panel"],
                 font=FONTS["h2"]).pack(side="left")
