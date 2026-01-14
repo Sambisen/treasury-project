@@ -88,50 +88,9 @@ class DashboardPage(tk.Frame):
         content = tk.Frame(self, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # ====================================================================
-        # NIBOR CALCULATION SECTION
-        # ====================================================================
-        tk.Label(content, text="NIBOR CALCULATION",
-                fg=THEME["muted"],
-                bg=THEME["bg_panel"],
-                font=FONTS["h3"]).pack(anchor="center", pady=(15, 5))
-        
-        # Radio buttons for calculation model
-        model_selection_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        model_selection_frame.pack(anchor="center", pady=(0, 15))
-
+        # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
 
-        swedbank_radio = tk.Radiobutton(
-            model_selection_frame,
-            text="Swedbank Calc",
-            variable=self.calc_model_var,
-            value="swedbank",
-            command=self._on_dashboard_model_change,
-            bg=THEME["bg_panel"],
-            fg=THEME["text"],
-            selectcolor=THEME["bg_card"],
-            activebackground=THEME["bg_panel"],
-            activeforeground=THEME["accent"],
-            font=FONTS["body"]
-        )
-        swedbank_radio.pack(side="left", padx=10)
-
-        nore_radio = tk.Radiobutton(
-            model_selection_frame,
-            text="Nore Calc",
-            variable=self.calc_model_var,
-            value="nore",
-            command=self._on_dashboard_model_change,
-            bg=THEME["bg_panel"],
-            fg=THEME["text"],
-            selectcolor=THEME["bg_card"],
-            activebackground=THEME["bg_panel"],
-            activeforeground=THEME["accent"],
-            font=FONTS["body"]
-        )
-        nore_radio.pack(side="left", padx=10)
-        
         # ====================================================================
         # NIBOR RATES TABLE with Norway flag 🇳🇴
         # ====================================================================
@@ -241,30 +200,37 @@ class DashboardPage(tk.Frame):
         # Rows with data
         self.funding_cells = {}
         tenors = [
-            {"key": "1w", "label": "1W", "excel_row": None, "excel_col": None, "coming_soon": True},
-            {"key": "1m", "label": "1M", "excel_row": 30, "excel_col": 27, "coming_soon": False},
-            {"key": "2m", "label": "2M", "excel_row": 31, "excel_col": 27, "coming_soon": False},
-            {"key": "3m", "label": "3M", "excel_row": 32, "excel_col": 27, "coming_soon": False},
-            {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "coming_soon": False}
+            {"key": "1w", "label": "1W", "excel_row": None, "excel_col": None, "disabled": True},
+            {"key": "1m", "label": "1M", "excel_row": 30, "excel_col": 27, "disabled": False},
+            {"key": "2m", "label": "2M", "excel_row": 31, "excel_col": 27, "disabled": False},
+            {"key": "3m", "label": "3M", "excel_row": 32, "excel_col": 27, "disabled": False},
+            {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "disabled": False}
         ]
 
         for row_idx, tenor in enumerate(tenors, start=3):  # Start at row 3 (after headers)
-            # Handle "Coming soon" for 1W
-            if tenor.get("coming_soon"):
-                # Show dimmed "Coming soon" row for 1W
+            # Handle disabled tenors (like 1W) - show "---" in each column
+            if tenor.get("disabled"):
+                # COLUMN 0: Tenor label (dimmed)
                 tk.Label(funding_frame, text=tenor["label"], fg=THEME["muted"],
                         bg=THEME["bg_card"],
                         font=("Segoe UI", CURRENT_MODE["body"], "bold"),
                         width=8, anchor="center").grid(row=row_idx, column=0,
                                                  padx=5, pady=6, sticky="ew")
-                
-                # Span "Coming soon" across all columns
-                coming_soon_lbl = tk.Label(funding_frame, text="Coming soon",
-                                          fg=THEME["muted"], bg=THEME["bg_card"],
-                                          font=("Segoe UI", CURRENT_MODE["body"], "italic"),
-                                          anchor="center")
-                coming_soon_lbl.grid(row=row_idx, column=1, columnspan=8, padx=5, pady=6, sticky="ew")
-                
+
+                # COLUMNS 1-4: Core data columns with "---"
+                for col in range(1, 5):
+                    tk.Label(funding_frame, text="---", fg=THEME["muted"],
+                            bg=THEME["bg_card"],
+                            font=("Consolas", CURRENT_MODE["body"]),
+                            anchor="center").grid(row=row_idx, column=col, padx=5, pady=6, sticky="ew")
+
+                # COLUMNS 5-8: Reconciliation columns with "---"
+                for col in range(5, 9):
+                    tk.Label(funding_frame, text="---", fg=THEME["muted"],
+                            bg=THEME["bg_card"],
+                            font=("Consolas", CURRENT_MODE["small"]),
+                            width=14, anchor="center").grid(row=row_idx, column=col, padx=3, pady=6, sticky="ew")
+
                 # Store empty cells dict for consistency
                 self.funding_cells[tenor["key"]] = {}
                 continue

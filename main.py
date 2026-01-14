@@ -349,7 +349,7 @@ class NiborTerminalTK(tk.Tk):
 
         # Navigation buttons
         self.PAGES_CONFIG = [
-            ("dashboard", "Dashboard", DashboardPage),
+            ("dashboard", "NIBOR", DashboardPage),
             ("nibor_recon", "Nibor Recon", ReconPage),
             ("nok_implied", "NOK Implied", NokImpliedPage),
             ("weights", "Weights", WeightsPage),
