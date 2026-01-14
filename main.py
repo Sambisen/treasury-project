@@ -44,7 +44,7 @@ from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatus
 from history import save_snapshot
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage, HistoryPage,
+    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage,
     AuditLogPage, SettingsPage
 )
 
@@ -365,7 +365,6 @@ class NiborTerminalCTK(ctk.CTk):
             ("nibor_recon", "✅", "Nibor Recon", ReconPage),
             ("nok_implied", "📈", "NOK Implied", NokImpliedPage),
             ("weights", "⚖️", "Weights", WeightsPage),
-            ("history", "🕐", "History", HistoryPage),
             ("audit_log", "📋", "Audit Log", AuditLogPage),
             ("nibor_meta", "ℹ️", "Meta Data", NiborMetaDataPage),
             ("rules_logic", "📐", "Rules & Logic", RulesPage),
