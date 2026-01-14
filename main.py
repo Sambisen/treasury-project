@@ -449,8 +449,7 @@ class NiborTerminalCTK(ctk.CTk):
         # ====================================================================
         # CONTENT AREA
         # ====================================================================
-        self.content = ctk.CTkFrame(self.body, fg_color=THEME["bg_panel"],
-                               highlightthickness=0)
+        self.content = ctk.CTkFrame(self.body, fg_color=THEME["bg_panel"], corner_radius=0)
         self.content.grid(row=0, column=2, sticky="nsew")
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
