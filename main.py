@@ -357,7 +357,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
                     text_color=THEME["text_light"],
-                    font=("Segoe UI Semibold", 16)).pack(anchor="w", padx=20, pady=(20, 15))
+                    font=("Segoe UI Semibold", 21)).pack(anchor="w", padx=20, pady=(20, 15))
 
         # Navigation buttons with line-art icons (icon, name, page_class)
         self.PAGES_CONFIG = [
@@ -394,8 +394,8 @@ class NiborTerminalCTK(ctk.CTk):
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 18),
-                width=24
+                font=("Segoe UI", 23),
+                width=28
             )
             icon_label.pack(side="left", padx=(12, 12))
 
