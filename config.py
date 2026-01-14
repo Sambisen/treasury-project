@@ -256,7 +256,7 @@ DAY_FILES = [
 RECON_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
 
 # WEIGHTS (Monthly control)
-WEIGHTS_FILE = APP_DIR / "data" / "Nibor" / "Vikter" / "Weights.xlsx"
+WEIGHTS_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Weights.xlsx"
 
 # ============================================================================
 # CALCULATION MODEL PATHS & MAPPINGS
