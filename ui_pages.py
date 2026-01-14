@@ -92,59 +92,56 @@ class DashboardPage(tk.Frame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE - Clean Swedbank Theme
+        # NIBOR RATES TABLE - Dark Financial Terminal Theme
         # ====================================================================
 
-        # Title
+        # Title row
         title_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        title_frame.pack(anchor="center", pady=(15, 5))
+        title_frame.pack(anchor="center", pady=(20, 10))
 
         tk.Label(title_frame, text="NIBOR RATES",
-                fg=THEME["accent_secondary"],
+                fg=THEME["text"],
                 bg=THEME["bg_panel"],
                 font=FONTS["h2"]).pack(side="left")
 
         # History link
         if MATPLOTLIB_AVAILABLE and TrendPopup:
-            history_btn = tk.Label(title_frame, text="View History",
+            history_btn = tk.Label(title_frame, text="View History →",
                                   fg=THEME["accent"], bg=THEME["bg_panel"],
                                   font=FONTS["body_small"], cursor="hand2")
-            history_btn.pack(side="left", padx=(20, 0))
+            history_btn.pack(side="left", padx=(30, 0))
             history_btn.bind("<Button-1>", lambda e: self._show_trend_popup())
             history_btn.bind("<Enter>", lambda e: history_btn.config(fg=THEME["accent_hover"]))
             history_btn.bind("<Leave>", lambda e: history_btn.config(fg=THEME["accent"]))
 
-        # Subtle separator
-        tk.Frame(content, bg=THEME["border"], height=1).pack(fill="x", padx=100, pady=(5, 20))
-
-        # Table container
+        # Table container with dark background
         table_container = tk.Frame(content, bg=THEME["bg_panel"])
         table_container.pack(fill="both", expand=True, pady=(0, 15))
 
-        # Clean table frame with border
-        table_frame = tk.Frame(table_container, bg=THEME["border"])
+        # Table frame with border
+        table_frame = tk.Frame(table_container, bg=THEME["table_border"])
         table_frame.pack(anchor="center")
 
         funding_frame = tk.Frame(table_frame, bg=THEME["bg_card"])
         funding_frame.pack(padx=1, pady=1)
 
         # ================================================================
-        # 3-TIER HEADER - Using THEME colors
+        # TABLE HEADER - Dark theme
         # ================================================================
 
-        # ROW 0 & 1: Empty left, RECONCILIATION right
+        # ROW 0-1: Empty for alignment
         for col in range(5):
-            tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=0, column=col, sticky="nsew")
-            tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=1, column=col, sticky="nsew")
+            tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=0, column=col, sticky="nsew")
+            tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=1, column=col, sticky="nsew")
 
         # Separator
-        tk.Frame(funding_frame, bg=THEME["border"], width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=10)
+        tk.Frame(funding_frame, bg=THEME["table_border"], width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=8)
 
-        # ROW 0-1: Empty for alignment
-        tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=0, column=6, sticky="nsew")
-        tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=1, column=6, sticky="nsew")
+        # ROW 0-1: Empty for recon column
+        tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=0, column=6, sticky="nsew")
+        tk.Label(funding_frame, text="", bg=THEME["table_header"]).grid(row=1, column=6, sticky="nsew")
 
-        # ROW 2: Main headers
+        # ROW 2: Main headers - dark header row
         headers = [
             ("TENOR", 10),
             ("FUNDING RATE", 15),
@@ -154,15 +151,17 @@ class DashboardPage(tk.Frame):
         ]
         for col, (text, width) in enumerate(headers):
             tk.Label(funding_frame, text=text,
-                    fg="#FFFFFF", bg=THEME["accent_secondary"],
-                    font=("Segoe UI Semibold", 10),
-                    width=width, pady=10).grid(row=2, column=col, sticky="nsew")
+                    fg=THEME["text"],
+                    bg=THEME["table_header"],
+                    font=FONTS["table_header"],
+                    width=width, pady=12).grid(row=2, column=col, sticky="nsew")
 
-        # ROW 2: Single recon header
+        # ROW 2: Recon header
         tk.Label(funding_frame, text="NIBOR Contribution",
-                fg="#FFFFFF", bg=THEME["accent_secondary"],
-                font=("Segoe UI Semibold", 10),
-                width=18, pady=10).grid(row=2, column=6, sticky="nsew")
+                fg=THEME["text"],
+                bg=THEME["table_header"],
+                font=FONTS["table_header"],
+                width=18, pady=12).grid(row=2, column=6, sticky="nsew")
 
         # ================================================================
         # DATA ROWS

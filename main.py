@@ -333,98 +333,120 @@ class NiborTerminalTK(tk.Tk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE
+        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE (Dark Theme)
         # ====================================================================
-        sidebar = tk.Frame(self.body, bg=THEME["bg_panel"], width=220,
-                          highlightthickness=2,
-                          highlightbackground=THEME["border"])
+        sidebar = tk.Frame(self.body, bg=THEME["bg_nav"], width=220,
+                          highlightthickness=0)
         sidebar.grid(row=0, column=0, sticky="nsew")
         sidebar.grid_propagate(False)
 
         # Sidebar title
         tk.Label(sidebar, text="COMMAND CENTER",
-                fg=THEME["muted"],
-                bg=THEME["bg_panel"],
-                font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(20, 15))
+                fg=THEME["text_light"],
+                bg=THEME["bg_nav"],
+                font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(20, 15))
 
-        # Navigation buttons
+        # Navigation buttons with icons
         self.PAGES_CONFIG = [
-            ("dashboard", "NIBOR", DashboardPage),
-            ("nibor_recon", "Nibor Recon", ReconPage),
-            ("nok_implied", "NOK Implied", NokImpliedPage),
-            ("weights", "Weights", WeightsPage),
-            ("history", "History", HistoryPage),
-            ("audit_log", "Audit Log", AuditLogPage),
-            ("nibor_meta", "NIBOR Meta Data", NiborMetaDataPage),
-            ("rules_logic", "Rules & Logic", RulesPage),
-            ("bloomberg", "Bloomberg", BloombergPage),
-            ("nibor_days", "Nibor Days", NiborDaysPage),
-            ("settings", "⚙ Settings", SettingsPage),
+            ("dashboard", "📊  NIBOR", DashboardPage),
+            ("nibor_recon", "📈  Nibor Recon", ReconPage),
+            ("nok_implied", "💱  NOK Implied", NokImpliedPage),
+            ("weights", "⚖️  Weights", WeightsPage),
+            ("history", "📜  History", HistoryPage),
+            ("audit_log", "📋  Audit Log", AuditLogPage),
+            ("nibor_meta", "📊  Meta Data", NiborMetaDataPage),
+            ("rules_logic", "📐  Rules & Logic", RulesPage),
+            ("bloomberg", "🔷  Bloomberg", BloombergPage),
+            ("nibor_days", "📅  Nibor Days", NiborDaysPage),
+            ("settings", "⚙️  Settings", SettingsPage),
         ]
 
         for page_key, page_name, _ in self.PAGES_CONFIG:
-            btn = tk.Button(sidebar,
+            # Container frame for active indicator
+            btn_container = tk.Frame(sidebar, bg=THEME["bg_nav"])
+            btn_container.pack(fill="x", pady=1)
+
+            # Active indicator (orange bar on left)
+            indicator = tk.Frame(btn_container, bg=THEME["bg_nav"], width=3)
+            indicator.pack(side="left", fill="y")
+
+            btn = tk.Button(btn_container,
                           text=page_name,
                           command=lambda pk=page_key: self.show_page(pk),
-                          bg=THEME["bg_panel"],
+                          bg=THEME["bg_nav"],
                           fg=THEME["text"],
+                          activebackground=THEME["bg_nav_sel"],
+                          activeforeground=THEME["accent"],
                           font=FONTS["body"],
                           relief="flat",
                           anchor="w",
-                          padx=15,
+                          padx=12,
                           pady=10,
-                          cursor="hand2")
-            btn.pack(fill="x", padx=12, pady=3)
-            self._nav_buttons[page_key] = btn
+                          cursor="hand2",
+                          borderwidth=0,
+                          highlightthickness=0)
+            btn.pack(side="left", fill="x", expand=True)
+
+            self._nav_buttons[page_key] = {"btn": btn, "indicator": indicator, "container": btn_container}
 
             # Hover effects
-            btn.bind("<Enter>", lambda e, b=btn: b.config(bg=THEME["bg_hover"]))
-            btn.bind("<Leave>", lambda e, b=btn: b.config(bg=THEME["bg_panel"]))
+            def on_enter(e, b=btn, c=btn_container):
+                if b.cget("fg") != THEME["accent"]:  # Not active
+                    b.config(bg=THEME["bg_nav_sel"])
+                    c.config(bg=THEME["bg_nav_sel"])
+
+            def on_leave(e, b=btn, c=btn_container):
+                if b.cget("fg") != THEME["accent"]:  # Not active
+                    b.config(bg=THEME["bg_nav"])
+                    c.config(bg=THEME["bg_nav"])
+
+            btn.bind("<Enter>", on_enter)
+            btn.bind("<Leave>", on_leave)
 
         # Divider
         tk.Frame(sidebar, bg=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
 
         # Quick Access
         tk.Label(sidebar, text="QUICK ACCESS",
-                fg=THEME["muted"],
-                bg=THEME["bg_panel"],
-                font=("Segoe UI", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+                fg=THEME["text_light"],
+                bg=THEME["bg_nav"],
+                font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(0, 10))
 
         # History folder
         history_label = tk.Label(sidebar,
-                                text="📂 History",
+                                text="📂  History",
                                 fg=THEME["muted"],
-                                bg=THEME["bg_panel"],
+                                bg=THEME["bg_nav"],
                                 font=("Segoe UI", 10),
                                 anchor="w",
                                 cursor="hand2",
                                 padx=15,
                                 pady=5)
         history_label.pack(fill="x", padx=12)
-        history_label.bind("<Enter>", lambda e: history_label.config(fg=THEME["accent"], bg=THEME["bg_hover"]))
-        history_label.bind("<Leave>", lambda e: history_label.config(fg=THEME["muted"], bg=THEME["bg_panel"]))
+        history_label.bind("<Enter>", lambda e: history_label.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"]))
+        history_label.bind("<Leave>", lambda e: history_label.config(fg=THEME["muted"], bg=THEME["bg_nav"]))
         history_label.bind("<Button-1>", lambda e: self.open_history_folder())
 
         # GRSS folder
         grss_label = tk.Label(sidebar,
-                             text="📂 GRSS",
+                             text="📂  GRSS",
                              fg=THEME["muted"],
-                             bg=THEME["bg_panel"],
+                             bg=THEME["bg_nav"],
                              font=("Segoe UI", 10),
                              anchor="w",
                              cursor="hand2",
                              padx=15,
                              pady=5)
         grss_label.pack(fill="x", padx=12)
-        grss_label.bind("<Enter>", lambda e: grss_label.config(fg=THEME["accent"], bg=THEME["bg_hover"]))
-        grss_label.bind("<Leave>", lambda e: grss_label.config(fg=THEME["muted"], bg=THEME["bg_panel"]))
+        grss_label.bind("<Enter>", lambda e: grss_label.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"]))
+        grss_label.bind("<Leave>", lambda e: grss_label.config(fg=THEME["muted"], bg=THEME["bg_nav"]))
         grss_label.bind("<Button-1>", lambda e: self.open_stibor_folder())
 
         # Spacer
-        tk.Frame(sidebar, bg=THEME["bg_panel"]).pack(fill="both", expand=True)
+        tk.Frame(sidebar, bg=THEME["bg_nav"]).pack(fill="both", expand=True)
 
-        # Subtle separator line (dark blue instead of orange)
-        separator = tk.Frame(self.body, bg=THEME["accent_secondary"], width=1)
+        # Subtle separator line
+        separator = tk.Frame(self.body, bg=THEME["border"], width=1)
         separator.grid(row=0, column=1, sticky="ns")
 
         # ====================================================================
@@ -506,35 +528,35 @@ class NiborTerminalTK(tk.Tk):
         """Build the status bar at the bottom of the window."""
         from config import APP_VERSION
 
-        status_bar = tk.Frame(self, bg="#2d2d44", height=36)
+        status_bar = tk.Frame(self, bg=THEME["bg_nav"], height=36)
         status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
 
         # Left side - connection status panel
-        self.connection_panel = ConnectionStatusPanel(status_bar, bg="#2d2d44")
+        self.connection_panel = ConnectionStatusPanel(status_bar, bg=THEME["bg_nav"])
         self.connection_panel.pack(side="left", padx=15, pady=4)
 
         # Right side - version and user
-        right_frame = tk.Frame(status_bar, bg="#2d2d44")
+        right_frame = tk.Frame(status_bar, bg=THEME["bg_nav"])
         right_frame.pack(side="right", padx=15)
 
         # User info
         import getpass
         username = getpass.getuser()
-        tk.Label(right_frame, text=f"👤 {username}", fg="#9999aa", bg="#2d2d44", font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
+        tk.Label(right_frame, text=f"👤 {username}", fg=THEME["muted"], bg=THEME["bg_nav"], font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
 
         # Separator
-        tk.Frame(right_frame, bg="#444466", width=1, height=18).pack(side="right", padx=12)
+        tk.Frame(right_frame, bg=THEME["border"], width=1, height=18).pack(side="right", padx=12)
 
         # Version
-        tk.Label(right_frame, text=f"v{APP_VERSION}", fg="#7777aa", bg="#2d2d44", font=("Segoe UI", 9)).pack(side="right")
+        tk.Label(right_frame, text=f"v{APP_VERSION}", fg=THEME["text_light"], bg=THEME["bg_nav"], font=("Segoe UI", 9)).pack(side="right")
 
         # About button (clickable)
-        about_btn = tk.Label(right_frame, text="ⓘ", fg="#8888aa", bg="#2d2d44", font=("Segoe UI", 12), cursor="hand2")
+        about_btn = tk.Label(right_frame, text="ⓘ", fg=THEME["muted"], bg=THEME["bg_nav"], font=("Segoe UI", 12), cursor="hand2")
         about_btn.pack(side="right", padx=(0, 8))
         about_btn.bind("<Button-1>", lambda e: self._show_about_dialog())
         about_btn.bind("<Enter>", lambda e: about_btn.config(fg=THEME["accent"]))
-        about_btn.bind("<Leave>", lambda e: about_btn.config(fg="#8888aa"))
+        about_btn.bind("<Leave>", lambda e: about_btn.config(fg=THEME["muted"]))
 
     def _update_status_bar(self):
         """Update status bar indicators using the new ConnectionStatusPanel."""
@@ -578,7 +600,7 @@ class NiborTerminalTK(tk.Tk):
         about_win = tk.Toplevel(self)
         about_win.title("About Nibor Calculation Terminal")
         about_win.geometry("400x300")
-        about_win.configure(bg="#1a1a2e")
+        about_win.configure(bg=THEME["bg_panel"])
         about_win.resizable(False, False)
         about_win.transient(self)
         about_win.grab_set()
@@ -590,20 +612,20 @@ class NiborTerminalTK(tk.Tk):
         about_win.geometry(f"+{x}+{y}")
 
         # Content
-        content = tk.Frame(about_win, bg="#1a1a2e")
+        content = tk.Frame(about_win, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=30, pady=20)
 
         # Logo
-        tk.Label(content, text="N", font=("Segoe UI", 36, "bold"), fg="#e94560", bg="#1a1a2e").pack()
+        tk.Label(content, text="N", font=("Segoe UI", 36, "bold"), fg=THEME["accent"], bg=THEME["bg_panel"]).pack()
 
         # Title
-        tk.Label(content, text="NIBOR CALCULATION TERMINAL", font=("Segoe UI", 14, "bold"), fg="white", bg="#1a1a2e").pack(pady=(5, 0))
+        tk.Label(content, text="NIBOR CALCULATION TERMINAL", font=("Segoe UI", 14, "bold"), fg=THEME["text"], bg=THEME["bg_panel"]).pack(pady=(5, 0))
 
         # Subtitle
-        tk.Label(content, text="Treasury Reference Rate System", font=("Segoe UI", 10), fg="#888888", bg="#1a1a2e").pack(pady=(2, 15))
+        tk.Label(content, text="Treasury Reference Rate System", font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"]).pack(pady=(2, 15))
 
         # Info
-        info_frame = tk.Frame(content, bg="#1a1a2e")
+        info_frame = tk.Frame(content, bg=THEME["bg_panel"])
         info_frame.pack(fill="x", pady=10)
 
         info_items = [
@@ -614,18 +636,19 @@ class NiborTerminalTK(tk.Tk):
         ]
 
         for label, value in info_items:
-            row = tk.Frame(info_frame, bg="#1a1a2e")
+            row = tk.Frame(info_frame, bg=THEME["bg_panel"])
             row.pack(fill="x", pady=2)
-            tk.Label(row, text=label, font=("Segoe UI", 9), fg="#666666", bg="#1a1a2e", width=10, anchor="e").pack(side="left")
-            tk.Label(row, text=value, font=("Segoe UI", 9), fg="#aaaaaa", bg="#1a1a2e", anchor="w").pack(side="left", padx=5)
+            tk.Label(row, text=label, font=("Segoe UI", 9), fg=THEME["text_light"], bg=THEME["bg_panel"], width=10, anchor="e").pack(side="left")
+            tk.Label(row, text=value, font=("Segoe UI", 9), fg=THEME["muted"], bg=THEME["bg_panel"], anchor="w").pack(side="left", padx=5)
 
         # Footer
-        tk.Label(content, text="© 2025 Swedbank Treasury", font=("Segoe UI", 8), fg="#444444", bg="#1a1a2e").pack(side="bottom", pady=(15, 0))
+        tk.Label(content, text="© 2025 Swedbank Treasury", font=("Segoe UI", 8), fg=THEME["text_light"], bg=THEME["bg_panel"]).pack(side="bottom", pady=(15, 0))
 
         # Close button
         close_btn = tk.Button(content, text="Close", command=about_win.destroy,
-                             bg="#333344", fg="white", font=("Segoe UI", 9),
-                             relief="flat", padx=20, pady=5, cursor="hand2")
+                             bg=THEME["bg_card_2"], fg=THEME["text"], font=("Segoe UI", 9),
+                             relief="flat", padx=20, pady=5, cursor="hand2",
+                             activebackground=THEME["accent"], activeforeground=THEME["text"])
         close_btn.pack(side="bottom")
 
     def _show_settings_dialog(self):
@@ -633,7 +656,7 @@ class NiborTerminalTK(tk.Tk):
         settings_win = tk.Toplevel(self)
         settings_win.title("Settings")
         settings_win.geometry("500x400")
-        settings_win.configure(bg="#1a1a2e")
+        settings_win.configure(bg=THEME["bg_panel"])
         settings_win.resizable(False, False)
         settings_win.transient(self)
         settings_win.grab_set()
@@ -646,18 +669,18 @@ class NiborTerminalTK(tk.Tk):
 
         # Title
         tk.Label(settings_win, text="⚙️ Settings", font=("Segoe UI", 16, "bold"),
-                fg="white", bg="#1a1a2e").pack(pady=(20, 15))
+                fg=THEME["text"], bg=THEME["bg_panel"]).pack(pady=(20, 15))
 
         # Content frame
-        content = tk.Frame(settings_win, bg="#1a1a2e")
+        content = tk.Frame(settings_win, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=30)
 
         # Auto-refresh interval
-        refresh_frame = tk.Frame(content, bg="#1a1a2e")
+        refresh_frame = tk.Frame(content, bg=THEME["bg_panel"])
         refresh_frame.pack(fill="x", pady=10)
 
         tk.Label(refresh_frame, text="Auto-refresh interval:", font=("Segoe UI", 10),
-                fg="#aaaaaa", bg="#1a1a2e").pack(side="left")
+                fg=THEME["muted"], bg=THEME["bg_panel"]).pack(side="left")
 
         self.settings_refresh_var = tk.StringVar(value="Manual")
         refresh_options = ["Manual", "30 sec", "1 min", "5 min", "10 min"]
@@ -667,11 +690,11 @@ class NiborTerminalTK(tk.Tk):
         refresh_menu.pack(side="right")
 
         # Theme selection
-        theme_frame = tk.Frame(content, bg="#1a1a2e")
+        theme_frame = tk.Frame(content, bg=THEME["bg_panel"])
         theme_frame.pack(fill="x", pady=10)
 
         tk.Label(theme_frame, text="Theme:", font=("Segoe UI", 10),
-                fg="#aaaaaa", bg="#1a1a2e").pack(side="left")
+                fg=THEME["muted"], bg=THEME["bg_panel"]).pack(side="left")
 
         self.settings_theme_var = tk.StringVar(value="Dark")
         theme_options = ["Dark", "Light"]
@@ -680,32 +703,32 @@ class NiborTerminalTK(tk.Tk):
         theme_menu.pack(side="right")
 
         # Auto-save snapshots
-        autosave_frame = tk.Frame(content, bg="#1a1a2e")
+        autosave_frame = tk.Frame(content, bg=THEME["bg_panel"])
         autosave_frame.pack(fill="x", pady=10)
 
         self.settings_autosave_var = tk.BooleanVar(value=True)
         autosave_check = tk.Checkbutton(autosave_frame, text="Auto-save snapshots on data refresh",
                                        variable=self.settings_autosave_var,
-                                       font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
-                                       selectcolor="#333344", activebackground="#1a1a2e",
-                                       activeforeground="#aaaaaa")
+                                       font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"],
+                                       selectcolor=THEME["bg_card"], activebackground=THEME["bg_panel"],
+                                       activeforeground=THEME["muted"])
         autosave_check.pack(side="left")
 
         # Show notifications
-        notif_frame = tk.Frame(content, bg="#1a1a2e")
+        notif_frame = tk.Frame(content, bg=THEME["bg_panel"])
         notif_frame.pack(fill="x", pady=10)
 
         self.settings_notif_var = tk.BooleanVar(value=True)
         notif_check = tk.Checkbutton(notif_frame, text="Show notifications for alerts",
                                     variable=self.settings_notif_var,
-                                    font=("Segoe UI", 10), fg="#aaaaaa", bg="#1a1a2e",
-                                    selectcolor="#333344", activebackground="#1a1a2e",
-                                    activeforeground="#aaaaaa")
+                                    font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"],
+                                    selectcolor=THEME["bg_card"], activebackground=THEME["bg_panel"],
+                                    activeforeground=THEME["muted"])
         notif_check.pack(side="left")
 
         # Keyboard shortcuts info
         shortcuts_frame = tk.LabelFrame(content, text="Keyboard Shortcuts", font=("Segoe UI", 9),
-                                       fg="#666666", bg="#1a1a2e", bd=1)
+                                       fg=THEME["text_light"], bg=THEME["bg_panel"], bd=1)
         shortcuts_frame.pack(fill="x", pady=20)
 
         shortcuts = [
@@ -720,18 +743,19 @@ class NiborTerminalTK(tk.Tk):
         ]
 
         for key, desc in shortcuts:
-            row = tk.Frame(shortcuts_frame, bg="#1a1a2e")
+            row = tk.Frame(shortcuts_frame, bg=THEME["bg_panel"])
             row.pack(fill="x", padx=10, pady=2)
-            tk.Label(row, text=key, font=("Consolas", 9), fg="#e94560", bg="#1a1a2e", width=10, anchor="w").pack(side="left")
-            tk.Label(row, text=desc, font=("Segoe UI", 9), fg="#888888", bg="#1a1a2e", anchor="w").pack(side="left")
+            tk.Label(row, text=key, font=("Consolas", 9), fg=THEME["accent"], bg=THEME["bg_panel"], width=10, anchor="w").pack(side="left")
+            tk.Label(row, text=desc, font=("Segoe UI", 9), fg=THEME["muted"], bg=THEME["bg_panel"], anchor="w").pack(side="left")
 
         # Buttons
-        btn_frame = tk.Frame(settings_win, bg="#1a1a2e")
+        btn_frame = tk.Frame(settings_win, bg=THEME["bg_panel"])
         btn_frame.pack(side="bottom", pady=20)
 
         tk.Button(btn_frame, text="Close", command=settings_win.destroy,
-                 bg="#333344", fg="white", font=("Segoe UI", 9),
-                 relief="flat", padx=20, pady=5, cursor="hand2").pack(side="right", padx=5)
+                 bg=THEME["bg_card_2"], fg=THEME["text"], font=("Segoe UI", 9),
+                 relief="flat", padx=20, pady=5, cursor="hand2",
+                 activebackground=THEME["accent"], activeforeground=THEME["text"]).pack(side="right", padx=5)
 
     def register_update_button(self, btn: tk.Button):
         if btn not in self._update_buttons:
@@ -761,12 +785,28 @@ class NiborTerminalTK(tk.Tk):
         self._current_page = key
         self._pages[key].grid()
 
-        # Update navigation button highlighting
-        for btn_key, btn in self._nav_buttons.items():
+        # Update navigation button highlighting with active indicator
+        for btn_key, btn_data in self._nav_buttons.items():
+            btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
+            indicator = btn_data.get("indicator") if isinstance(btn_data, dict) else None
+            container = btn_data.get("container") if isinstance(btn_data, dict) else None
+
             if btn_key == key:
-                btn.config(fg=THEME["accent"], font=("Segoe UI", 11, "bold"))
+                # Active state - orange text and indicator bar
+                btn.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"],
+                          font=("Segoe UI Semibold", 11))
+                if indicator:
+                    indicator.config(bg=THEME["accent"])
+                if container:
+                    container.config(bg=THEME["bg_nav_sel"])
             else:
-                btn.config(fg=THEME["text"], font=FONTS["body"])
+                # Inactive state
+                btn.config(fg=THEME["text"], bg=THEME["bg_nav"],
+                          font=FONTS["body"])
+                if indicator:
+                    indicator.config(bg=THEME["bg_nav"])
+                if container:
+                    container.config(bg=THEME["bg_nav"])
 
         if key == "nibor_recon" and focus:
             self._pages["nibor_recon"].set_focus_mode(focus)

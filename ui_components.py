@@ -46,20 +46,20 @@ class NiborButtonTK(tk.Button):
     """Styled button for Nibor Terminal."""
 
     def __init__(self, master, text, command=None, variant="default", **kwargs):
-        if variant == "accent":
+        if variant == "accent" or variant == "primary":
             bg = THEME["accent"]
-            fg = "#101216"
-            activebg = THEME["accent2"]
-            activefg = "#101216"
+            fg = THEME["bg_panel"]
+            activebg = THEME["accent_hover"]
+            activefg = THEME["bg_panel"]
         elif variant == "danger":
             bg = THEME["bad"]
-            fg = "#101216"
-            activebg = "#F87171"
-            activefg = "#101216"
+            fg = THEME["bg_panel"]
+            activebg = "#FF5252"
+            activefg = THEME["bg_panel"]
         else:
-            bg = THEME["chip2"]
+            bg = THEME["bg_card_2"]
             fg = THEME["text"]
-            activebg = "#2B2B2B"
+            activebg = THEME["bg_hover"]
             activefg = THEME["text"]
 
         super().__init__(
@@ -307,13 +307,13 @@ class DataTableTree(tk.Frame):
             self.tree.column(col, width=int(self.col_widths[i]), anchor="center", stretch=False)
 
         self.tree.tag_configure("section", background=THEME["bg_card_2"], foreground=THEME["accent"])
-        self.tree.tag_configure("bad", background="#FEE2E2", foreground=THEME["bad"])
-        self.tree.tag_configure("good", background="#D1FAE5", foreground="#047857")
-        self.tree.tag_configure("warn", background="#FEF3C7", foreground="#B45309")
-        self.tree.tag_configure("yellow", background="#FEF9C3", foreground="#A16207")
+        self.tree.tag_configure("bad", background="#3D1F1F", foreground=THEME["bad"])
+        self.tree.tag_configure("good", background="#1F3D2D", foreground=THEME["good"])
+        self.tree.tag_configure("warn", background="#3D3520", foreground=THEME["warning"])
+        self.tree.tag_configure("yellow", background="#3D3520", foreground=THEME["warning"])
         self.tree.tag_configure("normal_even", background=THEME["row_even"], foreground=THEME["text"])
         self.tree.tag_configure("normal_odd", background=THEME["row_odd"], foreground=THEME["text"])
-        self.tree.tag_configure("active", background="#FFF3E0", foreground=THEME["accent"])
+        self.tree.tag_configure("active", background="#3D2D1F", foreground=THEME["accent"])
 
         self.tree.pack(side="left", fill="both", expand=True, padx=10, pady=10)
         self.vsb.pack(side="right", fill="y", padx=(0, 10), pady=10)
@@ -377,23 +377,23 @@ class ConnectionStatusIndicator(tk.Frame):
         self._pulse_state = True
 
         # Container frame (pill shape)
-        self._pill = tk.Frame(self, bg="#3a3a55", highlightthickness=1,
-                             highlightbackground="#4a4a66")
+        self._pill = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
+                             highlightbackground=THEME["border"])
         self._pill.pack(padx=2, pady=2)
 
         # Status dot
-        self._dot = tk.Label(self._pill, text=icon, fg="#888899",
-                            bg="#3a3a55", font=("Segoe UI", 11))
+        self._dot = tk.Label(self._pill, text=icon, fg=THEME["muted"],
+                            bg=THEME["bg_card"], font=("Segoe UI", 11))
         self._dot.pack(side="left", padx=(10, 5), pady=5)
 
         # Label
-        self._label = tk.Label(self._pill, text=label, fg="#aaaacc",
-                              bg="#3a3a55", font=("Segoe UI", 9, "bold"))
+        self._label = tk.Label(self._pill, text=label, fg=THEME["text"],
+                              bg=THEME["bg_card"], font=("Segoe UI", 9, "bold"))
         self._label.pack(side="left", padx=(0, 5), pady=5)
 
         # Status text (short)
-        self._status_lbl = tk.Label(self._pill, text="--", fg="#888899",
-                                   bg="#3a3a55", font=("Segoe UI", 9))
+        self._status_lbl = tk.Label(self._pill, text="--", fg=THEME["muted"],
+                                   bg=THEME["bg_card"], font=("Segoe UI", 9))
         self._status_lbl.pack(side="left", padx=(0, 10), pady=5)
 
         # Make clickable
@@ -414,11 +414,11 @@ class ConnectionStatusIndicator(tk.Frame):
 
         # Update colors based on status
         colors = {
-            self.DISCONNECTED: {"dot": "#888899", "text": "--", "bg": "#3a3a55"},
-            self.CONNECTING: {"dot": "#f59e0b", "text": "...", "bg": "#4a4530"},
-            self.CONNECTED: {"dot": "#4ade80", "text": "OK", "bg": "#2a4a3a"},
-            self.ERROR: {"dot": "#ef4444", "text": "ERR", "bg": "#4a2a2a"},
-            self.STALE: {"dot": "#f59e0b", "text": "OLD", "bg": "#4a4530"},
+            self.DISCONNECTED: {"dot": THEME["muted"], "text": "--", "bg": THEME["bg_card"]},
+            self.CONNECTING: {"dot": THEME["warning"], "text": "...", "bg": THEME["bg_card_2"]},
+            self.CONNECTED: {"dot": THEME["good"], "text": "OK", "bg": "#1F3D2D"},
+            self.ERROR: {"dot": THEME["bad"], "text": "ERR", "bg": "#3D1F1F"},
+            self.STALE: {"dot": THEME["warning"], "text": "OLD", "bg": "#3D3520"},
         }
         style = colors.get(status, colors[self.DISCONNECTED])
 
@@ -440,7 +440,7 @@ class ConnectionStatusIndicator(tk.Frame):
             return
 
         self._pulse_state = not self._pulse_state
-        color = "#f59e0b" if self._pulse_state else "#8b5a00"
+        color = THEME["warning"] if self._pulse_state else THEME["text_light"]
         self._dot.config(fg=color)
 
         self._pulse_job = self.after(500, self._start_pulse)
@@ -449,7 +449,7 @@ class ConnectionStatusIndicator(tk.Frame):
         self._pill.config(highlightbackground=THEME["accent"])
 
     def _on_leave(self, event):
-        self._pill.config(highlightbackground="#3d3d54")
+        self._pill.config(highlightbackground=THEME["border"])
 
     def _on_click(self, event):
         self._show_details_popup()
@@ -472,9 +472,9 @@ class ConnectionStatusIndicator(tk.Frame):
 
         status_colors = {
             self.CONNECTED: THEME["good"],
-            self.CONNECTING: "#f59e0b",
+            self.CONNECTING: THEME["warning"],
             self.ERROR: THEME["bad"],
-            self.STALE: "#f59e0b",
+            self.STALE: THEME["warning"],
             self.DISCONNECTED: THEME["muted"],
         }
 
@@ -508,14 +508,16 @@ class ConnectionStatusIndicator(tk.Frame):
         btn_frame.pack(fill="x", padx=20, pady=(0, 15))
 
         refresh_btn = tk.Button(btn_frame, text="🔄 Refresh", bg=THEME["accent"],
-                                fg="white", font=("Segoe UI", 10), relief="flat",
+                                fg=THEME["bg_panel"], font=("Segoe UI", 10), relief="flat",
                                 padx=15, pady=5, cursor="hand2",
+                                activebackground=THEME["accent_hover"], activeforeground=THEME["bg_panel"],
                                 command=lambda: self._trigger_refresh(popup))
         refresh_btn.pack(side="left")
 
-        tk.Button(btn_frame, text="Close", bg=THEME["chip2"], fg=THEME["text"],
+        tk.Button(btn_frame, text="Close", bg=THEME["bg_card_2"], fg=THEME["text"],
                   font=("Segoe UI", 10), relief="flat", padx=15, pady=5,
-                  cursor="hand2", command=popup.destroy).pack(side="right")
+                  cursor="hand2", activebackground=THEME["bg_hover"], activeforeground=THEME["text"],
+                  command=popup.destroy).pack(side="right")
 
         popup.bind("<Escape>", lambda e: popup.destroy())
 
@@ -549,7 +551,7 @@ class ConnectionStatusPanel(tk.Frame):
     """
 
     def __init__(self, master, **kwargs):
-        bg = kwargs.pop("bg", "#2d2d44")
+        bg = kwargs.pop("bg", THEME["bg_nav"])
         super().__init__(master, bg=bg, **kwargs)
 
         self._indicators = {}
@@ -565,21 +567,21 @@ class ConnectionStatusPanel(tk.Frame):
         self._indicators["excel"] = self.excel
 
         # Separator
-        tk.Frame(self, bg="#555577", width=1, height=20).pack(side="left", padx=10)
+        tk.Frame(self, bg=THEME["border"], width=1, height=20).pack(side="left", padx=10)
 
         # Data freshness indicator
         self._freshness_frame = tk.Frame(self, bg=bg)
         self._freshness_frame.pack(side="left", padx=5)
 
-        tk.Label(self._freshness_frame, text="Data:", fg="#9999bb", bg=bg,
+        tk.Label(self._freshness_frame, text="Data:", fg=THEME["muted"], bg=bg,
                 font=("Segoe UI", 9)).pack(side="left")
 
         self._freshness_lbl = tk.Label(self._freshness_frame, text="--:--:--",
-                                       fg="#bbbbdd", bg=bg, font=("Consolas", 10, "bold"))
+                                       fg=THEME["text"], bg=bg, font=("Consolas", 10, "bold"))
         self._freshness_lbl.pack(side="left", padx=(5, 0))
 
         self._freshness_ago = tk.Label(self._freshness_frame, text="",
-                                       fg="#8888aa", bg=bg, font=("Segoe UI", 9))
+                                       fg=THEME["muted"], bg=bg, font=("Segoe UI", 9))
         self._freshness_ago.pack(side="left", padx=(5, 0))
 
         # Start freshness update timer
@@ -604,13 +606,13 @@ class ConnectionStatusPanel(tk.Frame):
             ago = (datetime.now() - self._data_time).seconds
             if ago < 60:
                 ago_text = f"({ago}s ago)"
-                color = "#4ade80" if ago < 30 else "#888888"
+                color = THEME["good"] if ago < 30 else THEME["muted"]
             elif ago < 300:
                 ago_text = f"({ago // 60}m ago)"
-                color = "#f59e0b"
+                color = THEME["warning"]
             else:
                 ago_text = f"({ago // 60}m ago)"
-                color = "#ef4444"
+                color = THEME["bad"]
 
             self._freshness_ago.config(text=ago_text, fg=color)
 

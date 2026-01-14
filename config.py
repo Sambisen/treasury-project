@@ -55,85 +55,95 @@ FUNDING_SPREADS = {
 APP_VERSION = "3.8.1-tk"
 
 # ==============================================================================
-#  SWEDBANK PROFESSIONAL NORDIC THEME
+#  NORDIC DARK FINANCIAL TERMINAL THEME
 # ==============================================================================
 THEME = {
-    # Backgrounds - Light & airy
-    "bg_panel": "#F8F9FA",           # Main background - light grey
-    "bg_card": "#FFFFFF",            # Card/container background - white
-    "bg_card_2": "#F8F9FA",          # Alternate row background
-    "bg_hover": "#F1F3F5",           # Hover state
-    
+    # Primary Backgrounds - Dark Navy
+    "bg_panel": "#0A0E1A",           # Main background - dark navy
+    "bg_card": "#141B2D",            # Card/container background
+    "bg_card_2": "#1E2738",          # Alternate/elevated background
+    "bg_hover": "#252D3F",           # Hover state
+
     # Swedbank Brand Colors
-    "accent": "#FF6600",             # Swedbank orange - primary actions
-    "accent_secondary": "#003D5C",   # Swedbank dark blue - secondary
-    "accent_hover": "#FF8533",       # Lighter orange for hover
-    
-    # Text - Dark on light
-    "text": "#1A1A1A",               # Primary text - almost black
-    "muted": "#6B7280",              # Secondary text - grey
-    "text_light": "#9CA3AF",         # Tertiary text - light grey
-    
-    # Status Colors (softer, professional)
-    "good": "#10B981",               # Success green
-    "warning": "#F59E0B",            # Amber warning
-    "bad": "#EF4444",                # Error red (softer)
-    "pending": "#F59E0B",            # Pending amber
-    
+    "accent": "#EE7623",             # Swedbank orange - primary actions
+    "accent_secondary": "#D86614",   # Darker orange
+    "accent_hover": "#FF8A3D",       # Lighter orange for hover
+
+    # Text - Light on dark
+    "text": "#E8EBF0",               # Primary text - light grey-white
+    "muted": "#8B92A8",              # Secondary text - muted
+    "text_light": "#5A6178",         # Tertiary text - dimmed
+
+    # Status Colors
+    "good": "#00C853",               # Success green (vibrant)
+    "warning": "#FFB300",            # Amber warning
+    "bad": "#FF3B30",                # Error red (vibrant)
+    "pending": "#FFB300",            # Pending amber
+
     # UI Elements
-    "border": "#E5E7EB",             # Light border
-    "border_focus": "#FF6600",       # Focused border (Swedbank orange)
-    "chip": "#F3F4F6",               # Chip/badge background
-    "chip2": "#E5E7EB",              # Hover chip background
-    
+    "border": "#2A3447",             # Subtle dark border
+    "border_focus": "#EE7623",       # Focused border (Swedbank orange)
+    "chip": "#1E2738",               # Chip/badge background
+    "chip2": "#252D3F",              # Hover chip background
+
     # Shadows (CSS-style strings for reference)
-    "shadow_sm": "0 1px 2px rgba(0,0,0,0.05)",
-    "shadow_md": "0 2px 8px rgba(0,0,0,0.08)",
-    "shadow_lg": "0 4px 16px rgba(0,0,0,0.12)",
-    
-    # Legacy/compatibility (mapped to new colors)
-    "bg_main": "#F8F9FA",
-    "bg_nav": "#FFFFFF",
-    "bg_nav_sel": "#F8F9FA",
-    "border_2": "#D1D5DB",
-    "text_secondary": "#6B7280",
-    "muted2": "#9CA3AF",
-    "accent2": "#FF8533",
-    "warn": "#F59E0B",
-    "yellow": "#FCD34D",
+    "shadow_sm": "0 2px 4px rgba(0,0,0,0.3)",
+    "shadow_md": "0 4px 8px rgba(0,0,0,0.4)",
+    "shadow_lg": "0 8px 16px rgba(0,0,0,0.5)",
+
+    # Legacy/compatibility (mapped to dark theme)
+    "bg_main": "#0A0E1A",
+    "bg_nav": "#0F1623",
+    "bg_nav_sel": "#1E2738",
+    "border_2": "#3A4557",
+    "text_secondary": "#8B92A8",
+    "muted2": "#5A6178",
+    "accent2": "#FF8A3D",
+    "warn": "#FFB300",
+    "yellow": "#FFD54F",
     "shadow": "#000000",
-    "row_even": "#FFFFFF",
-    "row_odd": "#F8F9FA",
-    "row_hover": "#F1F3F5",
-    "tree_sel_bg": "#E5E7EB",
-    
+    "row_even": "#141B2D",
+    "row_odd": "#0F1623",
+    "row_hover": "#252D3F",
+    "tree_sel_bg": "#2A3447",
+
     # Badge colors for status indicators
-    "badge_ok": "#10B981",
-    "badge_fail": "#EF4444",
-    "badge_warn": "#F59E0B",
-    "badge_pend": "#6B7280",
+    "badge_ok": "#00C853",
+    "badge_fail": "#FF3B30",
+    "badge_warn": "#FFB300",
+    "badge_pend": "#5A6178",
+
+    # Table specific
+    "table_header": "#0F1623",
+    "table_border": "#2A3447",
 }
 
 # ==============================================================================
-#  TYPOGRAPHY SYSTEM
+#  TYPOGRAPHY SYSTEM - Professional Financial Terminal
 # ==============================================================================
 FONTS = {
-    # Headers - Segoe UI Semibold for impact
-    "h1": ("Segoe UI Semibold", 24),
-    "h2": ("Segoe UI Semibold", 18),
-    "h3": ("Segoe UI Semibold", 14),
-    
-    # Body text - Segoe UI Regular
+    # Headers - Bold, impactful
+    "h1": ("Segoe UI Semibold", 22),
+    "h2": ("Segoe UI Semibold", 16),
+    "h3": ("Segoe UI Semibold", 13),
+
+    # Body text
     "body": ("Segoe UI", 11),
     "body_small": ("Segoe UI", 9),
-    
-    # Numeric data - Consolas monospace for perfect alignment
+
+    # Numeric data - Monospace for perfect alignment
     "numeric": ("Consolas", 11),
-    "numeric_large": ("Consolas", 14),
+    "numeric_large": ("Consolas", 13),
     "numeric_small": ("Consolas", 9),
-    
-    # Status text - slightly heavier
+
+    # Status text
     "status": ("Segoe UI Semibold", 10),
+
+    # Table headers - All caps style
+    "table_header": ("Segoe UI Semibold", 10),
+
+    # Terminal style
+    "terminal": ("Consolas", 10),
 }
 
 CURRENT_MODE = {"type": "OFFICE", "pad": 20, "hpad": 30, "title": 24, "h2": 18, "body": 11, "small": 9}
