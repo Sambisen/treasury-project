@@ -890,22 +890,16 @@ class DashboardPage(tk.Frame):
         """Update funding rates table with Excel validation - USES SELECTED MODEL."""
         from config import FUNDING_SPREADS
         from calculations import calc_funding_rate
-
+        
         if not hasattr(self.app, 'impl_calc_data'):
             return
-
+        
         # Get selected calculation model (default: swedbank)
         selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
         log.info(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
-
+        
         weights = self._get_weights()
         self.app.funding_calc_data = {}
-
-        # Excel NIBOR cells for reconciliation
-        # Z7-Z10: NIBOR contribution (4 decimals)
-        # AA7-AA10: NIBOR contribution (2 decimals)
-        EXCEL_NIBOR_Z_CELLS = {"1m": "Z7", "2m": "Z8", "3m": "Z9", "6m": "Z10"}
-        EXCEL_NIBOR_AA_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -971,76 +965,6 @@ class DashboardPage(tk.Frame):
                     cells["chg"].config(text=chg_text, fg=chg_color)
                 else:
                     cells["chg"].config(text="-", fg=THEME["muted"])
-
-            # ================================================================
-            # RECON: NIBOR (GUI) vs Excel Z7-Z10 (4 decimals)
-            # ================================================================
-            if "spread_model" in cells and final_rate is not None:
-                z_cell = EXCEL_NIBOR_Z_CELLS.get(tenor_key)
-                if z_cell and hasattr(self.app, 'excel_engine'):
-                    excel_z_val = self.app.excel_engine.get_recon_value(z_cell)
-                    if excel_z_val is not None:
-                        try:
-                            excel_z_val = float(excel_z_val)
-                            # Compare on 4th decimal
-                            gui_rounded = round(final_rate, 4)
-                            excel_rounded = round(excel_z_val, 4)
-                            is_match = (gui_rounded == excel_rounded)
-
-                            if is_match:
-                                cells["spread_model"].config(
-                                    text=f"{final_rate:.4f} ✓",
-                                    fg=THEME["good"]
-                                )
-                            else:
-                                cells["spread_model"].config(
-                                    text=f"{final_rate:.4f} ✗",
-                                    fg=THEME["bad"]
-                                )
-                                alert_messages.append(
-                                    f"{tenor_key.upper()} Z-cell: GUI {gui_rounded:.4f} ≠ Excel {excel_rounded:.4f}"
-                                )
-                        except (ValueError, TypeError):
-                            cells["spread_model"].config(text="ERR", fg=THEME["warning"])
-                    else:
-                        cells["spread_model"].config(text="-", fg=THEME["muted"])
-                else:
-                    cells["spread_model"].config(text="-", fg=THEME["muted"])
-
-            # ================================================================
-            # RECON: NIBOR (GUI) vs Excel AA7-AA10 (2 decimals)
-            # ================================================================
-            if "excel_model" in cells and final_rate is not None:
-                aa_cell = EXCEL_NIBOR_AA_CELLS.get(tenor_key)
-                if aa_cell and hasattr(self.app, 'excel_engine'):
-                    excel_aa_val = self.app.excel_engine.get_recon_value(aa_cell)
-                    if excel_aa_val is not None:
-                        try:
-                            excel_aa_val = float(excel_aa_val)
-                            # Compare on 2nd decimal
-                            gui_rounded = round(final_rate, 2)
-                            excel_rounded = round(excel_aa_val, 2)
-                            is_match = (gui_rounded == excel_rounded)
-
-                            if is_match:
-                                cells["excel_model"].config(
-                                    text=f"{final_rate:.2f} ✓",
-                                    fg=THEME["good"]
-                                )
-                            else:
-                                cells["excel_model"].config(
-                                    text=f"{final_rate:.2f} ✗",
-                                    fg=THEME["bad"]
-                                )
-                                alert_messages.append(
-                                    f"{tenor_key.upper()} AA-cell: GUI {gui_rounded:.2f} ≠ Excel {excel_rounded:.2f}"
-                                )
-                        except (ValueError, TypeError):
-                            cells["excel_model"].config(text="ERR", fg=THEME["warning"])
-                    else:
-                        cells["excel_model"].config(text="-", fg=THEME["muted"])
-                else:
-                    cells["excel_model"].config(text="-", fg=THEME["muted"])
 
             # Excel validation
             if "match" in cells and final_rate is not None:
