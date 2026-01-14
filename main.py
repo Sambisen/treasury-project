@@ -394,8 +394,8 @@ class NiborTerminalCTK(ctk.CTk):
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 23),
-                width=28
+                font=("Segoe UI", 14),
+                width=24
             )
             icon_label.pack(side="left", padx=(12, 12))
 
@@ -407,7 +407,7 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=THEME["text"],
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 14),
                 anchor="w",
                 corner_radius=0,
                 height=44
