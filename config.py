@@ -226,7 +226,7 @@ DAY_FILES = [
 RECON_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
 
 # WEIGHTS (Monthly control)
-WEIGHTS_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Wheights.xlsx"
+WEIGHTS_FILE = APP_DIR / "data" / "Nibor" / "Vikter" / "Weights.xlsx"
 
 # ============================================================================
 # CALCULATION MODEL PATHS & MAPPINGS
@@ -370,7 +370,7 @@ WEIGHTS_FILE_CELLS = {"H3": "H3", "H4": "H4", "H5": "H5", "H6": "H6", "USD": "I3
 WEIGHTS_MODEL_CELLS = {"DATE": "A41", "USD": "B43", "EUR": "B44", "NOK": "B45"}
 
 # WEIGHTS file path (NEW - correct path)
-WEIGHTS_FILE_PATH_NEW = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Wheights.xlsx"
+WEIGHTS_FILE_PATH_NEW = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Weights.xlsx"
 
 # Excel CM rates mapping (from Nibor fixing Testing Workbook.xlsx)
 # EUR CM: M30-M33 (1M, 2M, 3M, 6M)

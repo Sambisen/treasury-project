@@ -257,58 +257,58 @@ class NiborTerminalTK(tk.Tk):
         # ====================================================================
         # PROFESSIONAL CLOCK - Rightmost corner
         # ====================================================================
-        clock_frame = tk.Frame(header_right, bg="#1a1a2e",
+        clock_frame = tk.Frame(header_right, bg=THEME["bg_card"],
                               highlightthickness=1,
-                              highlightbackground="#3a3a5a")
+                              highlightbackground=THEME["border"])
         clock_frame.pack(side="right")
 
-        clock_inner = tk.Frame(clock_frame, bg="#1a1a2e")
+        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
         clock_inner.pack(padx=20, pady=12)
 
         # Left side: Time and date
-        time_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        time_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
         time_section.pack(side="left", padx=(0, 15))
 
         # Small label "LOCAL TIME"
         tk.Label(time_section, text="LOCAL TIME",
-                fg="#6a6a8a", bg="#1a1a2e",
+                fg=THEME["muted"], bg=THEME["bg_card"],
                 font=("Segoe UI", 8)).pack(anchor="center")
 
         # Time display - unified size
         self._header_clock_time = tk.Label(time_section, text="--:--:--",
-                                           fg=THEME["accent"], bg="#1a1a2e",
+                                           fg=THEME["accent"], bg=THEME["bg_card"],
                                            font=("Consolas", 22, "bold"))
         self._header_clock_time.pack(anchor="center")
 
         # Date label below time
         self._header_clock_date = tk.Label(time_section, text="",
-                                           fg="#7a7a9a", bg="#1a1a2e",
+                                           fg=THEME["muted"], bg=THEME["bg_card"],
                                            font=("Segoe UI", 9))
         self._header_clock_date.pack(anchor="center")
 
         # Vertical separator
-        sep_frame = tk.Frame(clock_inner, bg="#1a1a2e")
+        sep_frame = tk.Frame(clock_inner, bg=THEME["bg_card"])
         sep_frame.pack(side="left", padx=10, fill="y")
-        tk.Frame(sep_frame, bg="#3a3a5a", width=1).pack(fill="y", expand=True, pady=5)
+        tk.Frame(sep_frame, bg=THEME["border"], width=1).pack(fill="y", expand=True, pady=5)
 
         # Right side: NIBOR Fixing countdown
-        nibor_section = tk.Frame(clock_inner, bg="#1a1a2e")
+        nibor_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
         nibor_section.pack(side="left", padx=(15, 0))
 
         # NIBOR Fixing label
         tk.Label(nibor_section, text="NIBOR FIXING",
-                fg="#6a6a8a", bg="#1a1a2e",
+                fg=THEME["muted"], bg=THEME["bg_card"],
                 font=("Segoe UI", 8)).pack(anchor="center")
 
         # Fixing countdown - same size as clock
         self._nibor_fixing_status = tk.Label(nibor_section, text="--:--:--",
-                                             fg=THEME["accent_secondary"], bg="#1a1a2e",
+                                             fg=THEME["accent_secondary"], bg=THEME["bg_card"],
                                              font=("Consolas", 22, "bold"))
         self._nibor_fixing_status.pack(anchor="center")
 
         # Fixing indicator text
         self._nibor_fixing_indicator = tk.Label(nibor_section, text="",
-                                                fg="#7a7a9a", bg="#1a1a2e",
+                                                fg=THEME["muted"], bg=THEME["bg_card"],
                                                 font=("Segoe UI", 9))
         self._nibor_fixing_indicator.pack(anchor="center")
 
@@ -661,6 +661,7 @@ class NiborTerminalTK(tk.Tk):
 
         self.settings_refresh_var = tk.StringVar(value="Manual")
         refresh_options = ["Manual", "30 sec", "1 min", "5 min", "10 min"]
+        from tkinter import ttk
         refresh_menu = ttk.Combobox(refresh_frame, textvariable=self.settings_refresh_var,
                                    values=refresh_options, state="readonly", width=15)
         refresh_menu.pack(side="right")
@@ -928,7 +929,6 @@ class NiborTerminalTK(tk.Tk):
         self._update_status_bar()
         self.refresh_ui()
 
-        # Auto-save snapshot after successful data refresh
         # Show success toast
         if self.bbg_ok and self.excel_ok:
             self.toast.success("Data refreshed successfully")
@@ -1390,60 +1390,85 @@ def generate_alerts_report():
     log.info(f"Rapport sparad till: {rapport_path}")
 
 
+def show_splash_screen():
+    """Show splash screen with proper error handling and timeout."""
+    try:
+        from splash_screen import SplashScreen
+        
+        # Create hidden root
+        splash_root = tk.Tk()
+        splash_root.withdraw()
+        
+        # Create splash
+        splash = SplashScreen(splash_root)
+        
+        # Loading sequence
+        loading_steps = [
+            (10, "Loading configuration..."),
+            (25, "Initializing Excel engine..."),
+            (45, "Loading workbook data..."),
+            (60, "Connecting to Bloomberg..."),
+            (75, "Fetching market data..."),
+            (90, "Building interface..."),
+        ]
+        
+        # Run loading animation
+        for progress, status in loading_steps:
+            try:
+                if not splash.winfo_exists():
+                    break
+                splash.set_progress(progress, status)
+                splash.update()
+                time.sleep(0.15)
+            except tk.TclError:
+                # Splash was closed
+                break
+        
+        # Finalize
+        try:
+            if splash.winfo_exists():
+                splash.set_progress(100, "Launching...")
+                splash.update()
+                time.sleep(0.2)
+                splash.destroy()
+        except tk.TclError:
+            pass
+        
+        # Clean up root
+        try:
+            splash_root.destroy()
+        except tk.TclError:
+            pass
+            
+        return True
+        
+    except Exception as e:
+        log.warning(f"Splash screen failed: {e}")
+        return False
+
+
 # ==============================================================================
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
     import sys
 
-    # Check if splash should be skipped (for debugging)
+    # Check command line arguments
     skip_splash = "--no-splash" in sys.argv
 
+    # Show splash screen unless skipped
     if not skip_splash:
-        try:
-            from splash_screen import SplashScreen
-            import time
-
-            # Create hidden root for splash
-            splash_root = tk.Tk()
-            splash_root.withdraw()
-
-            splash = SplashScreen(splash_root)
-            splash.update()
-
-            # Simulate loading steps
-            loading_steps = [
-                (10, "Loading configuration..."),
-                (25, "Initializing Excel engine..."),
-                (45, "Loading workbook data..."),
-                (60, "Connecting to Bloomberg..."),
-                (75, "Fetching market data..."),
-                (90, "Building interface..."),
-            ]
-
-            for progress, status in loading_steps:
-                splash.set_progress(progress, status)
-                splash.update()
-                time.sleep(0.15)
-
-            splash.set_progress(100, "Launching...")
-            splash.update()
-            time.sleep(0.2)
-
-            splash.destroy()
-            splash_root.destroy()
-        except Exception as e:
-            log.warning(f"Splash screen failed: {e}")
+        show_splash_screen()
 
     # Launch main application
     app = NiborTerminalTK()
 
-    # Import fixing history from Excel on startup (idempotent - only adds new entries)
+    # Import fixing history from Excel on startup
     try:
         from history import import_all_fixings_from_excel
         from pathlib import Path
 
-        # Look for Excel file in multiple locations
+        # Look for Excel file
         excel_candidates = [
             DATA_DIR / "Nibor history - wide.xlsx",
             DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",

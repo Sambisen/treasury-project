@@ -244,15 +244,18 @@ class ExcelEngine:
                 recon[(r, c)] = ws.cell(row=r, column=c).value
 
             # Read Excel CM rates (EUR and USD)
+            log.info(f"[ExcelEngine.load_recon_direct] Reading Excel CM rates from sheet: {sheet_name}")
             cm_rates = {}
             for key, cell_ref in EXCEL_CM_RATES_MAPPING.items():
                 val = ws[cell_ref].value
                 cm_rates[key] = safe_float(val, None)
+                log.info(f"[ExcelEngine.load_recon_direct]   {key} ({cell_ref}): raw={val}, parsed={cm_rates[key]}")
 
             wb.close()
 
             self.recon_data = recon
             self.excel_cm_rates = cm_rates
+            log.info(f"[ExcelEngine.load_recon_direct] [OK] Excel CM rates loaded: {self.excel_cm_rates}")
             self.last_loaded_ts = datetime.now()
 
             self.load_weights_file()
@@ -271,6 +274,53 @@ class ExcelEngine:
         except Exception:
             return False
         return False
+
+    def get_days_for_date(self, date_str: str) -> dict:
+        """
+        Get days to maturity for all tenors on a specific date.
+        
+        Args:
+            date_str: Date in format "YYYY-MM-DD"
+            
+        Returns:
+            dict: {"1w_Days": 7, "1m_Days": 30, ...} or empty dict if not found
+        """
+        log.info(f"[ExcelEngine.get_days_for_date] Looking for date: {date_str}")
+        
+        if self.day_data.empty or "date" not in self.day_data.columns:
+            log.info(f"[ExcelEngine.get_days_for_date] [ERROR] Day data not loaded")
+            return {}
+        
+        try:
+            # Convert input date to pandas Timestamp
+            target_date = pd.Timestamp(date_str).normalize()
+            log.info(f"[ExcelEngine.get_days_for_date] Target date: {target_date}")
+            
+            # Find matching row
+            matching_rows = self.day_data[self.day_data["date"] == target_date]
+            
+            if matching_rows.empty:
+                log.info(f"[ExcelEngine.get_days_for_date] [WARN] No data found for {date_str}")
+                return {}
+            
+            # Get first matching row
+            row = matching_rows.iloc[0]
+            
+            # Extract days columns
+            days_map = {}
+            for tenor in ["1w", "1m", "2m", "3m", "6m"]:
+                days_col = f"{tenor}_Days"
+                if days_col in row:
+                    days_map[days_col] = row[days_col]
+                    # Also add without "_Days" suffix for compatibility
+                    days_map[tenor] = row[days_col]
+            
+            log.info(f"[ExcelEngine.get_days_for_date] [OK] Found days: {days_map}")
+            return days_map
+            
+        except Exception as e:
+            log.info(f"[ExcelEngine.get_days_for_date] [ERROR] {e}")
+            return {}
 
     def get_future_days_data(self, limit_rows=300):
         """Get future NIBOR days data with improved debugging."""
@@ -373,6 +423,7 @@ class ExcelEngine:
             Also returns the sheet name (date) as "_date" key
         """
         from config import NIBOR_WORKBOOK_PATH
+        import re
 
         log.info("[ExcelEngine] Loading previous sheet NIBOR rates for CHG calculation...")
         log.info(f"[ExcelEngine] Workbook path: {NIBOR_WORKBOOK_PATH}")
