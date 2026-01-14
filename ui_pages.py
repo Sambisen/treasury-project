@@ -140,23 +140,9 @@ class DashboardPage(tk.Frame):
         # Separator
         tk.Frame(funding_frame, bg=THEME["border"], width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=10)
 
-        # ROW 0: RECONCILIATION header
-        tk.Label(funding_frame, text="RECONCILIATION",
-                fg=THEME["accent"], bg=THEME["bg_card"],
-                font=FONTS["h3"]).grid(row=0, column=6, columnspan=4, sticky="nsew", pady=8)
-
-        # ROW 1: Category headers
-        categories = [
-            ("Python vs Excel", 6),
-            ("Calc model spread", 7),
-            ("Python vs Excel", 8),
-            ("", 9),
-        ]
-        for text, col in categories:
-            tk.Label(funding_frame, text=text,
-                    fg=THEME["muted"], bg=THEME["bg_card"],
-                    font=FONTS["body_small"],
-                    width=18).grid(row=1, column=col, sticky="nsew", pady=4)
+        # ROW 0-1: Empty for alignment
+        tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=0, column=6, sticky="nsew")
+        tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=1, column=6, sticky="nsew")
 
         # ROW 2: Main headers
         headers = [
@@ -172,18 +158,11 @@ class DashboardPage(tk.Frame):
                     font=("Segoe UI Semibold", 10),
                     width=width, pady=10).grid(row=2, column=col, sticky="nsew")
 
-        # ROW 2: Recon sub-headers
-        sub_headers = [
-            ("Spread calc model", 6),
-            ("Excel", 7),
-            ("NIBOR contribution", 8),
-            ("Nore Contribution", 9),
-        ]
-        for text, col in sub_headers:
-            tk.Label(funding_frame, text=text,
-                    fg=THEME["muted"], bg=THEME["bg_card_2"],
-                    font=FONTS["body_small"],
-                    width=18, pady=10).grid(row=2, column=col, sticky="nsew")
+        # ROW 2: Single recon header
+        tk.Label(funding_frame, text="NIBOR Contribution",
+                fg="#FFFFFF", bg=THEME["accent_secondary"],
+                font=("Segoe UI Semibold", 10),
+                width=18, pady=10).grid(row=2, column=6, sticky="nsew")
 
         # ================================================================
         # DATA ROWS
@@ -212,10 +191,10 @@ class DashboardPage(tk.Frame):
                             bg=row_bg, font=("Consolas", 11),
                             anchor="center", pady=14).grid(row=row_idx, column=col, sticky="ew")
 
-                for col in range(6, 10):
-                    tk.Label(funding_frame, text="---", fg="#CBD5E0",
-                            bg=row_bg, font=("Consolas", 10),
-                            anchor="center", pady=14).grid(row=row_idx, column=col, sticky="ew")
+                # Single recon column for disabled row
+                tk.Label(funding_frame, text="---", fg="#CBD5E0",
+                        bg=row_bg, font=("Consolas", 10),
+                        anchor="center", pady=14).grid(row=row_idx, column=6, sticky="ew")
 
                 self.funding_cells[tenor["key"]] = {}
                 continue
@@ -269,36 +248,13 @@ class DashboardPage(tk.Frame):
             cells["chg"] = chg_lbl
             ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            # RECONCILIATION columns - subtle styling
-            recon_row_bg = row_bg
-
-            spread_model_lbl = tk.Label(funding_frame, text="-",
-                                       fg=THEME["text_light"], bg=recon_row_bg,
-                                       font=("Consolas", 10),
-                                       width=17, pady=14)
-            spread_model_lbl.grid(row=row_idx, column=6, sticky="ew")
-            cells["spread_model"] = spread_model_lbl
-
-            excel_model_lbl = tk.Label(funding_frame, text="-",
-                                      fg=THEME["text_light"], bg=recon_row_bg,
-                                      font=("Consolas", 10),
-                                      width=17, pady=14)
-            excel_model_lbl.grid(row=row_idx, column=7, sticky="ew")
-            cells["excel_model"] = excel_model_lbl
-
+            # Single NIBOR Contribution reconciliation column
             nibor_contrib_lbl = tk.Label(funding_frame, text="-",
-                                        fg=THEME["text_light"], bg=recon_row_bg,
-                                        font=("Consolas", 10),
-                                        width=17, pady=14)
-            nibor_contrib_lbl.grid(row=row_idx, column=8, sticky="ew")
+                                        fg=THEME["text_light"], bg=row_bg,
+                                        font=("Consolas", 11),
+                                        width=18, pady=14)
+            nibor_contrib_lbl.grid(row=row_idx, column=6, sticky="ew")
             cells["nibor_contrib"] = nibor_contrib_lbl
-
-            nore_contrib_lbl = tk.Label(funding_frame, text="-",
-                                       fg=THEME["text_light"], bg=recon_row_bg,
-                                       font=("Consolas", 10),
-                                       width=17, pady=14)
-            nore_contrib_lbl.grid(row=row_idx, column=9, sticky="ew")
-            cells["nore_contrib"] = nore_contrib_lbl
 
             cells["excel_row"] = tenor["excel_row"]
             cells["excel_col"] = tenor["excel_col"]
@@ -901,12 +857,10 @@ class DashboardPage(tk.Frame):
         weights = self._get_weights()
         self.app.funding_calc_data = {}
 
-        # Excel cells for NIBOR reconciliation (from latest sheet)
-        # Column 1: Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
+        # Excel cells for NIBOR Contribution reconciliation (from latest sheet)
+        # NIBOR GUI must match Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
         EXCEL_Z_CELLS = {"1m": "Z30", "2m": "Z31", "3m": "Z32", "6m": "Z33"}
         EXCEL_AA_CELLS = {"1m": "AA30", "2m": "AA31", "3m": "AA32", "6m": "AA33"}
-        # Column 2: AA7-AA10
-        EXCEL_NIBOR_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -1012,72 +966,19 @@ class DashboardPage(tk.Frame):
                             except (ValueError, TypeError):
                                 errors.append(f"{aa_cell}: parse error")
 
-                # Both must match for green checkmark
+                # Both must match for "Matched ✓"
+                lbl = cells["nibor_contrib"]
                 if match_z and match_aa:
-                    cells["nibor_contrib"].config(text="✓", fg=THEME["good"])
+                    lbl.config(text="Matched ✓", fg=THEME["good"])
+                    self._stop_blink(lbl)
                 elif errors:
-                    cells["nibor_contrib"].config(text="✗", fg=THEME["bad"])
+                    lbl.config(text="✗", fg=THEME["bad"])
+                    self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    cells["nibor_contrib"].config(text="-", fg=THEME["muted"])
-
-            # ================================================================
-            # RECON COL 2: NIBOR Excel - GUI vs AA7-AA10
-            # ================================================================
-            if "nore_contrib" in cells and final_rate is not None:
-                nibor_cell = EXCEL_NIBOR_CELLS.get(tenor_key)
-                if nibor_cell and hasattr(self.app, 'excel_engine'):
-                    excel_nibor = self.app.excel_engine.get_recon_value(nibor_cell)
-                    if excel_nibor is not None:
-                        try:
-                            excel_nibor = float(excel_nibor)
-                            gui_2dec = round(final_rate, 2)
-                            excel_2dec = round(excel_nibor, 2)
-                            is_match = (gui_2dec == excel_2dec)
-
-                            if is_match:
-                                cells["nore_contrib"].config(text="✓", fg=THEME["good"])
-                            else:
-                                cells["nore_contrib"].config(text="✗", fg=THEME["bad"])
-                                alert_messages.append(
-                                    f"{tenor_key.upper()} NIBOR: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}"
-                                )
-                        except (ValueError, TypeError):
-                            cells["nore_contrib"].config(text="ERR", fg=THEME["warning"])
-                    else:
-                        cells["nore_contrib"].config(text="-", fg=THEME["muted"])
-                else:
-                    cells["nore_contrib"].config(text="-", fg=THEME["muted"])
-
-            # Excel validation
-            if "match" in cells and final_rate is not None:
-                excel_row = cells.get("excel_row")
-                excel_col = cells.get("excel_col")
-                
-                if excel_row and excel_col:
-                    excel_value = self.app.cached_excel_data.get((excel_row, excel_col))
-                    
-                    if excel_value is not None:
-                        try:
-                            excel_value = float(excel_value)
-                            # Round both to 4 decimals for comparison
-                            final_rate_rounded = round(final_rate, 4)
-                            excel_value_rounded = round(excel_value, 4)
-                            
-                            is_match = (final_rate_rounded == excel_value_rounded)
-                            
-                            if is_match:
-                                cells["match"].config(text="OK", fg=THEME["badge_ok"], bg=THEME["bg_card_2"])
-                            else:
-                                cells["match"].config(text="FAIL", fg=THEME["badge_fail"], bg=THEME["bg_card_2"])
-                                alert_messages.append(f"{tenor_key.upper()}: GUI {final_rate:.4f}% ≠ Excel {excel_value:.4f}%")
-                        except (ValueError, TypeError):
-                            cells["match"].config(text="WARN", fg=THEME["badge_warn"], bg=THEME["bg_card_2"])
-                    else:
-                        cells["match"].config(text="—", fg=THEME["muted"], bg=THEME["bg_card"])
-                else:
-                    cells["match"].config(text="—", fg=THEME["muted"], bg=THEME["bg_card"])
+                    lbl.config(text="-", fg=THEME["muted"])
+                    self._stop_blink(lbl)
             
             # Store for popup with model information
             self.app.funding_calc_data[tenor_key] = {
