@@ -92,7 +92,7 @@ class DashboardPage(tk.Frame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE - Premium Professional Design
+        # NIBOR RATES TABLE - Professional 3-Tier Header Design
         # ====================================================================
 
         # Title section with accent line
@@ -131,62 +131,84 @@ class DashboardPage(tk.Frame):
         funding_frame.pack(padx=1, pady=1)
 
         # ================================================================
-        # TWO-TIER HEADER STRUCTURE
-        # Row 0: Core headers (rowspan=2) + RECONCILIATION super-header
-        # Row 1: Sub-headers under RECONCILIATION
+        # 3-TIER HEADER STRUCTURE (Original layout)
+        # Row 0: Empty for core | RECONCILIATION super-header
+        # Row 1: Empty for core | Main category headers
+        # Row 2: Core headers   | Sub-headers
         # ================================================================
 
-        # Colors
-        header_primary = "#003D5C"      # Swedbank dark blue for main headers
-        header_secondary = "#E8EAED"    # Light grey for sub-headers
-        header_text_light = "#FFFFFF"   # White text on dark
+        # Colors - Swedbank Professional
+        header_dark = "#003D5C"         # Swedbank dark blue
+        header_mid = "#E8EAED"          # Light grey
+        header_light = "#F3F4F6"        # Lighter grey
+        text_white = "#FFFFFF"
 
-        # CORE DATA HEADERS (span 2 rows)
+        # ROW 0: RECONCILIATION super-header only
+        # Empty cells for core data columns (rows 0-1)
+        for col in range(5):
+            tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=0, column=col, sticky="nsew")
+            tk.Label(funding_frame, text="", bg=THEME["bg_card"]).grid(row=1, column=col, sticky="nsew")
+
+        # Separator column
+        sep_frame = tk.Frame(funding_frame, bg=THEME["bg_card"], width=12)
+        sep_frame.grid(row=0, column=5, rowspan=15, sticky="ns")
+
+        # RECONCILIATION super-header (row 0, spans 4 columns)
+        recon_super = tk.Label(funding_frame, text="RECONCILIATION",
+                              fg=THEME["accent"], bg=THEME["bg_card"],
+                              font=("Segoe UI Semibold", 11),
+                              anchor="center", pady=8)
+        recon_super.grid(row=0, column=6, columnspan=4, sticky="nsew")
+
+        # ROW 1: Main category headers under RECONCILIATION
+        main_categories = [
+            ("Python vs Excel", 6),
+            ("Calc model spread", 7),
+            ("Python vs Excel", 8),
+            ("", 9),  # Empty for Nore
+        ]
+
+        for header_text, col_idx in main_categories:
+            lbl = tk.Label(funding_frame, text=header_text,
+                          fg=THEME["text"], bg=THEME["bg_card"],
+                          font=("Segoe UI", 9),
+                          width=16, anchor="center", pady=4)
+            lbl.grid(row=1, column=col_idx, sticky="nsew")
+
+        # ROW 2: Core data headers + Recon sub-headers (same row)
         core_headers = [
             ("TENOR", 10),
-            ("FUNDING", 14),
+            ("FUNDING RATE", 14),
             ("SPREAD", 10),
             ("NIBOR", 14),
-            ("CHG", 10),
+            ("CHG", 8),
         ]
 
         for col_idx, (header_text, width) in enumerate(core_headers):
             lbl = tk.Label(funding_frame, text=header_text,
-                          fg=header_text_light, bg=header_primary,
+                          fg=text_white, bg=header_dark,
                           font=("Segoe UI Semibold", 10),
                           width=width, anchor="center",
-                          padx=15, pady=12)
-            lbl.grid(row=0, column=col_idx, rowspan=2, sticky="nsew")
+                          padx=10, pady=10)
+            lbl.grid(row=2, column=col_idx, sticky="nsew")
 
-        # Separator column
-        sep_frame = tk.Frame(funding_frame, bg=THEME["bg_card"], width=20)
-        sep_frame.grid(row=0, column=5, rowspan=12, sticky="ns")
-
-        # RECONCILIATION super-header (spans 4 columns)
-        recon_super = tk.Label(funding_frame, text="RECONCILIATION",
-                              fg=header_text_light, bg=header_primary,
-                              font=("Segoe UI Semibold", 10),
-                              anchor="center", padx=10, pady=8)
-        recon_super.grid(row=0, column=6, columnspan=4, sticky="nsew")
-
-        # Sub-headers under RECONCILIATION
+        # Recon sub-headers (row 2)
         recon_sub_headers = [
-            ("Spread Diff", 12, 6),
-            ("Model", 10, 7),
-            ("NIBOR Diff", 12, 8),
-            ("Nore", 10, 9),
+            ("Spread calc model", 6),
+            ("Excel", 7),
+            ("NIBOR contribution", 8),
+            ("Nore Contribution", 9),
         ]
 
-        for header_text, width, col_idx in recon_sub_headers:
+        for header_text, col_idx in recon_sub_headers:
             lbl = tk.Label(funding_frame, text=header_text,
-                          fg=THEME["text"], bg=header_secondary,
+                          fg=THEME["muted"], bg=header_mid,
                           font=("Segoe UI", 9),
-                          width=width, anchor="center",
-                          padx=8, pady=8)
-            lbl.grid(row=1, column=col_idx, sticky="nsew")
+                          width=16, anchor="center", pady=10)
+            lbl.grid(row=2, column=col_idx, sticky="nsew")
 
         # ================================================================
-        # DATA ROWS - Premium styling
+        # DATA ROWS
         # ================================================================
         self.funding_cells = {}
         tenors = [
@@ -198,21 +220,21 @@ class DashboardPage(tk.Frame):
         ]
 
         for i, tenor in enumerate(tenors):
-            row_idx = i + 2  # Start after 2 header rows
+            row_idx = i + 3  # Start after 3 header rows
 
-            # Alternating row colors - subtle
+            # Alternating row colors
             row_bg = "#FFFFFF" if i % 2 == 0 else "#F8FAFC"
 
             # Handle disabled tenors (like 1W)
             if tenor.get("disabled"):
                 tk.Label(funding_frame, text=tenor["label"], fg=THEME["text_light"],
                         bg=row_bg, font=("Segoe UI Semibold", 11),
-                        width=10, anchor="center", pady=14).grid(row=row_idx, column=0, sticky="ew")
+                        width=10, anchor="center", pady=12).grid(row=row_idx, column=0, sticky="ew")
 
                 for col in range(1, 5):
                     tk.Label(funding_frame, text="---", fg=THEME["text_light"],
                             bg=row_bg, font=("Consolas", 11),
-                            anchor="center", pady=14).grid(row=row_idx, column=col, sticky="ew")
+                            anchor="center", pady=12).grid(row=row_idx, column=col, sticky="ew")
 
                 for col in range(6, 10):
                     tk.Label(funding_frame, text="---", fg=THEME["text_light"],
