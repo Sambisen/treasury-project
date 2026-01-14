@@ -1390,76 +1390,10 @@ def generate_alerts_report():
     log.info(f"Rapport sparad till: {rapport_path}")
 
 
-def show_splash_screen():
-    """Show splash screen with proper error handling and timeout."""
-    try:
-        from splash_screen import SplashScreen
-        
-        # Create hidden root
-        splash_root = tk.Tk()
-        splash_root.withdraw()
-        
-        # Create splash
-        splash = SplashScreen(splash_root)
-        
-        # Loading sequence
-        loading_steps = [
-            (10, "Loading configuration..."),
-            (25, "Initializing Excel engine..."),
-            (45, "Loading workbook data..."),
-            (60, "Connecting to Bloomberg..."),
-            (75, "Fetching market data..."),
-            (90, "Building interface..."),
-        ]
-        
-        # Run loading animation
-        for progress, status in loading_steps:
-            try:
-                if not splash.winfo_exists():
-                    break
-                splash.set_progress(progress, status)
-                splash.update()
-                time.sleep(0.15)
-            except tk.TclError:
-                # Splash was closed
-                break
-        
-        # Finalize
-        try:
-            if splash.winfo_exists():
-                splash.set_progress(100, "Launching...")
-                splash.update()
-                time.sleep(0.2)
-                splash.destroy()
-        except tk.TclError:
-            pass
-        
-        # Clean up root
-        try:
-            splash_root.destroy()
-        except tk.TclError:
-            pass
-            
-        return True
-        
-    except Exception as e:
-        log.warning(f"Splash screen failed: {e}")
-        return False
-
-
 # ==============================================================================
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
-    import sys
-
-    # Check command line arguments
-    skip_splash = "--no-splash" in sys.argv
-
-    # Show splash screen unless skipped
-    if not skip_splash:
-        show_splash_screen()
-
     # Launch main application
     app = NiborTerminalTK()
 
