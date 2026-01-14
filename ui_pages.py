@@ -291,13 +291,32 @@ class DashboardPage(BaseFrame):
             cells["chg"] = chg_lbl
             ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            # NIBOR Contribution - will be replaced with pill badge
-            nibor_contrib_lbl = tk.Label(funding_frame, text="-",
-                                        fg=THEME["text_light"], bg=row_bg,
-                                        font=("Consolas", 11),
-                                        width=18, pady=16, padx=20)
-            nibor_contrib_lbl.grid(row=row_idx, column=6, sticky="ew")
-            cells["nibor_contrib"] = nibor_contrib_lbl
+            # NIBOR Contribution - Pill badge container
+            pill_container = tk.Frame(funding_frame, bg=row_bg)
+            pill_container.grid(row=row_idx, column=6, sticky="ew", pady=8, padx=12)
+
+            # Create the pill badge (inner frame with styled label)
+            if CTK_AVAILABLE:
+                pill_badge = ctk.CTkFrame(pill_container, fg_color="transparent",
+                                          corner_radius=12, height=28)
+                pill_badge.pack(anchor="center")
+                pill_badge.pack_propagate(False)
+                pill_label = ctk.CTkLabel(pill_badge, text="-",
+                                          text_color=THEME["text_light"],
+                                          font=("Segoe UI", 10))
+                pill_label.pack(expand=True, padx=12, pady=4)
+            else:
+                pill_badge = tk.Frame(pill_container, bg=row_bg)
+                pill_badge.pack(anchor="center")
+                pill_label = tk.Label(pill_badge, text="-",
+                                      fg=THEME["text_light"], bg=row_bg,
+                                      font=("Segoe UI", 10), padx=12, pady=4)
+                pill_label.pack()
+
+            cells["nibor_contrib"] = pill_label
+            cells["nibor_contrib_badge"] = pill_badge
+            cells["nibor_contrib_container"] = pill_container
+            cells["row_bg"] = row_bg  # Store for status updates
 
             # Row separator
             tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
@@ -768,10 +787,16 @@ class DashboardPage(BaseFrame):
     def update(self):
         """Update all dashboard elements."""
         # Populate horizontal status bar
-        self._populate_status_badges()
-        
+        try:
+            self._populate_status_badges()
+        except Exception as e:
+            log.error(f"[Dashboard] Error in _populate_status_badges: {e}")
+
         # Update funding rates with Excel validation (cards are in global header, updated by main.py)
-        self._update_funding_rates_with_validation()
+        try:
+            self._update_funding_rates_with_validation()
+        except Exception as e:
+            log.error(f"[Dashboard] Error in _update_funding_rates_with_validation: {e}")
     
     def _populate_status_badges(self):
         """Populate horizontal status bar with current system status."""
@@ -811,44 +836,57 @@ class DashboardPage(BaseFrame):
             
             if is_ok:
                 ok_count += 1
-            
-            # Badge frame
-            badge = tk.Frame(self.status_badges_frame, bg=THEME["bg_card_2"],
-                            cursor="hand2")
-            badge.pack(side="left", padx=8, pady=6)
-            
-            # Professional status dot
-            color = THEME["good"] if is_ok else THEME["bad"]
 
-            icon_lbl = tk.Label(badge, text="●", fg=color,
-                               bg=THEME["bg_card_2"],
-                               font=("Segoe UI", 10))
-            icon_lbl.pack(side="left")
-            
-            # Name
-            name_lbl = tk.Label(badge, text=name, fg=THEME["text"],
-                               bg=THEME["bg_card_2"],
-                               font=FONTS["body"])
-            name_lbl.pack(side="left", padx=(5, 0))
-            
-            # Hover effect
-            badge.bind("<Enter>",
-                      lambda e, b=badge: b.config(bg=THEME["bg_hover"]))
-            badge.bind("<Leave>",
-                      lambda e, b=badge: b.config(bg=THEME["bg_card_2"]))
-            
+            # Pill badge colors
+            if is_ok:
+                icon = "✓"
+                text_color = "#00C853"  # Green
+                bg_color = "#1A3320"    # Dark green bg
+            else:
+                icon = "✗"
+                text_color = "#FF3B30"  # Red
+                bg_color = "#3D1F1F"    # Dark red bg
+
+            # Create pill-shaped badge
+            if CTK_AVAILABLE:
+                badge = ctk.CTkFrame(self.status_badges_frame, fg_color=bg_color,
+                                    corner_radius=16)
+                badge.pack(side="left", padx=4, pady=6)
+
+                badge_label = ctk.CTkLabel(badge, text=f"{icon} {name}",
+                                           text_color=text_color,
+                                           font=("Segoe UI Semibold", 10),
+                                           cursor="hand2")
+                badge_label.pack(padx=12, pady=6)
+            else:
+                badge = tk.Frame(self.status_badges_frame, bg=bg_color,
+                                cursor="hand2")
+                badge.pack(side="left", padx=4, pady=6)
+
+                badge_label = tk.Label(badge, text=f"{icon} {name}",
+                                       fg=text_color, bg=bg_color,
+                                       font=("Segoe UI Semibold", 10),
+                                       padx=12, pady=6)
+                badge_label.pack()
+
             # Store reference
-            self.status_badges[key] = (icon_lbl, name_lbl, badge)
+            self.status_badges[key] = (badge_label, badge)
         
         # Update summary
         total = len(statuses)
         color = THEME["good"] if ok_count == total else (
             THEME["warning"] if ok_count > total // 2 else THEME["bad"]
         )
-        self.status_summary_lbl.config(
-            text=f"({ok_count}/{total} OK)",
-            fg=color
-        )
+        if CTK_AVAILABLE:
+            self.status_summary_lbl.configure(
+                text=f"({ok_count}/{total} OK)",
+                text_color=color
+            )
+        else:
+            self.status_summary_lbl.config(
+                text=f"({ok_count}/{total} OK)",
+                fg=color
+            )
     
     def _update_connection_cards(self):
         """Update Excel and Bloomberg connection status in top-right cards."""
@@ -1064,18 +1102,44 @@ class DashboardPage(BaseFrame):
                             except (ValueError, TypeError):
                                 errors.append(f"{aa_cell}: parse error")
 
-                # Professional status display
+                # Professional pill badge status display
                 lbl = cells["nibor_contrib"]
+                badge = cells.get("nibor_contrib_badge")
+
                 if match_z and match_aa:
-                    lbl.config(text="OK", fg=THEME["good"], font=("Segoe UI Semibold", 10))
+                    # Matched - Green pill badge
+                    if CTK_AVAILABLE and badge:
+                        badge.configure(fg_color="#1A3320")  # rgba(0,200,83,0.15) equivalent
+                        lbl.configure(text="✓ Matched", text_color="#00C853")
+                    else:
+                        lbl.config(text="✓ Matched", fg="#00C853", bg="#1A3320",
+                                  font=("Segoe UI Semibold", 10))
+                        if badge:
+                            badge.config(bg="#1A3320")
                     self._stop_blink(lbl)
                 elif errors:
-                    lbl.config(text="FAIL", fg=THEME["bad"], font=("Segoe UI Semibold", 10))
+                    # Failed - Red pill badge
+                    if CTK_AVAILABLE and badge:
+                        badge.configure(fg_color="#3D1F1F")  # rgba(255,59,48,0.15) equivalent
+                        lbl.configure(text="✗ Failed", text_color="#FF3B30")
+                    else:
+                        lbl.config(text="✗ Failed", fg="#FF3B30", bg="#3D1F1F",
+                                  font=("Segoe UI Semibold", 10))
+                        if badge:
+                            badge.config(bg="#3D1F1F")
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    lbl.config(text="-", fg=THEME["muted"], font=("Consolas", 11))
+                    # Pending - neutral state
+                    if CTK_AVAILABLE and badge:
+                        badge.configure(fg_color="transparent")
+                        lbl.configure(text="-", text_color=THEME["muted"])
+                    else:
+                        lbl.config(text="-", fg=THEME["muted"], bg=cells.get("row_bg", THEME["bg_panel"]),
+                                  font=("Consolas", 11))
+                        if badge:
+                            badge.config(bg=cells.get("row_bg", THEME["bg_panel"]))
                     self._stop_blink(lbl)
             
             # Store for popup with model information
@@ -1116,10 +1180,18 @@ class DashboardPage(BaseFrame):
             widget.destroy()
 
         if not messages:
-            # All OK - show success message
-            tk.Label(self.alerts_scroll_frame, text="All Controls OK",
-                    fg=THEME["good"], bg=THEME["bg_card"],
-                    font=("Segoe UI Semibold", 12)).pack(expand=True, pady=50)
+            # All OK - show success card
+            if CTK_AVAILABLE:
+                success_card = ctk.CTkFrame(self.alerts_scroll_frame, fg_color="#1A3320",
+                                           corner_radius=6)
+                success_card.pack(fill="x", padx=10, pady=30)
+                ctk.CTkLabel(success_card, text="✓ All Controls OK",
+                            text_color="#00C853",
+                            font=("Segoe UI Semibold", 12)).pack(pady=20)
+            else:
+                tk.Label(self.alerts_scroll_frame, text="✓ All Controls OK",
+                        fg=THEME["good"], bg=THEME["bg_card"],
+                        font=("Segoe UI Semibold", 12)).pack(expand=True, pady=50)
         else:
             # Get current timestamp
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -1134,31 +1206,56 @@ class DashboardPage(BaseFrame):
 
                 # Set colors based on priority
                 if priority == "warning":
-                    icon_color = THEME["warning"]
+                    border_color = THEME["warning"]
+                    bg_color = "#3D3520"  # Dark amber/orange bg
                     icon_text = "⚠"
                 else:  # critical
-                    icon_color = THEME["bad"]
-                    icon_text = "●"
+                    border_color = THEME["bad"]
+                    bg_color = "#3D1F1F"  # Dark red bg rgba(255,59,48,0.1)
+                    icon_text = "✗"
 
-                alert_frame = tk.Frame(self.alerts_scroll_frame,
-                                      bg=THEME["bg_card_2"] if i % 2 == 0 else THEME["bg_card"])
-                alert_frame.pack(fill="x", pady=2, padx=10)
+                # Card container with left border effect
+                if CTK_AVAILABLE:
+                    card_outer = ctk.CTkFrame(self.alerts_scroll_frame, fg_color=border_color,
+                                             corner_radius=6, height=48)
+                    card_outer.pack(fill="x", pady=4, padx=10)
+                    card_outer.pack_propagate(False)
 
-                # Timestamp
-                tk.Label(alert_frame, text=timestamp, fg=THEME["muted"],
-                        bg=alert_frame["bg"],
-                        font=("Consolas", 9)).pack(side="left", padx=(10, 8), pady=8)
+                    card_inner = ctk.CTkFrame(card_outer, fg_color=bg_color, corner_radius=4)
+                    card_inner.pack(fill="both", expand=True, padx=(3, 0))  # 3px left border
 
-                # Priority icon
-                tk.Label(alert_frame, text=icon_text, fg=icon_color,
-                        bg=alert_frame["bg"],
-                        font=("Segoe UI", 12)).pack(side="left", padx=(0, 5), pady=8)
+                    # Timestamp
+                    ctk.CTkLabel(card_inner, text=timestamp, text_color=THEME["muted"],
+                                font=("Consolas", 9)).pack(side="left", padx=(12, 8), pady=8)
 
-                # Message
-                tk.Label(alert_frame, text=msg, fg=THEME["text"],
-                        bg=alert_frame["bg"],
-                        font=("Segoe UI", 10), anchor="w",
-                        wraplength=580).pack(side="left", fill="x", expand=True, pady=8)
+                    # Priority icon
+                    ctk.CTkLabel(card_inner, text=icon_text, text_color=border_color,
+                                font=("Segoe UI", 12)).pack(side="left", padx=(0, 8), pady=8)
+
+                    # Message
+                    ctk.CTkLabel(card_inner, text=msg, text_color=THEME["text"],
+                                font=("Segoe UI", 10), anchor="w",
+                                wraplength=540).pack(side="left", fill="x", expand=True, pady=8)
+                else:
+                    # Fallback for non-CTK
+                    card_outer = tk.Frame(self.alerts_scroll_frame, bg=border_color)
+                    card_outer.pack(fill="x", pady=4, padx=10)
+
+                    card_inner = tk.Frame(card_outer, bg=bg_color)
+                    card_inner.pack(fill="both", expand=True, padx=(3, 0), pady=0)
+
+                    # Timestamp
+                    tk.Label(card_inner, text=timestamp, fg=THEME["muted"],
+                            bg=bg_color, font=("Consolas", 9)).pack(side="left", padx=(12, 8), pady=8)
+
+                    # Priority icon
+                    tk.Label(card_inner, text=icon_text, fg=border_color,
+                            bg=bg_color, font=("Segoe UI", 12)).pack(side="left", padx=(0, 8), pady=8)
+
+                    # Message
+                    tk.Label(card_inner, text=msg, fg=THEME["text"],
+                            bg=bg_color, font=("Segoe UI", 10), anchor="w",
+                            wraplength=540).pack(side="left", fill="x", expand=True, pady=8)
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
