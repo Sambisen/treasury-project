@@ -890,16 +890,23 @@ class DashboardPage(tk.Frame):
         """Update funding rates table with Excel validation - USES SELECTED MODEL."""
         from config import FUNDING_SPREADS
         from calculations import calc_funding_rate
-        
+
         if not hasattr(self.app, 'impl_calc_data'):
             return
-        
+
         # Get selected calculation model (default: swedbank)
         selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
         log.info(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
-        
+
         weights = self._get_weights()
         self.app.funding_calc_data = {}
+
+        # Excel cells for NIBOR reconciliation (from latest sheet)
+        # Column 1: Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
+        EXCEL_Z_CELLS = {"1m": "Z30", "2m": "Z31", "3m": "Z32", "6m": "Z33"}
+        EXCEL_AA_CELLS = {"1m": "AA30", "2m": "AA31", "3m": "AA32", "6m": "AA33"}
+        # Column 2: AA7-AA10
+        EXCEL_NIBOR_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -965,6 +972,83 @@ class DashboardPage(tk.Frame):
                     cells["chg"].config(text=chg_text, fg=chg_color)
                 else:
                     cells["chg"].config(text="-", fg=THEME["muted"])
+
+            # ================================================================
+            # RECON COL 1: NIBOR Contrib - GUI vs Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
+            # ================================================================
+            if "nibor_contrib" in cells and final_rate is not None:
+                z_cell = EXCEL_Z_CELLS.get(tenor_key)
+                aa_cell = EXCEL_AA_CELLS.get(tenor_key)
+                match_z = False
+                match_aa = False
+                errors = []
+
+                if hasattr(self.app, 'excel_engine'):
+                    # Check Z cell (4 decimals)
+                    if z_cell:
+                        excel_z = self.app.excel_engine.get_recon_value(z_cell)
+                        if excel_z is not None:
+                            try:
+                                excel_z = float(excel_z)
+                                gui_4dec = round(final_rate, 4)
+                                excel_4dec = round(excel_z, 4)
+                                match_z = (gui_4dec == excel_4dec)
+                                if not match_z:
+                                    errors.append(f"{z_cell}: GUI {gui_4dec:.4f} ≠ {excel_4dec:.4f}")
+                            except (ValueError, TypeError):
+                                errors.append(f"{z_cell}: parse error")
+
+                    # Check AA cell (2 decimals)
+                    if aa_cell:
+                        excel_aa = self.app.excel_engine.get_recon_value(aa_cell)
+                        if excel_aa is not None:
+                            try:
+                                excel_aa = float(excel_aa)
+                                gui_2dec = round(final_rate, 2)
+                                excel_2dec = round(excel_aa, 2)
+                                match_aa = (gui_2dec == excel_2dec)
+                                if not match_aa:
+                                    errors.append(f"{aa_cell}: GUI {gui_2dec:.2f} ≠ {excel_2dec:.2f}")
+                            except (ValueError, TypeError):
+                                errors.append(f"{aa_cell}: parse error")
+
+                # Both must match for green checkmark
+                if match_z and match_aa:
+                    cells["nibor_contrib"].config(text="✓", fg=THEME["good"])
+                elif errors:
+                    cells["nibor_contrib"].config(text="✗", fg=THEME["bad"])
+                    for err in errors:
+                        alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
+                else:
+                    cells["nibor_contrib"].config(text="-", fg=THEME["muted"])
+
+            # ================================================================
+            # RECON COL 2: NIBOR Excel - GUI vs AA7-AA10
+            # ================================================================
+            if "nore_contrib" in cells and final_rate is not None:
+                nibor_cell = EXCEL_NIBOR_CELLS.get(tenor_key)
+                if nibor_cell and hasattr(self.app, 'excel_engine'):
+                    excel_nibor = self.app.excel_engine.get_recon_value(nibor_cell)
+                    if excel_nibor is not None:
+                        try:
+                            excel_nibor = float(excel_nibor)
+                            gui_2dec = round(final_rate, 2)
+                            excel_2dec = round(excel_nibor, 2)
+                            is_match = (gui_2dec == excel_2dec)
+
+                            if is_match:
+                                cells["nore_contrib"].config(text="✓", fg=THEME["good"])
+                            else:
+                                cells["nore_contrib"].config(text="✗", fg=THEME["bad"])
+                                alert_messages.append(
+                                    f"{tenor_key.upper()} NIBOR: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}"
+                                )
+                        except (ValueError, TypeError):
+                            cells["nore_contrib"].config(text="ERR", fg=THEME["warning"])
+                    else:
+                        cells["nore_contrib"].config(text="-", fg=THEME["muted"])
+                else:
+                    cells["nore_contrib"].config(text="-", fg=THEME["muted"])
 
             # Excel validation
             if "match" in cells and final_rate is not None:
