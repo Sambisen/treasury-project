@@ -92,112 +92,89 @@ class DashboardPage(tk.Frame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE
+        # NIBOR RATES TABLE - Professional Design
         # ====================================================================
         header_row = tk.Frame(content, bg=THEME["bg_panel"])
-        header_row.pack(anchor="center", pady=(10, 15))
+        header_row.pack(anchor="center", pady=(15, 20))
 
         tk.Label(header_row, text="NIBOR RATES",
                 fg=THEME["accent_secondary"],
                 bg=THEME["bg_panel"],
-                font=FONTS["h2"]).pack(side="left")
+                font=("Segoe UI Semibold", 20)).pack(side="left")
 
-        # Trend icon - opens popup with history chart
+        # History button - text instead of emoji
         if MATPLOTLIB_AVAILABLE and TrendPopup:
-            trend_icon = tk.Label(header_row, text="📈",
-                                 fg=THEME["muted"],
-                                 bg=THEME["bg_panel"],
-                                 font=("Segoe UI", 16),
-                                 cursor="hand2")
-            trend_icon.pack(side="left", padx=(10, 0))
-            trend_icon.bind("<Button-1>", lambda e: self._show_trend_popup())
-            trend_icon.bind("<Enter>", lambda e: trend_icon.config(fg=THEME["accent"]))
-            trend_icon.bind("<Leave>", lambda e: trend_icon.config(fg=THEME["muted"]))
-            ToolTip(trend_icon, lambda: "Click to view NIBOR trend history")
+            history_btn = tk.Label(header_row, text="View History",
+                                  fg=THEME["accent"], bg=THEME["bg_panel"],
+                                  font=("Segoe UI", 10, "underline"),
+                                  cursor="hand2")
+            history_btn.pack(side="left", padx=(20, 0))
+            history_btn.bind("<Button-1>", lambda e: self._show_trend_popup())
+            history_btn.bind("<Enter>", lambda e: history_btn.config(fg=THEME["accent_hover"]))
+            history_btn.bind("<Leave>", lambda e: history_btn.config(fg=THEME["accent"]))
 
         # Container for centering
         table_container = tk.Frame(content, bg=THEME["bg_panel"])
         table_container.pack(fill="both", expand=True, pady=(0, 20))
 
-        # Actual table (larger, centered) - NEW DESIGN with 2 sections
-        funding_frame = tk.Frame(table_container, bg=THEME["bg_card"],
-                                highlightthickness=2,
-                                highlightbackground=THEME["accent_secondary"],
-                                relief="flat")
-        funding_frame.pack(anchor="center")
+        # Main table wrapper with subtle shadow effect
+        table_wrapper = tk.Frame(table_container, bg=THEME["border"])
+        table_wrapper.pack(anchor="center", padx=1, pady=1)
+
+        funding_frame = tk.Frame(table_wrapper, bg=THEME["bg_card"])
+        funding_frame.pack(padx=1, pady=1)
 
         # ================================================================
-        # NEW 3-TIER HEADER STRUCTURE
-        # Row 0: Super headers (RECONCILIATION spans 4 columns, core columns have rowspan=3)
-        # Row 1: Main category headers (under RECONCILIATION)
-        # Row 2: Sub-headers (under main categories)
-        # Row 3+: Data rows
+        # PROFESSIONAL HEADER - Single row, clean design
         # ================================================================
-        
-        # ============================================================
-        # ROW 0: Core data headers (TENOR, FUNDING RATE, SPREAD, NIBOR, CHG)
-        # These span all 3 header rows (rowspan=3)
-        # ============================================================
+        header_bg = "#E8EAED"  # Slightly darker than card for contrast
+
+        # Core headers
         core_headers = [
-            ("TENOR", 8),
-            ("FUNDING RATE", 15),
-            ("SPREAD", 10),
-            ("NIBOR", 15),
-            ("CHG", 8),
+            ("TENOR", 10, "center"),
+            ("FUNDING", 14, "center"),
+            ("SPREAD", 10, "center"),
+            ("NIBOR", 14, "center"),
+            ("CHG", 10, "center"),
         ]
-        
-        for col_idx, (header_text, width) in enumerate(core_headers):
-            lbl = tk.Label(funding_frame, text=header_text,
-                          fg=THEME["muted"], bg=THEME["bg_card_2"],
-                          font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                          width=width, anchor="center",
-                          relief="solid", borderwidth=1)
-            lbl.grid(row=0, column=col_idx, rowspan=3, sticky="nsew", padx=1, pady=1)
-        
-        # ============================================================
-        # ROW 0: RECONCILIATION super-header (spans columns 5-8)
-        # ============================================================
-        recon_super_lbl = tk.Label(funding_frame, text="RECONCILIATION",
-                                   fg=THEME["accent"], bg=THEME["bg_card_2"],
-                                   font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                                   anchor="center", relief="solid", borderwidth=1)
-        recon_super_lbl.grid(row=0, column=5, columnspan=4, sticky="ew", padx=1, pady=1)
-        
-        # ============================================================
-        # ROW 1: Main category headers under RECONCILIATION
-        # ============================================================
-        main_categories = [
-            ("Python vs Excel", 1, 5),      # column 5, colspan 1
-            ("Calc model spread", 1, 6),    # column 6, colspan 1
-            ("Python vs Excel", 1, 7),      # column 7, colspan 1
-            ("Nore", 1, 8),                 # column 8, colspan 1
-        ]
-        
-        for header_text, colspan, col_start in main_categories:
-            lbl = tk.Label(funding_frame, text=header_text,
-                          fg=THEME["text"], bg=THEME["bg_card_2"],
-                          font=("Segoe UI", CURRENT_MODE["small"]),
-                          width=14, anchor="center", relief="solid", borderwidth=1)
-            lbl.grid(row=1, column=col_start, columnspan=colspan, sticky="ew", padx=1, pady=1)
-        
-        # ============================================================
-        # ROW 2: Sub-headers (bottom level)
-        # ============================================================
-        sub_headers = [
-            ("Spread calc model", 5),
-            ("Excel", 6),
-            ("NIBOR contribution", 7),
-            ("Contribution", 8),
-        ]
-        
-        for header_text, col_idx in sub_headers:
-            lbl = tk.Label(funding_frame, text=header_text,
-                          fg=THEME["muted"], bg=THEME["bg_card_2"],
-                          font=("Segoe UI", CURRENT_MODE["small"]-1, "italic"),
-                          width=14, anchor="center", relief="solid", borderwidth=1)
-            lbl.grid(row=2, column=col_idx, sticky="ew", padx=1, pady=1)
 
-        # Rows with data
+        for col_idx, (header_text, width, anchor) in enumerate(core_headers):
+            lbl = tk.Label(funding_frame, text=header_text,
+                          fg=THEME["text"], bg=header_bg,
+                          font=("Segoe UI Semibold", 10),
+                          width=width, anchor=anchor,
+                          padx=12, pady=10)
+            lbl.grid(row=0, column=col_idx, sticky="nsew")
+
+        # Visual separator between core and recon (empty column)
+        separator = tk.Frame(funding_frame, bg=THEME["border"], width=2)
+        separator.grid(row=0, column=5, rowspan=10, sticky="ns", padx=8)
+
+        # RECONCILIATION header section
+        recon_header_bg = "#E0E4E8"  # Slightly different shade
+
+        recon_headers = [
+            ("SPREAD DIFF", 13, 6),
+            ("MODEL", 11, 7),
+            ("NIBOR DIFF", 13, 8),
+            ("NORE", 11, 9),
+        ]
+
+        for header_text, width, col_idx in recon_headers:
+            lbl = tk.Label(funding_frame, text=header_text,
+                          fg=THEME["muted"], bg=recon_header_bg,
+                          font=("Segoe UI", 9),
+                          width=width, anchor="center",
+                          padx=8, pady=10)
+            lbl.grid(row=0, column=col_idx, sticky="nsew")
+
+        # Thin line under header
+        header_line = tk.Frame(funding_frame, bg=THEME["border"], height=1)
+        header_line.grid(row=1, column=0, columnspan=10, sticky="ew")
+
+        # ================================================================
+        # DATA ROWS - Alternating colors, clean spacing
+        # ================================================================
         self.funding_cells = {}
         tenors = [
             {"key": "1w", "label": "1W", "excel_row": None, "excel_col": None, "disabled": True},
@@ -207,135 +184,110 @@ class DashboardPage(tk.Frame):
             {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "disabled": False}
         ]
 
-        for row_idx, tenor in enumerate(tenors, start=3):  # Start at row 3 (after headers)
-            # Handle disabled tenors (like 1W) - show "---" in each column
+        for i, tenor in enumerate(tenors):
+            row_idx = i + 2  # Start after header and line
+
+            # Alternating row colors
+            row_bg = THEME["bg_card"] if i % 2 == 0 else "#FAFBFC"
+
+            # Handle disabled tenors (like 1W)
             if tenor.get("disabled"):
-                # COLUMN 0: Tenor label (dimmed)
                 tk.Label(funding_frame, text=tenor["label"], fg=THEME["muted"],
-                        bg=THEME["bg_card"],
-                        font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                        width=8, anchor="center").grid(row=row_idx, column=0,
-                                                 padx=5, pady=6, sticky="ew")
+                        bg=row_bg, font=("Segoe UI Semibold", 11),
+                        width=10, anchor="center", pady=12).grid(row=row_idx, column=0, sticky="ew")
 
-                # COLUMNS 1-4: Core data columns with "---"
                 for col in range(1, 5):
-                    tk.Label(funding_frame, text="---", fg=THEME["muted"],
-                            bg=THEME["bg_card"],
-                            font=("Consolas", CURRENT_MODE["body"]),
-                            anchor="center").grid(row=row_idx, column=col, padx=5, pady=6, sticky="ew")
+                    tk.Label(funding_frame, text="---", fg=THEME["text_light"],
+                            bg=row_bg, font=("Consolas", 11),
+                            anchor="center", pady=12).grid(row=row_idx, column=col, sticky="ew")
 
-                # COLUMNS 5-8: Reconciliation columns with "---"
-                for col in range(5, 9):
-                    tk.Label(funding_frame, text="---", fg=THEME["muted"],
-                            bg=THEME["bg_card"],
-                            font=("Consolas", CURRENT_MODE["small"]),
-                            width=14, anchor="center").grid(row=row_idx, column=col, padx=3, pady=6, sticky="ew")
+                for col in range(6, 10):
+                    tk.Label(funding_frame, text="---", fg=THEME["text_light"],
+                            bg=row_bg, font=("Consolas", 9),
+                            anchor="center", pady=12).grid(row=row_idx, column=col, sticky="ew")
 
-                # Store empty cells dict for consistency
                 self.funding_cells[tenor["key"]] = {}
                 continue
-            
-            # ============================================================
-            # SECTION 1: KÄRNDATA (Core Data) - Columns 0-4
-            # ============================================================
-            
-            # COLUMN 0: Tenor label
+
+            # TENOR label
             tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
-                    bg=THEME["bg_card"],
-                    font=("Segoe UI", CURRENT_MODE["body"], "bold"),
-                    width=8, anchor="center").grid(row=row_idx, column=0,
-                                             padx=5, pady=6, sticky="ew")
+                    bg=row_bg, font=("Segoe UI Semibold", 11),
+                    width=10, anchor="center", pady=12).grid(row=row_idx, column=0, sticky="ew")
 
             cells = {}
 
-            # COLUMN 1: Funding Rate
+            # FUNDING RATE - clickable
             funding_lbl = tk.Label(funding_frame, text="-",
-                                  fg=THEME["text"], bg=THEME["bg_card"],
-                                  font=("Consolas", CURRENT_MODE["body"]),
-                                  width=15, cursor="hand2", relief="flat",
-                                  anchor="center")
-            funding_lbl.grid(row=row_idx, column=1, padx=5, pady=6, sticky="ew")
-            funding_lbl.bind("<Button-1>",
-                            lambda e, t=tenor["key"]: self._show_funding_details(t))
-            funding_lbl.bind("<Enter>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_card_2"]))
-            funding_lbl.bind("<Leave>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_card"]))
+                                  fg=THEME["text"], bg=row_bg,
+                                  font=("Consolas", 11),
+                                  width=14, cursor="hand2", pady=12)
+            funding_lbl.grid(row=row_idx, column=1, sticky="ew")
+            funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
+            funding_lbl.bind("<Enter>", lambda e, lbl=funding_lbl: lbl.config(bg=THEME["bg_hover"]))
+            funding_lbl.bind("<Leave>", lambda e, lbl=funding_lbl, bg=row_bg: lbl.config(bg=bg))
             cells["funding"] = funding_lbl
+            ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
 
-            tenor_key_funding = tenor["key"]
-            ToolTip(funding_lbl, lambda t=tenor_key_funding: self._get_funding_tooltip(t))
-
-            # COLUMN 2: Spread (NO % sign)
+            # SPREAD
             spread_lbl = tk.Label(funding_frame, text="-",
-                                 fg=THEME["text"], bg=THEME["bg_card"],
-                                 font=("Consolas", CURRENT_MODE["body"]),
-                                 width=10, anchor="center")
-            spread_lbl.grid(row=row_idx, column=2, padx=5, pady=6, sticky="ew")
+                                 fg=THEME["muted"], bg=row_bg,
+                                 font=("Consolas", 11),
+                                 width=10, pady=12)
+            spread_lbl.grid(row=row_idx, column=2, sticky="ew")
             cells["spread"] = spread_lbl
 
-            # COLUMN 3: Final Rate (NIBOR) - Swedbank blue
+            # NIBOR - highlighted, clickable
             final_lbl = tk.Label(funding_frame, text="-",
-                                fg=THEME["accent_secondary"], bg=THEME["bg_card"],
-                                font=("Consolas", CURRENT_MODE["body"], "bold"),
-                                width=15, cursor="hand2", relief="flat",
-                                anchor="center")
-            final_lbl.grid(row=row_idx, column=3, padx=5, pady=6, sticky="ew")
-            final_lbl.bind("<Button-1>",
-                          lambda e, t=tenor["key"]: self._show_funding_details(t))
-            final_lbl.bind("<Enter>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card_2"]))
-            final_lbl.bind("<Leave>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_card"]))
+                                fg=THEME["accent_secondary"], bg=row_bg,
+                                font=("Consolas", 12, "bold"),
+                                width=14, cursor="hand2", pady=12)
+            final_lbl.grid(row=row_idx, column=3, sticky="ew")
+            final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
+            final_lbl.bind("<Enter>", lambda e, lbl=final_lbl: lbl.config(bg=THEME["bg_hover"]))
+            final_lbl.bind("<Leave>", lambda e, lbl=final_lbl, bg=row_bg: lbl.config(bg=bg))
             cells["final"] = final_lbl
+            ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
 
-            tenor_key_capture = tenor["key"]
-            ToolTip(final_lbl, lambda t=tenor_key_capture: self._get_nibor_tooltip(t))
-
-            # COLUMN 4: CHG (Change from last saved snapshot)
+            # CHG - color coded
             chg_lbl = tk.Label(funding_frame, text="-",
-                              fg=THEME["muted"], bg=THEME["bg_card"],
-                              font=("Consolas", CURRENT_MODE["body"]),
-                              width=8, anchor="center")
-            chg_lbl.grid(row=row_idx, column=4, padx=5, pady=6, sticky="ew")
+                              fg=THEME["muted"], bg=row_bg,
+                              font=("Consolas", 11),
+                              width=10, pady=12)
+            chg_lbl.grid(row=row_idx, column=4, sticky="ew")
             cells["chg"] = chg_lbl
+            ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            tenor_key_chg = tenor["key"]
-            ToolTip(chg_lbl, lambda t=tenor_key_chg: self._get_chg_tooltip(t))
+            # RECONCILIATION columns (after separator)
+            recon_bg = row_bg  # Same alternating color
 
-            # ============================================================
-            # SECTION 2: RECONCILIATION - Columns 5-8
-            # ============================================================
-            
-            # COLUMN 5: Spread calc model (Python vs Excel - spread calc)
             spread_model_lbl = tk.Label(funding_frame, text="-",
-                                       fg=THEME["text"], bg=THEME["bg_card"],
-                                       font=("Consolas", CURRENT_MODE["small"]),
-                                       width=14, anchor="center")
-            spread_model_lbl.grid(row=row_idx, column=5, padx=3, pady=6, sticky="ew")
+                                       fg=THEME["muted"], bg=recon_bg,
+                                       font=("Consolas", 9),
+                                       width=13, pady=12)
+            spread_model_lbl.grid(row=row_idx, column=6, sticky="ew")
             cells["spread_model"] = spread_model_lbl
-            
-            # COLUMN 6: Excel (Calc model spread - Excel)
+
             excel_model_lbl = tk.Label(funding_frame, text="-",
-                                      fg=THEME["text"], bg=THEME["bg_card"],
-                                      font=("Consolas", CURRENT_MODE["small"]),
-                                      width=14, anchor="center")
-            excel_model_lbl.grid(row=row_idx, column=6, padx=3, pady=6, sticky="ew")
+                                      fg=THEME["muted"], bg=recon_bg,
+                                      font=("Consolas", 9),
+                                      width=11, pady=12)
+            excel_model_lbl.grid(row=row_idx, column=7, sticky="ew")
             cells["excel_model"] = excel_model_lbl
-            
-            # COLUMN 7: NIBOR contribution (Python vs Excel)
+
             nibor_contrib_lbl = tk.Label(funding_frame, text="-",
-                                        fg=THEME["text"], bg=THEME["bg_card"],
-                                        font=("Consolas", CURRENT_MODE["small"]),
-                                        width=14, anchor="center")
-            nibor_contrib_lbl.grid(row=row_idx, column=7, padx=3, pady=6, sticky="ew")
+                                        fg=THEME["muted"], bg=recon_bg,
+                                        font=("Consolas", 9),
+                                        width=13, pady=12)
+            nibor_contrib_lbl.grid(row=row_idx, column=8, sticky="ew")
             cells["nibor_contrib"] = nibor_contrib_lbl
-            
-            # COLUMN 8: Nore Contribution
+
             nore_contrib_lbl = tk.Label(funding_frame, text="-",
-                                       fg=THEME["text"], bg=THEME["bg_card"],
-                                       font=("Consolas", CURRENT_MODE["small"]),
-                                       width=14, anchor="center")
-            nore_contrib_lbl.grid(row=row_idx, column=8, padx=3, pady=6, sticky="ew")
+                                       fg=THEME["muted"], bg=recon_bg,
+                                       font=("Consolas", 9),
+                                       width=11, pady=12)
+            nore_contrib_lbl.grid(row=row_idx, column=9, sticky="ew")
             cells["nore_contrib"] = nore_contrib_lbl
-            
-            # Store Excel validation coordinates
+
             cells["excel_row"] = tenor["excel_row"]
             cells["excel_col"] = tenor["excel_col"]
 
