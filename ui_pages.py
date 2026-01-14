@@ -1008,12 +1008,13 @@ class DashboardPage(BaseFrame):
         alert_messages = []
 
         for tenor_key in ["1m", "2m", "3m", "6m"]:
+          try:
             # Select data based on model choice
             if selected_model == "swedbank":
                 # Use Internal Basket Rates (Excel CM - nibor suffix)
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}_nibor", {})
                 usd_data = self.app.impl_calc_data.get(f"usd_{tenor_key}_nibor", {})
-                log.info(f"[Dashboard] {tenor_key}: Using Swedbank Calc (Excel CM)")
+                log.info(f"[Dashboard] {tenor_key}: Using Swedbank Calc, eur_data={bool(eur_data)}, usd_data={bool(usd_data)}")
             else:
                 # Use Bloomberg CM Rates (nore model - no suffix)
                 eur_data = self.app.impl_calc_data.get(f"eur_{tenor_key}", {})
@@ -1032,7 +1033,8 @@ class DashboardPage(BaseFrame):
             final_rate = funding_rate + spread if funding_rate else None
             
             cells = self.funding_cells.get(tenor_key, {})
-            
+            log.info(f"[Dashboard] {tenor_key}: cells keys = {list(cells.keys())}")
+
             # Update display cells
             if "funding" in cells:
                 cells["funding"].config(text=f"{funding_rate:.2f}%" if funding_rate else "N/A")
@@ -1154,7 +1156,9 @@ class DashboardPage(BaseFrame):
                 'spread': spread, 'final_rate': final_rate,
                 'model': selected_model
             }
-        
+          except Exception as e:
+            log.error(f"[Dashboard] Error updating tenor {tenor_key}: {e}")
+
         # Show/hide alerts
         self._update_alerts(alert_messages)
 
