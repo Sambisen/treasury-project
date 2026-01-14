@@ -569,10 +569,10 @@ class DashboardPage(BaseFrame):
         
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
-        if not hasattr(self.app, 'funding_calc_data'):
-            log.info(f"[Dashboard] No funding calculation data available")
-            return
-        
+        # Auto-update if data not available
+        if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
+            self._update_funding_rates_with_validation()
+
         data = self.app.funding_calc_data.get(tenor_key)
         if not data:
             log.info(f"[Dashboard] No funding data found for {tenor_key}")
