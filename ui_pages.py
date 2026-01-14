@@ -1,12 +1,20 @@
 """
 Page classes for Nibor Calculation Terminal.
 Contains all specific page views.
+CustomTkinter Edition - Modern UI with rounded corners.
 """
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime, timedelta
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, get_logger
+try:
+    import customtkinter as ctk
+    CTK_AVAILABLE = True
+except ImportError:
+    CTK_AVAILABLE = False
+    ctk = None
+
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
@@ -25,6 +33,9 @@ except ImportError:
     TrendChart = None
     TrendPopup = None
     ComparisonView = None
+
+# Use CTk frame as base if available
+BaseFrame = ctk.CTkFrame if CTK_AVAILABLE else tk.Frame
 
 
 class ToolTip:
@@ -64,13 +75,16 @@ class ToolTip:
             self.tooltip_window = None
 
 
-class DashboardPage(tk.Frame):
-    """Main dashboard with Command Center sidebar and clean layout."""
+class DashboardPage(BaseFrame):
+    """Main dashboard with Command Center sidebar and clean layout (CTk Edition)."""
 
     def __init__(self, master, app):
-        super().__init__(master, bg=THEME["bg_panel"])
+        if CTK_AVAILABLE:
+            super().__init__(master, fg_color=THEME["bg_panel"], corner_radius=0)
+        else:
+            super().__init__(master, bg=THEME["bg_panel"])
         self.app = app
-        
+
         # Initialize blink tracking
         self._blink_widgets = {}
 
@@ -83,47 +97,77 @@ class DashboardPage(tk.Frame):
         # ====================================================================
 
         # ====================================================================
-        # DASHBOARD CONTENT
+        # DASHBOARD CONTENT (CTk if available)
         # ====================================================================
-        content = tk.Frame(self, bg=THEME["bg_panel"])
+        if CTK_AVAILABLE:
+            content = ctk.CTkFrame(self, fg_color="transparent")
+        else:
+            content = tk.Frame(self, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=20, pady=20)
 
         # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE - Dark Financial Terminal Theme
+        # NIBOR RATES TABLE - Dark Financial Terminal Theme (Modern CTk)
         # ====================================================================
 
         # Title row
-        title_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        title_frame.pack(anchor="center", pady=(20, 10))
+        if CTK_AVAILABLE:
+            title_frame = ctk.CTkFrame(content, fg_color="transparent")
+            title_frame.pack(anchor="center", pady=(20, 10))
 
-        tk.Label(title_frame, text="NIBOR RATES",
-                fg=THEME["text"],
-                bg=THEME["bg_panel"],
-                font=FONTS["h2"]).pack(side="left")
+            ctk.CTkLabel(title_frame, text="NIBOR RATES",
+                        text_color=THEME["text"],
+                        font=FONTS["h2"]).pack(side="left")
 
-        # History link
-        if MATPLOTLIB_AVAILABLE and TrendPopup:
-            history_btn = tk.Label(title_frame, text="View History →",
-                                  fg=THEME["accent"], bg=THEME["bg_panel"],
-                                  font=FONTS["body_small"], cursor="hand2")
-            history_btn.pack(side="left", padx=(30, 0))
-            history_btn.bind("<Button-1>", lambda e: self._show_trend_popup())
-            history_btn.bind("<Enter>", lambda e: history_btn.config(fg=THEME["accent_hover"]))
-            history_btn.bind("<Leave>", lambda e: history_btn.config(fg=THEME["accent"]))
+            # History link as button
+            if MATPLOTLIB_AVAILABLE and TrendPopup:
+                history_btn = ctk.CTkButton(title_frame, text="View History →",
+                                           fg_color="transparent",
+                                           hover_color=THEME["bg_card_2"],
+                                           text_color=THEME["accent"],
+                                           font=FONTS["body_small"],
+                                           command=self._show_trend_popup,
+                                           width=100, height=24)
+                history_btn.pack(side="left", padx=(30, 0))
+        else:
+            title_frame = tk.Frame(content, bg=THEME["bg_panel"])
+            title_frame.pack(anchor="center", pady=(20, 10))
+
+            tk.Label(title_frame, text="NIBOR RATES",
+                    fg=THEME["text"],
+                    bg=THEME["bg_panel"],
+                    font=FONTS["h2"]).pack(side="left")
+
+            if MATPLOTLIB_AVAILABLE and TrendPopup:
+                history_btn = tk.Label(title_frame, text="View History →",
+                                      fg=THEME["accent"], bg=THEME["bg_panel"],
+                                      font=FONTS["body_small"], cursor="hand2")
+                history_btn.pack(side="left", padx=(30, 0))
+                history_btn.bind("<Button-1>", lambda e: self._show_trend_popup())
+                history_btn.bind("<Enter>", lambda e: history_btn.config(fg=THEME["accent_hover"]))
+                history_btn.bind("<Leave>", lambda e: history_btn.config(fg=THEME["accent"]))
 
         # Table container with dark background
-        table_container = tk.Frame(content, bg=THEME["bg_panel"])
+        if CTK_AVAILABLE:
+            table_container = ctk.CTkFrame(content, fg_color="transparent")
+        else:
+            table_container = tk.Frame(content, bg=THEME["bg_panel"])
         table_container.pack(fill="both", expand=True, pady=(0, 15))
 
-        # Table frame with border
-        table_frame = tk.Frame(table_container, bg=THEME["table_border"])
+        # Table frame with rounded corners (CTk) or border (tk)
+        if CTK_AVAILABLE:
+            table_frame = ctk.CTkFrame(table_container, fg_color=THEME["bg_card"],
+                                       corner_radius=CTK_CORNER_RADIUS["frame"],
+                                       border_width=1, border_color=THEME["table_border"])
+        else:
+            table_frame = tk.Frame(table_container, bg=THEME["table_border"])
         table_frame.pack(anchor="center")
 
+        # Inner frame for table content (uses tk for grid layout compatibility)
         funding_frame = tk.Frame(table_frame, bg=THEME["bg_card"])
-        funding_frame.pack(padx=1, pady=1)
+        funding_frame.pack(padx=10, pady=10)
 
         # ================================================================
         # TABLE HEADER - Dark theme

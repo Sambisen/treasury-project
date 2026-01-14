@@ -52,7 +52,7 @@ FUNDING_SPREADS = {
 # ==============================================================================
 #  APP META
 # ==============================================================================
-APP_VERSION = "3.8.1-tk"
+APP_VERSION = "4.0.0-ctk"  # CustomTkinter version
 
 # ==============================================================================
 #  NORDIC DARK FINANCIAL TERMINAL THEME
@@ -116,6 +116,26 @@ THEME = {
     # Table specific
     "table_header": "#0F1623",
     "table_border": "#2A3447",
+
+    # CustomTkinter specific
+    "ctk_button": "#EE7623",
+    "ctk_button_hover": "#FF8A3D",
+    "ctk_entry_bg": "#1E2738",
+    "ctk_entry_border": "#2A3447",
+}
+
+# ==============================================================================
+#  CUSTOMTKINTER CONFIGURATION
+# ==============================================================================
+CTK_APPEARANCE = "dark"  # "dark", "light", or "system"
+CTK_COLOR_THEME = "dark-blue"  # Default theme, we override with custom colors
+
+# Corner radius for CTk widgets
+CTK_CORNER_RADIUS = {
+    "button": 8,
+    "frame": 10,
+    "entry": 6,
+    "scrollbar": 6,
 }
 
 # ==============================================================================

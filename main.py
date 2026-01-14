@@ -1,6 +1,7 @@
 """
 Nibor Calculation Terminal - Main Application
 Treasury Suite for NIBOR validation and monitoring.
+CustomTkinter Edition - Modern UI with rounded corners and dark theme.
 """
 import os
 import threading
@@ -9,11 +10,13 @@ from datetime import datetime
 from tkinter import messagebox
 
 import tkinter as tk
+import customtkinter as ctk
 
 from openpyxl.utils import coordinate_to_tuple
 
 from config import (
     APP_VERSION, THEME, FONTS, CURRENT_MODE, set_mode,
+    CTK_APPEARANCE, CTK_CORNER_RADIUS,
     APP_DIR, DATA_DIR, BASE_HISTORY_PATH, STIBOR_GRSS_PATH,
     DAY_FILES, RECON_FILE, WEIGHTS_FILE, CACHE_DIR,
     EXCEL_LOGO_CANDIDATES, BBG_LOGO_CANDIDATES,
@@ -22,6 +25,10 @@ from config import (
     ALL_REAL_TICKERS,
     setup_logging, get_logger
 )
+
+# Configure CustomTkinter appearance
+ctk.set_appearance_mode(CTK_APPEARANCE)
+ctk.set_default_color_theme("dark-blue")
 
 # Initialize logging
 setup_logging()
@@ -42,8 +49,8 @@ from ui_pages import (
 )
 
 
-class NiborTerminalTK(tk.Tk):
-    """Main application window for Nibor Calculation Terminal."""
+class NiborTerminalCTK(ctk.CTk):
+    """Main application window for Nibor Calculation Terminal (CustomTkinter)."""
 
     def __init__(self):
         super().__init__()
@@ -53,7 +60,7 @@ class NiborTerminalTK(tk.Tk):
         self.title(f"Nibor Calculation Terminal v{APP_VERSION}")
         self.geometry("1400x1050")
         self.minsize(1320, 950)
-        self.configure(bg=THEME["bg_main"])
+        self.configure(fg_color=THEME["bg_main"])
 
         style_ttk(self)
 
@@ -206,12 +213,12 @@ class NiborTerminalTK(tk.Tk):
         # GLOBAL HEADER - Visible on ALL pages
         # ====================================================================
         from PIL import Image, ImageTk
-        
-        global_header = tk.Frame(self, bg=THEME["bg_main"])
+
+        global_header = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
         global_header.pack(fill="x", padx=hpad, pady=(hpad, 5))
 
         # --- LEFT: Swedbank header image ---
-        header_left = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_left = ctk.CTkFrame(global_header, fg_color="transparent")
         header_left.pack(side="left", anchor="n")
 
         image_path = r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Swed.png"
@@ -223,93 +230,100 @@ class NiborTerminalTK(tk.Tk):
                 aspect_ratio = img.height / img.width
                 target_height = int(target_width * aspect_ratio)
                 img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                
-                photo = ImageTk.PhotoImage(img)
-                img_label = tk.Label(header_left, image=photo, bg=THEME["bg_main"])
-                img_label.image = photo
+
+                ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=(target_width, target_height))
+                img_label = ctk.CTkLabel(header_left, image=ctk_image, text="")
                 img_label.pack(anchor="w")
                 log.info(f"Global Swedbank header loaded: {target_width}x{target_height}px")
             except Exception as e:
                 log.warning(f"Failed to load Swedbank header: {e}")
-                tk.Label(header_left, text="ONYX TERMINAL",
-                        fg=THEME["text"], bg=THEME["bg_main"],
-                        font=("Segoe UI", 24, "bold")).pack()
+                ctk.CTkLabel(header_left, text="ONYX TERMINAL",
+                            text_color=THEME["text"],
+                            font=("Segoe UI", 24, "bold")).pack()
         else:
             log.warning(f"Image not found: {image_path}")
-            tk.Label(header_left, text="ONYX TERMINAL",
-                    fg=THEME["text"], bg=THEME["bg_main"],
-                    font=("Segoe UI", 24, "bold")).pack()
+            ctk.CTkLabel(header_left, text="ONYX TERMINAL",
+                        text_color=THEME["text"],
+                        font=("Segoe UI", 24, "bold")).pack()
 
         # ====================================================================
         # RIGHT SECTION: UPDATE button + Professional clock
         # ====================================================================
-        header_right = tk.Frame(global_header, bg=THEME["bg_main"])
+        header_right = ctk.CTkFrame(global_header, fg_color="transparent")
         header_right.pack(side="right", padx=(0, 20))
 
-        # UPDATE button (to the left of clock)
-        from ui_components import OnyxButtonTK
-        self.header_update_btn = OnyxButtonTK(header_right, "UPDATE",
-                                             command=self.refresh_data,
-                                             variant="primary")
+        # UPDATE button (to the left of clock) - Modern CTk button
+        self.header_update_btn = ctk.CTkButton(
+            header_right,
+            text="UPDATE",
+            command=self.refresh_data,
+            fg_color=THEME["accent"],
+            hover_color=THEME["accent_hover"],
+            text_color=THEME["bg_panel"],
+            font=("Segoe UI Semibold", 12),
+            corner_radius=CTK_CORNER_RADIUS["button"],
+            width=120,
+            height=40
+        )
         self.header_update_btn.pack(side="left", padx=(0, 20), pady=10)
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
-        # PROFESSIONAL CLOCK - Rightmost corner
+        # PROFESSIONAL CLOCK - Rightmost corner (Modern rounded frame)
         # ====================================================================
-        clock_frame = tk.Frame(header_right, bg=THEME["bg_card"],
-                              highlightthickness=1,
-                              highlightbackground=THEME["border"])
+        clock_frame = ctk.CTkFrame(header_right, fg_color=THEME["bg_card"],
+                                   corner_radius=CTK_CORNER_RADIUS["frame"],
+                                   border_width=1, border_color=THEME["border"])
         clock_frame.pack(side="right")
 
-        clock_inner = tk.Frame(clock_frame, bg=THEME["bg_card"])
+        clock_inner = ctk.CTkFrame(clock_frame, fg_color="transparent")
         clock_inner.pack(padx=20, pady=12)
 
         # Left side: Time and date
-        time_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
+        time_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
         time_section.pack(side="left", padx=(0, 15))
 
         # Small label "LOCAL TIME"
-        tk.Label(time_section, text="LOCAL TIME",
-                fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 8)).pack(anchor="center")
+        ctk.CTkLabel(time_section, text="LOCAL TIME",
+                    text_color=THEME["muted"],
+                    font=("Segoe UI", 8)).pack(anchor="center")
 
         # Time display - unified size
-        self._header_clock_time = tk.Label(time_section, text="--:--:--",
-                                           fg=THEME["accent"], bg=THEME["bg_card"],
-                                           font=("Consolas", 22, "bold"))
+        self._header_clock_time = ctk.CTkLabel(time_section, text="--:--:--",
+                                               text_color=THEME["accent"],
+                                               font=("Consolas", 22, "bold"))
         self._header_clock_time.pack(anchor="center")
 
         # Date label below time
-        self._header_clock_date = tk.Label(time_section, text="",
-                                           fg=THEME["muted"], bg=THEME["bg_card"],
-                                           font=("Segoe UI", 9))
+        self._header_clock_date = ctk.CTkLabel(time_section, text="",
+                                               text_color=THEME["muted"],
+                                               font=("Segoe UI", 9))
         self._header_clock_date.pack(anchor="center")
 
         # Vertical separator
-        sep_frame = tk.Frame(clock_inner, bg=THEME["bg_card"])
+        sep_frame = ctk.CTkFrame(clock_inner, fg_color="transparent", width=1)
         sep_frame.pack(side="left", padx=10, fill="y")
-        tk.Frame(sep_frame, bg=THEME["border"], width=1).pack(fill="y", expand=True, pady=5)
+        ctk.CTkFrame(sep_frame, fg_color=THEME["border"], width=1, height=60).pack(fill="y", expand=True, pady=5)
 
         # Right side: NIBOR Fixing countdown
-        nibor_section = tk.Frame(clock_inner, bg=THEME["bg_card"])
+        nibor_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
         nibor_section.pack(side="left", padx=(15, 0))
 
         # NIBOR Fixing label
-        tk.Label(nibor_section, text="NIBOR FIXING",
-                fg=THEME["muted"], bg=THEME["bg_card"],
-                font=("Segoe UI", 8)).pack(anchor="center")
+        ctk.CTkLabel(nibor_section, text="NIBOR FIXING",
+                    text_color=THEME["muted"],
+                    font=("Segoe UI", 8)).pack(anchor="center")
 
         # Fixing countdown - same size as clock
-        self._nibor_fixing_status = tk.Label(nibor_section, text="--:--:--",
-                                             fg=THEME["accent_secondary"], bg=THEME["bg_card"],
-                                             font=("Consolas", 22, "bold"))
+        self._nibor_fixing_status = ctk.CTkLabel(nibor_section, text="--:--:--",
+                                                 text_color=THEME["accent_secondary"],
+                                                 font=("Consolas", 22, "bold"))
         self._nibor_fixing_status.pack(anchor="center")
 
         # Fixing indicator text
-        self._nibor_fixing_indicator = tk.Label(nibor_section, text="",
-                                                fg=THEME["muted"], bg=THEME["bg_card"],
-                                                font=("Segoe UI", 9))
+        self._nibor_fixing_indicator = ctk.CTkLabel(nibor_section, text="",
+                                                    text_color=THEME["muted"],
+                                                    font=("Segoe UI", 9))
         self._nibor_fixing_indicator.pack(anchor="center")
 
         # Start the header clock update
@@ -323,7 +337,7 @@ class NiborTerminalTK(tk.Tk):
         # ====================================================================
         # BODY with Command Center Sidebar + Content
         # ====================================================================
-        self.body = tk.Frame(self, bg=THEME["bg_main"])
+        self.body = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
         self.body.pack(fill="both", expand=True, padx=hpad, pady=(0, 5))
 
         # Configure grid layout: sidebar (0) | separator (1) | content (2)
@@ -333,18 +347,17 @@ class NiborTerminalTK(tk.Tk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE (Dark Theme)
+        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE (Modern rounded design)
         # ====================================================================
-        sidebar = tk.Frame(self.body, bg=THEME["bg_nav"], width=220,
-                          highlightthickness=0)
-        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=220,
+                               corner_radius=CTK_CORNER_RADIUS["frame"])
+        sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         sidebar.grid_propagate(False)
 
         # Sidebar title
-        tk.Label(sidebar, text="COMMAND CENTER",
-                fg=THEME["text_light"],
-                bg=THEME["bg_nav"],
-                font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(20, 15))
+        ctk.CTkLabel(sidebar, text="COMMAND CENTER",
+                    text_color=THEME["text_light"],
+                    font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(20, 15))
 
         # Navigation buttons with icons
         self.PAGES_CONFIG = [
@@ -363,96 +376,80 @@ class NiborTerminalTK(tk.Tk):
 
         for page_key, page_name, _ in self.PAGES_CONFIG:
             # Container frame for active indicator
-            btn_container = tk.Frame(sidebar, bg=THEME["bg_nav"])
+            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=40)
             btn_container.pack(fill="x", pady=1)
+            btn_container.pack_propagate(False)
 
             # Active indicator (orange bar on left)
-            indicator = tk.Frame(btn_container, bg=THEME["bg_nav"], width=3)
+            indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3)
             indicator.pack(side="left", fill="y")
 
-            btn = tk.Button(btn_container,
-                          text=page_name,
-                          command=lambda pk=page_key: self.show_page(pk),
-                          bg=THEME["bg_nav"],
-                          fg=THEME["text"],
-                          activebackground=THEME["bg_nav_sel"],
-                          activeforeground=THEME["accent"],
-                          font=FONTS["body"],
-                          relief="flat",
-                          anchor="w",
-                          padx=12,
-                          pady=10,
-                          cursor="hand2",
-                          borderwidth=0,
-                          highlightthickness=0)
-            btn.pack(side="left", fill="x", expand=True)
+            # Modern CTk button for navigation
+            btn = ctk.CTkButton(
+                btn_container,
+                text=page_name,
+                command=lambda pk=page_key: self.show_page(pk),
+                fg_color="transparent",
+                hover_color=THEME["bg_nav_sel"],
+                text_color=THEME["text"],
+                font=FONTS["body"],
+                anchor="w",
+                corner_radius=0,
+                height=38
+            )
+            btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
             self._nav_buttons[page_key] = {"btn": btn, "indicator": indicator, "container": btn_container}
 
-            # Hover effects
-            def on_enter(e, b=btn, c=btn_container):
-                if b.cget("fg") != THEME["accent"]:  # Not active
-                    b.config(bg=THEME["bg_nav_sel"])
-                    c.config(bg=THEME["bg_nav_sel"])
-
-            def on_leave(e, b=btn, c=btn_container):
-                if b.cget("fg") != THEME["accent"]:  # Not active
-                    b.config(bg=THEME["bg_nav"])
-                    c.config(bg=THEME["bg_nav"])
-
-            btn.bind("<Enter>", on_enter)
-            btn.bind("<Leave>", on_leave)
-
         # Divider
-        tk.Frame(sidebar, bg=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
+        ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
 
         # Quick Access
-        tk.Label(sidebar, text="QUICK ACCESS",
-                fg=THEME["text_light"],
-                bg=THEME["bg_nav"],
-                font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+        ctk.CTkLabel(sidebar, text="QUICK ACCESS",
+                    text_color=THEME["text_light"],
+                    font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(0, 10))
 
-        # History folder
-        history_label = tk.Label(sidebar,
-                                text="📂  History",
-                                fg=THEME["muted"],
-                                bg=THEME["bg_nav"],
-                                font=("Segoe UI", 10),
-                                anchor="w",
-                                cursor="hand2",
-                                padx=15,
-                                pady=5)
-        history_label.pack(fill="x", padx=12)
-        history_label.bind("<Enter>", lambda e: history_label.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"]))
-        history_label.bind("<Leave>", lambda e: history_label.config(fg=THEME["muted"], bg=THEME["bg_nav"]))
-        history_label.bind("<Button-1>", lambda e: self.open_history_folder())
+        # History folder button
+        history_btn = ctk.CTkButton(
+            sidebar,
+            text="📂  History",
+            command=self.open_history_folder,
+            fg_color="transparent",
+            hover_color=THEME["bg_nav_sel"],
+            text_color=THEME["muted"],
+            font=("Segoe UI", 10),
+            anchor="w",
+            corner_radius=6,
+            height=32
+        )
+        history_btn.pack(fill="x", padx=12, pady=2)
 
-        # GRSS folder
-        grss_label = tk.Label(sidebar,
-                             text="📂  GRSS",
-                             fg=THEME["muted"],
-                             bg=THEME["bg_nav"],
-                             font=("Segoe UI", 10),
-                             anchor="w",
-                             cursor="hand2",
-                             padx=15,
-                             pady=5)
-        grss_label.pack(fill="x", padx=12)
-        grss_label.bind("<Enter>", lambda e: grss_label.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"]))
-        grss_label.bind("<Leave>", lambda e: grss_label.config(fg=THEME["muted"], bg=THEME["bg_nav"]))
-        grss_label.bind("<Button-1>", lambda e: self.open_stibor_folder())
+        # GRSS folder button
+        grss_btn = ctk.CTkButton(
+            sidebar,
+            text="📂  GRSS",
+            command=self.open_stibor_folder,
+            fg_color="transparent",
+            hover_color=THEME["bg_nav_sel"],
+            text_color=THEME["muted"],
+            font=("Segoe UI", 10),
+            anchor="w",
+            corner_radius=6,
+            height=32
+        )
+        grss_btn.pack(fill="x", padx=12, pady=2)
 
         # Spacer
-        tk.Frame(sidebar, bg=THEME["bg_nav"]).pack(fill="both", expand=True)
+        ctk.CTkFrame(sidebar, fg_color="transparent").pack(fill="both", expand=True)
 
         # Subtle separator line
-        separator = tk.Frame(self.body, bg=THEME["border"], width=1)
+        separator = ctk.CTkFrame(self.body, fg_color=THEME["border"], width=1)
         separator.grid(row=0, column=1, sticky="ns")
 
         # ====================================================================
         # CONTENT AREA
         # ====================================================================
-        self.content = tk.Frame(self.body, bg=THEME["bg_panel"],
+        self.content = ctk.CTkFrame(self.body, fg_color=THEME["bg_panel"],
                                highlightthickness=0)
         self.content.grid(row=0, column=2, sticky="nsew")
         self.content.grid_rowconfigure(0, weight=1)
@@ -478,9 +475,9 @@ class NiborTerminalTK(tk.Tk):
         day_name = days_sv[now.weekday()]
         date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
 
-        # Update date and time (unified HH:MM:SS format)
-        self._header_clock_date.config(text=date_str)
-        self._header_clock_time.config(text=now.strftime("%H:%M:%S"))
+        # Update date and time (unified HH:MM:SS format) - CTk uses configure
+        self._header_clock_date.configure(text=date_str)
+        self._header_clock_time.configure(text=now.strftime("%H:%M:%S"))
 
         # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
         hour = now.hour
@@ -493,8 +490,8 @@ class NiborTerminalTK(tk.Tk):
         fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
 
         if weekday >= 5:  # Weekend
-            self._nibor_fixing_status.config(text="— — —", fg=THEME["muted"])
-            self._nibor_fixing_indicator.config(text="Weekend", fg=THEME["muted"])
+            self._nibor_fixing_status.configure(text="— — —", text_color=THEME["muted"])
+            self._nibor_fixing_indicator.configure(text="Weekend", text_color=THEME["muted"])
         elif current_seconds < fixing_start:
             # Before fixing window - countdown to open
             secs_until = fixing_start - current_seconds
@@ -506,20 +503,20 @@ class NiborTerminalTK(tk.Tk):
             countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
             # Orange warning when less than 30 min
             color = THEME["warning"] if hrs == 0 and mins < 30 else THEME["muted"]
-            self._nibor_fixing_status.config(text=countdown_str, fg=color)
-            self._nibor_fixing_indicator.config(text="until open", fg=color)
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=color)
+            self._nibor_fixing_indicator.configure(text="until open", text_color=color)
         elif current_seconds < fixing_end:
             # FIXING WINDOW OPEN - countdown to close
             secs_left = fixing_end - current_seconds
             mins = secs_left // 60
             secs = secs_left % 60
             countdown_str = f"0:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.config(text=countdown_str, fg=THEME["good"])
-            self._nibor_fixing_indicator.config(text="● OPEN", fg=THEME["good"])
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["good"])
+            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["good"])
         else:
             # After fixing window - closed
-            self._nibor_fixing_status.config(text="CLOSED", fg=THEME["muted"])
-            self._nibor_fixing_indicator.config(text="until tomorrow", fg=THEME["muted"])
+            self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["muted"])
+            self._nibor_fixing_indicator.configure(text="until tomorrow", text_color=THEME["muted"])
 
         # Schedule next update
         self.after(1000, self._update_header_clock)
@@ -528,35 +525,43 @@ class NiborTerminalTK(tk.Tk):
         """Build the status bar at the bottom of the window."""
         from config import APP_VERSION
 
-        status_bar = tk.Frame(self, bg=THEME["bg_nav"], height=36)
+        status_bar = ctk.CTkFrame(self, fg_color=THEME["bg_nav"], height=36, corner_radius=0)
         status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
 
-        # Left side - connection status panel
+        # Left side - connection status panel (still uses tk for compatibility)
         self.connection_panel = ConnectionStatusPanel(status_bar, bg=THEME["bg_nav"])
         self.connection_panel.pack(side="left", padx=15, pady=4)
 
         # Right side - version and user
-        right_frame = tk.Frame(status_bar, bg=THEME["bg_nav"])
+        right_frame = ctk.CTkFrame(status_bar, fg_color="transparent")
         right_frame.pack(side="right", padx=15)
 
         # User info
         import getpass
         username = getpass.getuser()
-        tk.Label(right_frame, text=f"👤 {username}", fg=THEME["muted"], bg=THEME["bg_nav"], font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
+        ctk.CTkLabel(right_frame, text=f"👤 {username}", text_color=THEME["muted"], font=("Segoe UI", 9)).pack(side="right", padx=(15, 0))
 
         # Separator
-        tk.Frame(right_frame, bg=THEME["border"], width=1, height=18).pack(side="right", padx=12)
+        ctk.CTkFrame(right_frame, fg_color=THEME["border"], width=1, height=18).pack(side="right", padx=12)
 
         # Version
-        tk.Label(right_frame, text=f"v{APP_VERSION}", fg=THEME["text_light"], bg=THEME["bg_nav"], font=("Segoe UI", 9)).pack(side="right")
+        ctk.CTkLabel(right_frame, text=f"v{APP_VERSION}", text_color=THEME["text_light"], font=("Segoe UI", 9)).pack(side="right")
 
         # About button (clickable)
-        about_btn = tk.Label(right_frame, text="ⓘ", fg=THEME["muted"], bg=THEME["bg_nav"], font=("Segoe UI", 12), cursor="hand2")
+        about_btn = ctk.CTkButton(
+            right_frame,
+            text="ⓘ",
+            command=self._show_about_dialog,
+            fg_color="transparent",
+            hover_color=THEME["bg_nav_sel"],
+            text_color=THEME["muted"],
+            font=("Segoe UI", 12),
+            width=30,
+            height=24,
+            corner_radius=4
+        )
         about_btn.pack(side="right", padx=(0, 8))
-        about_btn.bind("<Button-1>", lambda e: self._show_about_dialog())
-        about_btn.bind("<Enter>", lambda e: about_btn.config(fg=THEME["accent"]))
-        about_btn.bind("<Leave>", lambda e: about_btn.config(fg=THEME["muted"]))
 
     def _update_status_bar(self):
         """Update status bar indicators using the new ConnectionStatusPanel."""
@@ -592,15 +597,14 @@ class NiborTerminalTK(tk.Tk):
         self.connection_panel.set_data_time()
 
     def _show_about_dialog(self):
-        """Show the About dialog."""
+        """Show the About dialog with modern CTk styling."""
         from config import APP_VERSION
         import getpass
         import platform
 
-        about_win = tk.Toplevel(self)
+        about_win = ctk.CTkToplevel(self)
         about_win.title("About Nibor Calculation Terminal")
-        about_win.geometry("400x300")
-        about_win.configure(bg=THEME["bg_panel"])
+        about_win.geometry("400x320")
         about_win.resizable(False, False)
         about_win.transient(self)
         about_win.grab_set()
@@ -608,24 +612,24 @@ class NiborTerminalTK(tk.Tk):
         # Center on parent
         about_win.update_idletasks()
         x = self.winfo_x() + (self.winfo_width() - 400) // 2
-        y = self.winfo_y() + (self.winfo_height() - 300) // 2
+        y = self.winfo_y() + (self.winfo_height() - 320) // 2
         about_win.geometry(f"+{x}+{y}")
 
         # Content
-        content = tk.Frame(about_win, bg=THEME["bg_panel"])
+        content = ctk.CTkFrame(about_win, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=30, pady=20)
 
         # Logo
-        tk.Label(content, text="N", font=("Segoe UI", 36, "bold"), fg=THEME["accent"], bg=THEME["bg_panel"]).pack()
+        ctk.CTkLabel(content, text="N", font=("Segoe UI", 36, "bold"), text_color=THEME["accent"]).pack()
 
         # Title
-        tk.Label(content, text="NIBOR CALCULATION TERMINAL", font=("Segoe UI", 14, "bold"), fg=THEME["text"], bg=THEME["bg_panel"]).pack(pady=(5, 0))
+        ctk.CTkLabel(content, text="NIBOR CALCULATION TERMINAL", font=("Segoe UI", 14, "bold"), text_color=THEME["text"]).pack(pady=(5, 0))
 
         # Subtitle
-        tk.Label(content, text="Treasury Reference Rate System", font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"]).pack(pady=(2, 15))
+        ctk.CTkLabel(content, text="Treasury Reference Rate System", font=("Segoe UI", 10), text_color=THEME["muted"]).pack(pady=(2, 15))
 
         # Info
-        info_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        info_frame = ctk.CTkFrame(content, fg_color="transparent")
         info_frame.pack(fill="x", pady=10)
 
         info_items = [
@@ -636,27 +640,34 @@ class NiborTerminalTK(tk.Tk):
         ]
 
         for label, value in info_items:
-            row = tk.Frame(info_frame, bg=THEME["bg_panel"])
+            row = ctk.CTkFrame(info_frame, fg_color="transparent")
             row.pack(fill="x", pady=2)
-            tk.Label(row, text=label, font=("Segoe UI", 9), fg=THEME["text_light"], bg=THEME["bg_panel"], width=10, anchor="e").pack(side="left")
-            tk.Label(row, text=value, font=("Segoe UI", 9), fg=THEME["muted"], bg=THEME["bg_panel"], anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=label, font=("Segoe UI", 9), text_color=THEME["text_light"], width=80, anchor="e").pack(side="left")
+            ctk.CTkLabel(row, text=value, font=("Segoe UI", 9), text_color=THEME["muted"], anchor="w").pack(side="left", padx=5)
 
         # Footer
-        tk.Label(content, text="© 2025 Swedbank Treasury", font=("Segoe UI", 8), fg=THEME["text_light"], bg=THEME["bg_panel"]).pack(side="bottom", pady=(15, 0))
+        ctk.CTkLabel(content, text="© 2025 Swedbank Treasury", font=("Segoe UI", 8), text_color=THEME["text_light"]).pack(side="bottom", pady=(15, 0))
 
         # Close button
-        close_btn = tk.Button(content, text="Close", command=about_win.destroy,
-                             bg=THEME["bg_card_2"], fg=THEME["text"], font=("Segoe UI", 9),
-                             relief="flat", padx=20, pady=5, cursor="hand2",
-                             activebackground=THEME["accent"], activeforeground=THEME["text"])
+        close_btn = ctk.CTkButton(
+            content,
+            text="Close",
+            command=about_win.destroy,
+            fg_color=THEME["bg_card_2"],
+            hover_color=THEME["accent"],
+            text_color=THEME["text"],
+            font=("Segoe UI", 10),
+            corner_radius=CTK_CORNER_RADIUS["button"],
+            width=100,
+            height=32
+        )
         close_btn.pack(side="bottom")
 
     def _show_settings_dialog(self):
-        """Show the Settings dialog."""
-        settings_win = tk.Toplevel(self)
+        """Show the Settings dialog with modern CTk styling."""
+        settings_win = ctk.CTkToplevel(self)
         settings_win.title("Settings")
-        settings_win.geometry("500x400")
-        settings_win.configure(bg=THEME["bg_panel"])
+        settings_win.geometry("500x450")
         settings_win.resizable(False, False)
         settings_win.transient(self)
         settings_win.grab_set()
@@ -664,72 +675,77 @@ class NiborTerminalTK(tk.Tk):
         # Center on parent
         settings_win.update_idletasks()
         x = self.winfo_x() + (self.winfo_width() - 500) // 2
-        y = self.winfo_y() + (self.winfo_height() - 400) // 2
+        y = self.winfo_y() + (self.winfo_height() - 450) // 2
         settings_win.geometry(f"+{x}+{y}")
 
         # Title
-        tk.Label(settings_win, text="⚙️ Settings", font=("Segoe UI", 16, "bold"),
-                fg=THEME["text"], bg=THEME["bg_panel"]).pack(pady=(20, 15))
+        ctk.CTkLabel(settings_win, text="⚙️ Settings", font=("Segoe UI", 16, "bold"),
+                    text_color=THEME["text"]).pack(pady=(20, 15))
 
         # Content frame
-        content = tk.Frame(settings_win, bg=THEME["bg_panel"])
+        content = ctk.CTkFrame(settings_win, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=30)
 
         # Auto-refresh interval
-        refresh_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        refresh_frame = ctk.CTkFrame(content, fg_color="transparent")
         refresh_frame.pack(fill="x", pady=10)
 
-        tk.Label(refresh_frame, text="Auto-refresh interval:", font=("Segoe UI", 10),
-                fg=THEME["muted"], bg=THEME["bg_panel"]).pack(side="left")
+        ctk.CTkLabel(refresh_frame, text="Auto-refresh interval:", font=("Segoe UI", 10),
+                    text_color=THEME["muted"]).pack(side="left")
 
         self.settings_refresh_var = tk.StringVar(value="Manual")
         refresh_options = ["Manual", "30 sec", "1 min", "5 min", "10 min"]
-        from tkinter import ttk
-        refresh_menu = ttk.Combobox(refresh_frame, textvariable=self.settings_refresh_var,
-                                   values=refresh_options, state="readonly", width=15)
+        refresh_menu = ctk.CTkOptionMenu(refresh_frame, variable=self.settings_refresh_var,
+                                         values=refresh_options, width=120,
+                                         fg_color=THEME["bg_card_2"], button_color=THEME["accent"],
+                                         button_hover_color=THEME["accent_hover"])
         refresh_menu.pack(side="right")
 
         # Theme selection
-        theme_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        theme_frame = ctk.CTkFrame(content, fg_color="transparent")
         theme_frame.pack(fill="x", pady=10)
 
-        tk.Label(theme_frame, text="Theme:", font=("Segoe UI", 10),
-                fg=THEME["muted"], bg=THEME["bg_panel"]).pack(side="left")
+        ctk.CTkLabel(theme_frame, text="Theme:", font=("Segoe UI", 10),
+                    text_color=THEME["muted"]).pack(side="left")
 
         self.settings_theme_var = tk.StringVar(value="Dark")
         theme_options = ["Dark", "Light"]
-        theme_menu = ttk.Combobox(theme_frame, textvariable=self.settings_theme_var,
-                                 values=theme_options, state="readonly", width=15)
+        theme_menu = ctk.CTkOptionMenu(theme_frame, variable=self.settings_theme_var,
+                                       values=theme_options, width=120,
+                                       fg_color=THEME["bg_card_2"], button_color=THEME["accent"],
+                                       button_hover_color=THEME["accent_hover"])
         theme_menu.pack(side="right")
 
         # Auto-save snapshots
-        autosave_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        autosave_frame = ctk.CTkFrame(content, fg_color="transparent")
         autosave_frame.pack(fill="x", pady=10)
 
         self.settings_autosave_var = tk.BooleanVar(value=True)
-        autosave_check = tk.Checkbutton(autosave_frame, text="Auto-save snapshots on data refresh",
-                                       variable=self.settings_autosave_var,
-                                       font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"],
-                                       selectcolor=THEME["bg_card"], activebackground=THEME["bg_panel"],
-                                       activeforeground=THEME["muted"])
+        autosave_check = ctk.CTkCheckBox(autosave_frame, text="Auto-save snapshots on data refresh",
+                                         variable=self.settings_autosave_var,
+                                         font=("Segoe UI", 10), text_color=THEME["muted"],
+                                         fg_color=THEME["accent"], hover_color=THEME["accent_hover"])
         autosave_check.pack(side="left")
 
         # Show notifications
-        notif_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        notif_frame = ctk.CTkFrame(content, fg_color="transparent")
         notif_frame.pack(fill="x", pady=10)
 
         self.settings_notif_var = tk.BooleanVar(value=True)
-        notif_check = tk.Checkbutton(notif_frame, text="Show notifications for alerts",
-                                    variable=self.settings_notif_var,
-                                    font=("Segoe UI", 10), fg=THEME["muted"], bg=THEME["bg_panel"],
-                                    selectcolor=THEME["bg_card"], activebackground=THEME["bg_panel"],
-                                    activeforeground=THEME["muted"])
+        notif_check = ctk.CTkCheckBox(notif_frame, text="Show notifications for alerts",
+                                      variable=self.settings_notif_var,
+                                      font=("Segoe UI", 10), text_color=THEME["muted"],
+                                      fg_color=THEME["accent"], hover_color=THEME["accent_hover"])
         notif_check.pack(side="left")
 
         # Keyboard shortcuts info
-        shortcuts_frame = tk.LabelFrame(content, text="Keyboard Shortcuts", font=("Segoe UI", 9),
-                                       fg=THEME["text_light"], bg=THEME["bg_panel"], bd=1)
-        shortcuts_frame.pack(fill="x", pady=20)
+        shortcuts_label = ctk.CTkLabel(content, text="Keyboard Shortcuts", font=("Segoe UI", 9, "bold"),
+                                       text_color=THEME["text_light"])
+        shortcuts_label.pack(anchor="w", pady=(20, 10))
+
+        shortcuts_frame = ctk.CTkFrame(content, fg_color=THEME["bg_card"],
+                                       corner_radius=CTK_CORNER_RADIUS["frame"])
+        shortcuts_frame.pack(fill="x")
 
         shortcuts = [
             ("F5", "Refresh data"),
@@ -743,24 +759,30 @@ class NiborTerminalTK(tk.Tk):
         ]
 
         for key, desc in shortcuts:
-            row = tk.Frame(shortcuts_frame, bg=THEME["bg_panel"])
+            row = ctk.CTkFrame(shortcuts_frame, fg_color="transparent")
             row.pack(fill="x", padx=10, pady=2)
-            tk.Label(row, text=key, font=("Consolas", 9), fg=THEME["accent"], bg=THEME["bg_panel"], width=10, anchor="w").pack(side="left")
-            tk.Label(row, text=desc, font=("Segoe UI", 9), fg=THEME["muted"], bg=THEME["bg_panel"], anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text=key, font=("Consolas", 9), text_color=THEME["accent"], width=80, anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text=desc, font=("Segoe UI", 9), text_color=THEME["muted"], anchor="w").pack(side="left")
 
         # Buttons
-        btn_frame = tk.Frame(settings_win, bg=THEME["bg_panel"])
+        btn_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=20)
 
-        tk.Button(btn_frame, text="Close", command=settings_win.destroy,
-                 bg=THEME["bg_card_2"], fg=THEME["text"], font=("Segoe UI", 9),
-                 relief="flat", padx=20, pady=5, cursor="hand2",
-                 activebackground=THEME["accent"], activeforeground=THEME["text"]).pack(side="right", padx=5)
+        ctk.CTkButton(btn_frame, text="Close", command=settings_win.destroy,
+                     fg_color=THEME["bg_card_2"], hover_color=THEME["accent"],
+                     text_color=THEME["text"], font=("Segoe UI", 10),
+                     corner_radius=CTK_CORNER_RADIUS["button"],
+                     width=100, height=32).pack(side="right", padx=5)
 
-    def register_update_button(self, btn: tk.Button):
+    def register_update_button(self, btn):
+        """Register a button (tk.Button or CTkButton) for update state management."""
         if btn not in self._update_buttons:
             self._update_buttons.append(btn)
-            self._update_btn_original_text[id(btn)] = btn.cget("text")
+            # CTkButton uses cget differently
+            try:
+                self._update_btn_original_text[id(btn)] = btn.cget("text")
+            except Exception:
+                self._update_btn_original_text[id(btn)] = "UPDATE"
 
     def set_busy(self, busy: bool, text: str | None = None):
         self._busy = bool(busy)
@@ -785,7 +807,7 @@ class NiborTerminalTK(tk.Tk):
         self._current_page = key
         self._pages[key].grid()
 
-        # Update navigation button highlighting with active indicator
+        # Update navigation button highlighting with active indicator (CTk style)
         for btn_key, btn_data in self._nav_buttons.items():
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
             indicator = btn_data.get("indicator") if isinstance(btn_data, dict) else None
@@ -793,20 +815,20 @@ class NiborTerminalTK(tk.Tk):
 
             if btn_key == key:
                 # Active state - orange text and indicator bar
-                btn.config(fg=THEME["accent"], bg=THEME["bg_nav_sel"],
-                          font=("Segoe UI Semibold", 11))
+                btn.configure(text_color=THEME["accent"], fg_color=THEME["bg_nav_sel"],
+                             font=("Segoe UI Semibold", 11))
                 if indicator:
-                    indicator.config(bg=THEME["accent"])
+                    indicator.configure(fg_color=THEME["accent"])
                 if container:
-                    container.config(bg=THEME["bg_nav_sel"])
+                    container.configure(fg_color=THEME["bg_nav_sel"])
             else:
                 # Inactive state
-                btn.config(fg=THEME["text"], bg=THEME["bg_nav"],
-                          font=FONTS["body"])
+                btn.configure(text_color=THEME["text"], fg_color="transparent",
+                             font=FONTS["body"])
                 if indicator:
-                    indicator.config(bg=THEME["bg_nav"])
+                    indicator.configure(fg_color="transparent")
                 if container:
-                    container.config(bg=THEME["bg_nav"])
+                    container.configure(fg_color="transparent")
 
         if key == "nibor_recon" and focus:
             self._pages["nibor_recon"].set_focus_mode(focus)
@@ -1435,7 +1457,7 @@ def generate_alerts_report():
 # ==============================================================================
 if __name__ == "__main__":
     # Launch main application
-    app = NiborTerminalTK()
+    app = NiborTerminalCTK()
 
     # Import fixing history from Excel on startup
     try:

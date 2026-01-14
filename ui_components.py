@@ -1,12 +1,20 @@
 """
 UI components for Nibor Terminal.
 Contains reusable GUI widgets.
+CustomTkinter Edition - Modern UI components with rounded corners.
 """
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
-from config import THEME, CURRENT_MODE
+try:
+    import customtkinter as ctk
+    CTK_AVAILABLE = True
+except ImportError:
+    CTK_AVAILABLE = False
+    ctk = None
+
+from config import THEME, CURRENT_MODE, CTK_CORNER_RADIUS
 from utils import fmt_ts, LogoPipelineTK
 
 
@@ -43,7 +51,7 @@ def style_ttk(root: tk.Tk):
 
 
 class NiborButtonTK(tk.Button):
-    """Styled button for Nibor Terminal."""
+    """Styled button for Nibor Terminal (legacy tk version)."""
 
     def __init__(self, master, text, command=None, variant="default", **kwargs):
         if variant == "accent" or variant == "primary":
@@ -79,8 +87,42 @@ class NiborButtonTK(tk.Button):
         )
 
 
-# Alias for backward compatibility
-OnyxButtonTK = NiborButtonTK
+# Modern CustomTkinter button
+if CTK_AVAILABLE:
+    class NiborButtonCTK(ctk.CTkButton):
+        """Modern styled button for Nibor Terminal using CustomTkinter."""
+
+        def __init__(self, master, text, command=None, variant="default", **kwargs):
+            if variant == "accent" or variant == "primary":
+                fg_color = THEME["accent"]
+                hover_color = THEME["accent_hover"]
+                text_color = THEME["bg_panel"]
+            elif variant == "danger":
+                fg_color = THEME["bad"]
+                hover_color = "#FF5252"
+                text_color = THEME["bg_panel"]
+            else:
+                fg_color = THEME["bg_card_2"]
+                hover_color = THEME["bg_hover"]
+                text_color = THEME["text"]
+
+            super().__init__(
+                master,
+                text=text,
+                command=command,
+                fg_color=fg_color,
+                hover_color=hover_color,
+                text_color=text_color,
+                corner_radius=CTK_CORNER_RADIUS["button"],
+                font=("Segoe UI Semibold", CURRENT_MODE["body"]),
+                **kwargs
+            )
+
+    # Use CTk version as default
+    OnyxButtonTK = NiborButtonCTK
+else:
+    # Fallback to tk version
+    OnyxButtonTK = NiborButtonTK
 
 
 class NavButtonTK(tk.Button):
