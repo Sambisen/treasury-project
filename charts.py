@@ -403,20 +403,37 @@ class TrendPopup(tk.Toplevel):
         self._tenor_dropdown.set("3M")
         self._tenor_dropdown.bind("<<ComboboxSelected>>", self._on_tenor_change)
 
-        # Source dropdown
+        # Source checkboxes (both can be selected)
         source_frame = tk.Frame(header_inner, bg=THEME["bg_card"])
         source_frame.pack(side="left", padx=20)
 
         tk.Label(source_frame, text="Source:", fg=THEME["muted"], bg=THEME["bg_card"],
                 font=("Segoe UI", 10)).pack(side="left", padx=(0, 8))
 
-        self._source_var = tk.StringVar(value="contribution")
-        self._source_dropdown = ttk.Combobox(source_frame, textvariable=self._source_var,
-                                            values=["Swedbank", "Fixing"],
-                                            state="readonly", width=10, font=("Segoe UI", 10))
-        self._source_dropdown.pack(side="left")
-        self._source_dropdown.set("Swedbank")
-        self._source_dropdown.bind("<<ComboboxSelected>>", self._on_source_change)
+        self._show_contrib_var = tk.BooleanVar(value=True)
+        self._show_fixing_var = tk.BooleanVar(value=True)
+
+        contrib_check = tk.Checkbutton(
+            source_frame, text="Swedbank",
+            variable=self._show_contrib_var,
+            command=self._on_source_change,
+            bg=THEME["bg_card"], fg=THEME["text"],
+            selectcolor=THEME["bg_panel"],
+            activebackground=THEME["bg_card"],
+            font=("Segoe UI", 10)
+        )
+        contrib_check.pack(side="left", padx=(0, 10))
+
+        fixing_check = tk.Checkbutton(
+            source_frame, text="Fixing",
+            variable=self._show_fixing_var,
+            command=self._on_source_change,
+            bg=THEME["bg_card"], fg=THEME["text"],
+            selectcolor=THEME["bg_panel"],
+            activebackground=THEME["bg_card"],
+            font=("Segoe UI", 10)
+        )
+        fixing_check.pack(side="left")
 
         # Close button
         close_btn = tk.Label(header_inner, text="✕", font=("Segoe UI", 16, "bold"),
@@ -507,28 +524,40 @@ class TrendPopup(tk.Toplevel):
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
     def _populate_table(self):
-        """Fill the table with data for selected tenor."""
+        """Fill the table with data for selected tenor and sources."""
         # Clear existing rows
         for widget in self._table_scroll_frame.winfo_children():
             widget.destroy()
 
         tenor = self._tenor_var.get().lower()
-        source = "fixing" if self._source_var.get() == "Fixing" else "contribution"
-        data = self._fixing_data if source == "fixing" else self._contrib_data
+        show_contrib = self._show_contrib_var.get()
+        show_fixing = self._show_fixing_var.get()
 
-        if not data:
+        # Combine data from selected sources
+        combined_data = []
+        if show_contrib and self._contrib_data:
+            for row in self._contrib_data:
+                row['_source'] = 'Swedbank'
+            combined_data.extend(self._contrib_data)
+        if show_fixing and self._fixing_data:
+            for row in self._fixing_data:
+                row['_source'] = 'Fixing'
+            combined_data.extend(self._fixing_data)
+
+        if not combined_data:
             tk.Label(self._table_scroll_frame, text="No data available",
                     fg=THEME["muted"], bg=THEME["bg_card"],
                     font=("Segoe UI", 11)).pack(pady=40)
             return
 
         # Sort by date descending
-        sorted_data = sorted(data, key=lambda x: x.get('dt', datetime.min.date()), reverse=True)
+        sorted_data = sorted(combined_data, key=lambda x: x.get('dt', datetime.min.date()), reverse=True)
 
         prev_rate = None
         for i, row in enumerate(sorted_data):
             date_val = row.get('dt')
             rate_val = row.get(tenor)
+            source_label = row.get('_source', '-')
 
             if date_val is None:
                 continue
@@ -543,6 +572,10 @@ class TrendPopup(tk.Toplevel):
             date_str = date_val.strftime("%Y-%m-%d") if hasattr(date_val, 'strftime') else str(date_val)
             tk.Label(row_frame, text=date_str, fg=THEME["text"], bg=bg_color,
                     font=("Consolas", 10), width=15, anchor="w").pack(side="left", padx=15, pady=8)
+
+            # Source
+            tk.Label(row_frame, text=source_label, fg=THEME["muted"], bg=bg_color,
+                    font=("Segoe UI", 9), width=10, anchor="w").pack(side="left", padx=10, pady=8)
 
             # Rate
             try:
@@ -566,11 +599,6 @@ class TrendPopup(tk.Toplevel):
 
             tk.Label(row_frame, text=change_str, fg=change_color, bg=bg_color,
                     font=("Consolas", 10), width=10, anchor="w").pack(side="left", padx=15, pady=8)
-
-            # Source
-            source_label = "Fixing" if source == "fixing" else "Swedbank"
-            tk.Label(row_frame, text=source_label, fg=THEME["muted"], bg=bg_color,
-                    font=("Segoe UI", 9), width=12, anchor="w").pack(side="left", padx=15, pady=8)
 
             prev_rate = rate_float
 
@@ -603,13 +631,27 @@ class TrendPopup(tk.Toplevel):
             self._populate_table()
 
     def _on_source_change(self, event=None):
-        """Handle source dropdown change."""
-        source_map = {"Swedbank": "contribution", "Fixing": "fixing"}
-        new_source = source_map.get(self._source_var.get(), "contribution")
+        """Handle source checkbox change."""
+        show_contrib = self._show_contrib_var.get()
+        show_fixing = self._show_fixing_var.get()
+
+        # Determine which source to show in chart (prefer contribution if both selected)
+        if show_contrib and show_fixing:
+            new_source = "both"
+        elif show_contrib:
+            new_source = "contribution"
+        elif show_fixing:
+            new_source = "fixing"
+        else:
+            new_source = "contribution"  # Default fallback
 
         # Update chart if visible
         if self.chart and hasattr(self.chart, '_source_var'):
-            self.chart._source_var.set(new_source)
+            # For now, set to contribution or fixing (chart may need update to support both)
+            if new_source == "both":
+                self.chart._source_var.set("contribution")  # Show contribution in chart
+            else:
+                self.chart._source_var.set(new_source)
 
         # Update table if visible
         if self._current_view == "table":
