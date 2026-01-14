@@ -357,21 +357,21 @@ class NiborTerminalCTK(ctk.CTk):
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
                     text_color=THEME["text_light"],
-                    font=("Segoe UI Semibold", 12)).pack(anchor="w", padx=20, pady=(20, 15))
+                    font=("Segoe UI Semibold", 16)).pack(anchor="w", padx=20, pady=(20, 15))
 
         # Navigation buttons with line-art icons (icon, name, page_class)
         self.PAGES_CONFIG = [
-            ("dashboard", "⬢", "NIBOR", DashboardPage),
-            ("nibor_recon", "✓", "Nibor Recon", ReconPage),
-            ("nok_implied", "λ", "NOK Implied", NokImpliedPage),
-            ("weights", "⚖", "Weights", WeightsPage),
-            ("history", "↺", "History", HistoryPage),
-            ("audit_log", "☰", "Audit Log", AuditLogPage),
-            ("nibor_meta", "ⓘ", "Meta Data", NiborMetaDataPage),
-            ("rules_logic", "⚡", "Rules & Logic", RulesPage),
-            ("bloomberg", "◉", "Bloomberg", BloombergPage),
-            ("nibor_days", "▦", "Nibor Days", NiborDaysPage),
-            ("settings", "⚙", "Settings", SettingsPage),
+            ("dashboard", "📊", "NIBOR", DashboardPage),
+            ("nibor_recon", "✅", "Nibor Recon", ReconPage),
+            ("nok_implied", "📈", "NOK Implied", NokImpliedPage),
+            ("weights", "⚖️", "Weights", WeightsPage),
+            ("history", "🕐", "History", HistoryPage),
+            ("audit_log", "📋", "Audit Log", AuditLogPage),
+            ("nibor_meta", "ℹ️", "Meta Data", NiborMetaDataPage),
+            ("rules_logic", "📐", "Rules & Logic", RulesPage),
+            ("bloomberg", "📡", "Bloomberg", BloombergPage),
+            ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
+            ("settings", "⚙️", "Settings", SettingsPage),
         ]
 
         # Hover color: rgba(255,255,255,0.05) = #FFFFFF with 5% opacity on dark bg
@@ -394,10 +394,10 @@ class NiborTerminalCTK(ctk.CTk):
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 14),
-                width=20
+                font=("Segoe UI", 18),
+                width=24
             )
-            icon_label.pack(side="left", padx=(12, 16))
+            icon_label.pack(side="left", padx=(12, 12))
 
             # Text button
             btn = ctk.CTkButton(
