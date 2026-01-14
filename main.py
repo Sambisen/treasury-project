@@ -407,7 +407,7 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=THEME["text"],
-                font=("Segoe UI", 11),
+                font=("Segoe UI", 12),
                 anchor="w",
                 corner_radius=0,
                 height=44
