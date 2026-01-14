@@ -50,9 +50,13 @@ class TrendChart(tk.Frame):
         self._fixing_data = []
 
         # --- UI STATE VARIABLES ---
-        # 1. Source (Swedbank vs Fixing)
+        # 1. Source checkboxes (both can be selected)
+        self._show_contrib_var = tk.BooleanVar(value=True)
+        self._show_fixing_var = tk.BooleanVar(value=True)
+        self._show_contrib_var.trace_add("write", self._on_trace_change)
+        self._show_fixing_var.trace_add("write", self._on_trace_change)
+        # Legacy variable for compatibility
         self._source_var = tk.StringVar(value="contribution")
-        self._source_var.trace_add("write", self._on_trace_change)
 
         # 2. Time Range (1M, 3M, 1Y...)
         self._range_var = tk.StringVar(value="3M")
@@ -87,20 +91,28 @@ class TrendChart(tk.Frame):
         controls_frame = tk.Frame(self, bg=THEME["bg_card"])
         controls_frame.pack(fill="x", padx=15, pady=(12, 8))
 
-        # --- LEFT: Source Selection (styled radio buttons) ---
+        # --- LEFT: Source Selection (checkboxes - both can be selected) ---
         source_frame = tk.Frame(controls_frame, bg=THEME["bg_card"])
         source_frame.pack(side="left")
 
         tk.Label(source_frame, text="Source:", fg=THEME["muted"], bg=THEME["bg_card"],
                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
 
-        for text, val in [("Swedbank", "contribution"), ("Fixing", "fixing")]:
-            rb = tk.Radiobutton(source_frame, text=text, variable=self._source_var, value=val,
-                               bg=THEME["bg_card"], fg=THEME["text"],
-                               selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
-                               activeforeground=THEME["accent"], font=("Segoe UI", 10),
-                               indicatoron=1)
-            rb.pack(side="left", padx=4)
+        # Swedbank checkbox (Orange line)
+        swedbank_cb = tk.Checkbutton(source_frame, text="Swedbank",
+                                     variable=self._show_contrib_var,
+                                     bg=THEME["bg_card"], fg="#EE7623",
+                                     selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
+                                     activeforeground="#EE7623", font=("Segoe UI", 10, "bold"))
+        swedbank_cb.pack(side="left", padx=4)
+
+        # Fixing checkbox (Black line)
+        fixing_cb = tk.Checkbutton(source_frame, text="Fixing",
+                                   variable=self._show_fixing_var,
+                                   bg=THEME["bg_card"], fg="#000000",
+                                   selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
+                                   activeforeground="#000000", font=("Segoe UI", 10, "bold"))
+        fixing_cb.pack(side="left", padx=4)
 
         # --- CENTER: Time Range Buttons ---
         range_frame = tk.Frame(controls_frame, bg=THEME["bg_card"])
@@ -224,7 +236,7 @@ class TrendChart(tk.Frame):
         self.ax.grid(True, alpha=0.3, color=THEME["border"], linestyle='-', linewidth=0.5)
 
     def _redraw(self):
-        """Main drawing logic."""
+        """Main drawing logic - supports both Swedbank and Fixing simultaneously."""
         if not MATPLOTLIB_AVAILABLE:
             return
 
@@ -232,83 +244,91 @@ class TrendChart(tk.Frame):
         self._style_axes()
 
         # 1. Get current states
-        source = self._source_var.get()
+        show_contrib = self._show_contrib_var.get()
+        show_fixing = self._show_fixing_var.get()
         time_range = self._range_var.get()
-        
-        # print(f"DEBUG: Redrawing. Source={source}, Range={time_range}")
-        
-        # 2. Choose Data Source
-        if source == "fixing":
-            data_source = self._fixing_data
-            title = "NIBOR FIXING (Official)"
-            color_title = "#4ade80"
-        else:
-            data_source = self._contrib_data
-            title = "SWEDBANK (Internal)"
-            color_title = THEME["accent"]
 
-        self.ax.set_title(title, color=color_title, loc='left', fontsize=10, pad=10)
+        # Build title based on selected sources
+        title_parts = []
+        if show_contrib:
+            title_parts.append("SWEDBANK")
+        if show_fixing:
+            title_parts.append("FIXING")
+        title = " + ".join(title_parts) if title_parts else "NO SOURCE SELECTED"
 
-        if not data_source:
-            self.ax.text(0.5, 0.5, "NO DATA", ha='center', va='center', 
+        self.ax.set_title(title, color=THEME["text"], loc='left', fontsize=10, pad=10)
+
+        if not show_contrib and not show_fixing:
+            self.ax.text(0.5, 0.5, "SELECT A SOURCE", ha='center', va='center',
                         color=THEME["muted"], transform=self.ax.transAxes)
             self.canvas.draw()
             return
 
-        # 3. Filter Time Range
+        # 2. Calculate time cutoff
+        today = datetime.now().date()
         if time_range == "MAX":
-            plot_data = data_source
+            cutoff = None
+        elif time_range == "1M":
+            cutoff = today - timedelta(days=30)
+        elif time_range == "3M":
+            cutoff = today - timedelta(days=90)
+        elif time_range == "1Y":
+            cutoff = today - timedelta(days=365)
         else:
-            today = datetime.now().date()
-            cutoff = today # Default fallback
-            
-            if time_range == "1M":
-                cutoff = today - timedelta(days=30)
-            elif time_range == "3M":
-                cutoff = today - timedelta(days=90)
-            elif time_range == "1Y":
-                cutoff = today - timedelta(days=365)
-            else:
-                cutoff = today - timedelta(days=90)
-            
-            plot_data = [d for d in data_source if d['dt'] >= cutoff]
+            cutoff = today - timedelta(days=90)
 
-        if not plot_data:
-            self.ax.text(0.5, 0.5, f"NO DATA FOR {time_range}", ha='center', va='center', 
-                        color=THEME["muted"], transform=self.ax.transAxes)
-            self.canvas.draw()
-            return
-
-        dates = [d['dt'] for d in plot_data]
         has_lines = False
 
-        # 4. Plot Lines based on Checked Boxes
-        tenors = ['1w', '1m', '2m', '3m', '6m']
-        for tenor in tenors:
-            # Skip 1W for contribution if empty (usually is)
-            if source == "contribution" and tenor == '1w':
-                # Check if data exists just in case
-                if not any(row.get('1w') for row in plot_data):
-                    continue
+        # 3. Get selected tenor
+        selected_tenors = [t for t, var in self._tenor_vars.items() if var.get()]
+        if not selected_tenors:
+            selected_tenors = ['3m']  # Default
 
-            # If checked
-            if self._tenor_vars[tenor].get():
-                rates = []
-                for row in plot_data:
-                    val = row.get(tenor)
-                    # Convert to float, handle None
-                    try:
-                        rates.append(float(val) if val is not None and val != "" else float('nan'))
-                    except (ValueError, TypeError):
-                        rates.append(float('nan'))
-                
-                # Only plot if we have at least one valid number
-                valid_points = [r for r in rates if not math.isnan(r)]
-                if valid_points:
-                    self.ax.plot(dates, rates, 
-                               color=TENOR_COLORS.get(tenor, '#fff'), 
-                               linewidth=1.5, label=tenor.upper())
-                    has_lines = True
+        # 4. Plot Swedbank data (Orange line)
+        if show_contrib and self._contrib_data:
+            plot_data = self._contrib_data if cutoff is None else [d for d in self._contrib_data if d['dt'] >= cutoff]
+            if plot_data:
+                dates = [d['dt'] for d in plot_data]
+                for tenor in selected_tenors:
+                    if tenor == '1w':
+                        continue  # Skip 1W for contribution
+                    rates = []
+                    for row in plot_data:
+                        val = row.get(tenor)
+                        try:
+                            rates.append(float(val) if val is not None and val != "" else float('nan'))
+                        except (ValueError, TypeError):
+                            rates.append(float('nan'))
+                    valid_points = [r for r in rates if not math.isnan(r)]
+                    if valid_points:
+                        label = f"Swedbank {tenor.upper()}"
+                        self.ax.plot(dates, rates, color='#EE7623', linewidth=2, label=label)
+                        has_lines = True
+
+        # 5. Plot Fixing data (Black line)
+        if show_fixing and self._fixing_data:
+            plot_data = self._fixing_data if cutoff is None else [d for d in self._fixing_data if d['dt'] >= cutoff]
+            if plot_data:
+                dates = [d['dt'] for d in plot_data]
+                for tenor in selected_tenors:
+                    rates = []
+                    for row in plot_data:
+                        val = row.get(tenor)
+                        try:
+                            rates.append(float(val) if val is not None and val != "" else float('nan'))
+                        except (ValueError, TypeError):
+                            rates.append(float('nan'))
+                    valid_points = [r for r in rates if not math.isnan(r)]
+                    if valid_points:
+                        label = f"Fixing {tenor.upper()}"
+                        self.ax.plot(dates, rates, color='#000000', linewidth=2, label=label)
+                        has_lines = True
+
+        if not has_lines:
+            self.ax.text(0.5, 0.5, f"NO DATA FOR {time_range}", ha='center', va='center',
+                        color=THEME["muted"], transform=self.ax.transAxes)
+            self.canvas.draw()
+            return
 
         # Formatting
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
