@@ -345,7 +345,7 @@ class DashboardPage(tk.Frame):
         footer_frame.pack(side="bottom", fill="x", pady=(15, 10))
 
         tk.Label(footer_frame,
-                text="✓ = Excel NIBOR level matches Python calculated NIBOR level",
+                text="OK = Excel NIBOR level matches Python calculated NIBOR level",
                 fg=THEME["text_light"], bg=THEME["bg_panel"],
                 font=FONTS["body_small"],
                 anchor="w").pack(padx=20)
@@ -644,20 +644,20 @@ class DashboardPage(tk.Frame):
         s = (state or "WAIT").upper()
 
         if s == "OK":
-            card._icon.configure(text="✔", fg=THEME["good"])
+            card._icon.configure(text="●", fg=THEME["good"])
             card._status.configure(text="OK", fg=THEME["good"])
             card.configure(highlightbackground=THEME["good"])
         elif s == "PENDING":
-            card._icon.configure(text="!", fg=THEME["yellow"])
+            card._icon.configure(text="●", fg=THEME["yellow"])
             card._status.configure(text="PENDING", fg=THEME["yellow"])
             card.configure(highlightbackground=THEME["yellow"])
         elif s == "ALERT":
-            card._icon.configure(text="!", fg=THEME["warn"])
+            card._icon.configure(text="●", fg=THEME["warn"])
             card._status.configure(text="ALERT", fg=THEME["warn"])
             card.configure(highlightbackground=THEME["warn"])
         elif s == "FAIL":
-            card._icon.configure(text="✘", fg=THEME["bad"])
-            card._status.configure(text="DIFF / ERROR", fg=THEME["bad"])
+            card._icon.configure(text="●", fg=THEME["bad"])
+            card._status.configure(text="ERROR", fg=THEME["bad"])
             card.configure(highlightbackground=THEME["bad"])
         else:
             card._icon.configure(text="●", fg=THEME["muted2"])
@@ -718,13 +718,12 @@ class DashboardPage(tk.Frame):
                             cursor="hand2")
             badge.pack(side="left", padx=8, pady=6)
             
-            # Icon
-            icon = "✓" if is_ok else "✗"
+            # Professional status dot
             color = THEME["good"] if is_ok else THEME["bad"]
-            
-            icon_lbl = tk.Label(badge, text=icon, fg=color,
+
+            icon_lbl = tk.Label(badge, text="●", fg=color,
                                bg=THEME["bg_card_2"],
-                               font=("Segoe UI", 14, "bold"))
+                               font=("Segoe UI", 10))
             icon_lbl.pack(side="left")
             
             # Name
@@ -803,7 +802,7 @@ class DashboardPage(tk.Frame):
             )
         else:
             self.alerts_count_lbl.config(
-                text="✓ ALL OK",
+                text="● ALL OK",
                 fg=THEME["good"]
             )
     
@@ -966,18 +965,18 @@ class DashboardPage(tk.Frame):
                             except (ValueError, TypeError):
                                 errors.append(f"{aa_cell}: parse error")
 
-                # Both must match for "Matched ✓"
+                # Professional status display
                 lbl = cells["nibor_contrib"]
                 if match_z and match_aa:
-                    lbl.config(text="Matched ✓", fg=THEME["good"])
+                    lbl.config(text="OK", fg=THEME["good"], font=("Segoe UI Semibold", 10))
                     self._stop_blink(lbl)
                 elif errors:
-                    lbl.config(text="✗", fg=THEME["bad"])
+                    lbl.config(text="FAIL", fg=THEME["bad"], font=("Segoe UI Semibold", 10))
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    lbl.config(text="-", fg=THEME["muted"])
+                    lbl.config(text="-", fg=THEME["muted"], font=("Consolas", 11))
                     self._stop_blink(lbl)
             
             # Store for popup with model information
@@ -1019,9 +1018,9 @@ class DashboardPage(tk.Frame):
 
         if not messages:
             # All OK - show success message
-            tk.Label(self.alerts_scroll_frame, text="✓ All Controls OK",
+            tk.Label(self.alerts_scroll_frame, text="All Controls OK",
                     fg=THEME["good"], bg=THEME["bg_card"],
-                    font=("Segoe UI", 14, "bold")).pack(expand=True, pady=50)
+                    font=("Segoe UI Semibold", 12)).pack(expand=True, pady=50)
         else:
             # Get current timestamp
             timestamp = datetime.now().strftime("%H:%M:%S")

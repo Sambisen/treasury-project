@@ -423,8 +423,8 @@ class NiborTerminalTK(tk.Tk):
         # Spacer
         tk.Frame(sidebar, bg=THEME["bg_panel"]).pack(fill="both", expand=True)
 
-        # Visual separator line
-        separator = tk.Frame(self.body, bg=THEME["accent"], width=3)
+        # Subtle separator line (dark blue instead of orange)
+        separator = tk.Frame(self.body, bg=THEME["accent_secondary"], width=1)
         separator.grid(row=0, column=1, sticky="ns")
 
         # ====================================================================
