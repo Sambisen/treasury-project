@@ -429,7 +429,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Quick Access
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
                     text_color=THEME["text_light"],
-                    font=("Segoe UI Semibold", 9)).pack(anchor="w", padx=20, pady=(0, 10))
+                    font=("Segoe UI Semibold", 21)).pack(anchor="w", padx=20, pady=(0, 10))
 
         # History folder button
         history_btn = ctk.CTkButton(
@@ -439,10 +439,10 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 14),
             anchor="w",
             corner_radius=6,
-            height=32
+            height=44
         )
         history_btn.pack(fill="x", padx=12, pady=2)
 
@@ -454,10 +454,10 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 14),
             anchor="w",
             corner_radius=6,
-            height=32
+            height=44
         )
         grss_btn.pack(fill="x", padx=12, pady=2)
 
