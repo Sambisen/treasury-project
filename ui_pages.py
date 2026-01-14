@@ -890,16 +890,25 @@ class DashboardPage(tk.Frame):
         """Update funding rates table with Excel validation - USES SELECTED MODEL."""
         from config import FUNDING_SPREADS
         from calculations import calc_funding_rate
-        
+
         if not hasattr(self.app, 'impl_calc_data'):
             return
-        
+
         # Get selected calculation model (default: swedbank)
         selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
         log.info(f"[Dashboard._update_funding_rates_with_validation] Using model: {selected_model}")
-        
+
         weights = self._get_weights()
         self.app.funding_calc_data = {}
+
+        # Excel spread cells mapping for Recon Column 1 (Python vs Excel)
+        # Y7=1M, Y8=2M, Y9=3M, Y10=6M
+        EXCEL_SPREAD_CELLS = {
+            "1m": "Y7",
+            "2m": "Y8",
+            "3m": "Y9",
+            "6m": "Y10"
+        }
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -965,6 +974,39 @@ class DashboardPage(tk.Frame):
                     cells["chg"].config(text=chg_text, fg=chg_color)
                 else:
                     cells["chg"].config(text="-", fg=THEME["muted"])
+
+            # ================================================================
+            # RECON COLUMN 1: Python vs Excel (Spread Calc Model)
+            # Formula: Python Spread = NIBOR (GUI) - Implied Rate (Bloomberg CM)
+            # Validation: Python Spread MUST match Excel Spread (Y7:Y10)
+            # ================================================================
+            if "spread_model" in cells:
+                spread_recon_result = self._calculate_spread_recon(
+                    tenor_key=tenor_key,
+                    nibor_gui=final_rate,
+                    funding_rate=funding_rate,
+                    excel_spread_cell=EXCEL_SPREAD_CELLS.get(tenor_key)
+                )
+                if spread_recon_result:
+                    if spread_recon_result["match"]:
+                        # Match - show Python spread with checkmark
+                        cells["spread_model"].config(
+                            text=f"{spread_recon_result['python_spread']:.2f} ✓",
+                            fg=THEME["good"]
+                        )
+                    else:
+                        # Mismatch - show Python spread with X and difference
+                        diff = spread_recon_result["difference"]
+                        cells["spread_model"].config(
+                            text=f"{spread_recon_result['python_spread']:.2f} ✗",
+                            fg=THEME["bad"]
+                        )
+                        alert_messages.append(
+                            (f"{tenor_key.upper()} Spread: Py={spread_recon_result['python_spread']:.4f} "
+                             f"vs Excel={spread_recon_result['excel_spread']:.4f} (Δ{diff:+.4f})", "warning")
+                        )
+                else:
+                    cells["spread_model"].config(text="-", fg=THEME["muted"])
 
             # Excel validation
             if "match" in cells and final_rate is not None:
@@ -1167,14 +1209,92 @@ class DashboardPage(tk.Frame):
         
         return weights
 
+    def _calculate_spread_recon(self, tenor_key: str, nibor_gui: float,
+                                 funding_rate: float, excel_spread_cell: str) -> dict:
+        """
+        Calculate Recon Column 1: Python vs Excel (Spread Calc Model).
+
+        Validates that the calculated spread in Python matches the Excel spread.
+
+        Formula:
+            Python Spread = NIBOR (GUI) - Implied Rate (Bloomberg CM)
+            where Implied Rate = funding_rate (weighted EUR/USD/NOK calculation)
+
+        Validation:
+            Python Spread MUST match Excel Spread (Y7:Y10)
+
+        Args:
+            tenor_key: '1m', '2m', '3m', or '6m'
+            nibor_gui: The Python-calculated NIBOR rate (final_rate)
+            funding_rate: The implied rate from Bloomberg CM calculation
+            excel_spread_cell: Excel cell reference for spread (Y7, Y8, Y9, Y10)
+
+        Returns:
+            dict with:
+                - tenor: The tenor key
+                - nibor_gui: NIBOR from GUI
+                - funding_rate: Implied rate (Bloomberg CM)
+                - python_spread: Calculated spread (NIBOR - Implied)
+                - excel_spread: Excel spread from Y7:Y10
+                - difference: Python spread - Excel spread
+                - match: True if within tolerance (0.0001 = 0.01 bps)
+                - status: '✓' or '✗'
+            None if data unavailable
+        """
+        # Validate inputs
+        if nibor_gui is None or funding_rate is None or excel_spread_cell is None:
+            log.debug(f"[Spread Recon] {tenor_key}: Missing data - nibor={nibor_gui}, "
+                      f"funding={funding_rate}, cell={excel_spread_cell}")
+            return None
+
+        # Calculate Python spread
+        python_spread = nibor_gui - funding_rate
+
+        # Get Excel spread from recon data
+        excel_spread = None
+        if hasattr(self.app, 'excel_engine'):
+            excel_spread = self.app.excel_engine.get_recon_value(excel_spread_cell)
+            if excel_spread is not None:
+                try:
+                    excel_spread = float(excel_spread)
+                except (ValueError, TypeError):
+                    log.warning(f"[Spread Recon] {tenor_key}: Could not parse Excel spread "
+                                f"from {excel_spread_cell}: {excel_spread}")
+                    excel_spread = None
+
+        if excel_spread is None:
+            log.debug(f"[Spread Recon] {tenor_key}: Excel spread not available from {excel_spread_cell}")
+            return None
+
+        # Compare with tolerance (0.0001 = 0.01 basis points)
+        TOLERANCE = 0.0001
+        difference = python_spread - excel_spread
+        is_match = abs(difference) < TOLERANCE
+
+        result = {
+            'tenor': tenor_key,
+            'nibor_gui': nibor_gui,
+            'funding_rate': funding_rate,
+            'python_spread': python_spread,
+            'excel_spread': excel_spread,
+            'difference': difference,
+            'match': is_match,
+            'status': '✓' if is_match else '✗'
+        }
+
+        log.info(f"[Spread Recon] {tenor_key}: Python={python_spread:.4f}, "
+                 f"Excel={excel_spread:.4f}, Diff={difference:+.4f}, Match={is_match}")
+
+        return result
+
     def _update_implied_rates(self):
         """Calculate and display funding rates in interactive table - USES SELECTED MODEL."""
         from config import FUNDING_SPREADS
         from calculations import calc_funding_rate
-        
+
         if not hasattr(self.app, 'impl_calc_data'):
             return
-        
+
         # Get selected calculation model (default: nore)
         selected_model = getattr(self.app, 'selected_calc_model', 'nore')
         log.info(f"[Dashboard._update_implied_rates] Using calculation model: {selected_model}")
