@@ -2248,14 +2248,16 @@ class HistoryPage(tk.Frame):
         view_frame = tk.Frame(self, bg=THEME["bg_panel"])
         view_frame.pack(fill="x", padx=pad, pady=(10, 5))
 
-        tk.Label(view_frame, text="View:", fg=THEME["muted"], bg=THEME["bg_panel"],
+        tk.Label(view_frame, text="Source:", fg=THEME["muted"], bg=THEME["bg_panel"],
                 font=("Segoe UI", CURRENT_MODE["body"])).pack(side="left")
 
-        self.history_view_var = tk.StringVar(value="fixing")
+        # Use checkboxes so both can be selected
+        self.show_contribution_var = tk.BooleanVar(value=True)
+        self.show_fixing_var = tk.BooleanVar(value=True)
 
-        contribution_radio = tk.Radiobutton(
+        contribution_check = tk.Checkbutton(
             view_frame, text="Swedbank Contribution",
-            variable=self.history_view_var, value="contribution",
+            variable=self.show_contribution_var,
             command=self._on_view_change,
             bg=THEME["bg_panel"], fg=THEME["text"],
             selectcolor=THEME["bg_card"],
@@ -2263,11 +2265,11 @@ class HistoryPage(tk.Frame):
             activeforeground=THEME["accent"],
             font=FONTS["body"]
         )
-        contribution_radio.pack(side="left", padx=(10, 5))
+        contribution_check.pack(side="left", padx=(10, 5))
 
-        fixing_radio = tk.Radiobutton(
+        fixing_check = tk.Checkbutton(
             view_frame, text="NIBOR Fixing",
-            variable=self.history_view_var, value="fixing",
+            variable=self.show_fixing_var,
             command=self._on_view_change,
             bg=THEME["bg_panel"], fg=THEME["text"],
             selectcolor=THEME["bg_card"],
@@ -2275,7 +2277,7 @@ class HistoryPage(tk.Frame):
             activeforeground=THEME["accent"],
             font=FONTS["body"]
         )
-        fixing_radio.pack(side="left", padx=5)
+        fixing_check.pack(side="left", padx=5)
 
         # Entry count label
         self._entry_count_lbl = tk.Label(view_frame, text="",
@@ -2345,19 +2347,19 @@ class HistoryPage(tk.Frame):
         left_frame = tk.Frame(content, bg=THEME["bg_panel"])
         left_frame.pack(side="left", fill="both", expand=True)
 
-        # Table for contribution view (default columns)
+        # Combined columns for both views (SOURCE column added)
+        self._combined_columns = ["SEL", "DATE", "SOURCE", "1W", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL"]
+        self._combined_widths = [30, 90, 80, 55, 55, 45, 55, 45, 55, 45, 55, 45, 70]
+
+        # Legacy column definitions (kept for reference)
         self._contribution_columns = ["SEL", "DATE", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG", "MODEL", "USER"]
-        self._contribution_widths = [30, 90, 60, 45, 60, 45, 60, 45, 60, 45, 75, 70]
-
-        # Table for fixing view (includes 1W, no MODEL/USER)
         self._fixing_columns = ["SEL", "DATE", "1W", "CHG", "1M", "CHG", "2M", "CHG", "3M", "CHG", "6M", "CHG"]
-        self._fixing_widths = [30, 90, 55, 45, 55, 45, 55, 45, 55, 45, 55, 45]
 
-        # Start with fixing view
+        # Use combined columns
         self.table = DataTableTree(
             left_frame,
-            columns=self._fixing_columns,
-            col_widths=self._fixing_widths,
+            columns=self._combined_columns,
+            col_widths=self._combined_widths,
             height=18
         )
         self.table.pack(fill="both", expand=True)
@@ -2434,18 +2436,23 @@ class HistoryPage(tk.Frame):
         self.update()
 
     def update(self):
-        """Update the history table based on selected view."""
+        """Update the history table based on selected sources."""
         self.table.clear()
         self._history_data = load_history()
-        view = self.history_view_var.get()
 
-        if view == "fixing":
-            # Get fixing history (up to 500 entries for full history)
-            table_data = get_fixing_table_data(limit=500)
-            self._all_table_data = table_data
+        show_contribution = self.show_contribution_var.get()
+        show_fixing = self.show_fixing_var.get()
 
-            # Update entry count
-            self._entry_count_lbl.config(text=f"{len(table_data)} fixing entries")
+        # Collect data from selected sources
+        combined_data = []
+        entry_counts = []
+
+        if show_fixing:
+            fixing_data = get_fixing_table_data(limit=500)
+            for row in fixing_data:
+                row['_source'] = 'fixing'
+            combined_data.extend(fixing_data)
+            entry_counts.append(f"{len(fixing_data)} fixing")
 
             # Update trend chart with fixing data
             if self.trend_chart:
@@ -2453,42 +2460,45 @@ class HistoryPage(tk.Frame):
                 if chart_data:
                     self.trend_chart.set_data(chart_data, data_type="fixing")
 
-            if not table_data:
-                self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
-                self._show_detail("No NIBOR fixings saved yet.\n\nFixings are imported from Bloomberg BDH or Excel.")
-                return
+        if show_contribution:
+            contribution_data = get_rates_table_data(limit=50)
+            for row in contribution_data:
+                row['_source'] = 'contribution'
+            combined_data.extend(contribution_data)
+            entry_counts.append(f"{len(contribution_data)} contribution")
 
-        else:  # contribution view
-            table_data = get_rates_table_data(limit=50)
-            self._all_table_data = table_data
+            # Update trend chart with contribution data (if no fixing selected)
+            if self.trend_chart and contribution_data and not show_fixing:
+                self.trend_chart.set_data(contribution_data, data_type="contribution")
 
-            # Update entry count
-            self._entry_count_lbl.config(text=f"{len(table_data)} contribution entries")
+        # Sort combined data by date descending
+        combined_data.sort(key=lambda x: x.get('date', ''), reverse=True)
+        self._all_table_data = combined_data
 
-            # Update trend chart with contribution data
-            if self.trend_chart and table_data:
-                self.trend_chart.set_data(table_data, data_type="contribution")
+        # Update entry count label
+        if entry_counts:
+            self._entry_count_lbl.config(text=" + ".join(entry_counts))
+        else:
+            self._entry_count_lbl.config(text="No source selected")
 
-            if not table_data:
-                self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
-                self._show_detail("No snapshots saved yet.\n\nClick 'Save Snapshot' to save current NIBOR calculation.")
-                return
+        if not combined_data:
+            self.table.add_row(["", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"], style="normal")
+            self._show_detail("No data available.\n\nSelect at least one source.")
+            return
 
         # Apply search filter if active
         search_text = self.search_var.get().strip()
         if search_text:
             self._filter_table(search_text)
         else:
-            self._populate_table(table_data)
+            self._populate_table(combined_data)
 
     def _populate_table(self, table_data, highlight_single=False):
-        """Populate table with data based on current view."""
+        """Populate table with combined data from selected sources."""
         self.table.clear()
-        view = self.history_view_var.get()
 
         if not table_data:
-            empty_cols = 12 if view == "fixing" else 12
-            self.table.add_row([""] + ["-"] * (empty_cols - 1), style="normal")
+            self.table.add_row([""] + ["-"] * 12, style="normal")
             return
 
         for row in table_data:
@@ -2496,38 +2506,26 @@ class HistoryPage(tk.Frame):
             is_selected = row['date'] in self._selected_dates
             checkbox = "☑" if is_selected else "☐"
 
-            if view == "fixing":
-                # Fixing view: SEL, DATE, 1W, CHG, 1M, CHG, 2M, CHG, 3M, CHG, 6M, CHG
-                values = [
-                    checkbox,
-                    row['date'],
-                    f"{row['1w']:.2f}" if row.get('1w') is not None else "-",
-                    self._format_chg(row.get('1w_chg')),
-                    f"{row['1m']:.2f}" if row.get('1m') is not None else "-",
-                    self._format_chg(row.get('1m_chg')),
-                    f"{row['2m']:.2f}" if row.get('2m') is not None else "-",
-                    self._format_chg(row.get('2m_chg')),
-                    f"{row['3m']:.2f}" if row.get('3m') is not None else "-",
-                    self._format_chg(row.get('3m_chg')),
-                    f"{row['6m']:.2f}" if row.get('6m') is not None else "-",
-                    self._format_chg(row.get('6m_chg')),
-                ]
-            else:
-                # Contribution view: SEL, DATE, 1M, CHG, 2M, CHG, 3M, CHG, 6M, CHG, MODEL, USER
-                values = [
-                    checkbox,
-                    row['date'],
-                    f"{row['1m']:.2f}" if row.get('1m') is not None else "-",
-                    self._format_chg(row.get('1m_chg')),
-                    f"{row['2m']:.2f}" if row.get('2m') is not None else "-",
-                    self._format_chg(row.get('2m_chg')),
-                    f"{row['3m']:.2f}" if row.get('3m') is not None else "-",
-                    self._format_chg(row.get('3m_chg')),
-                    f"{row['6m']:.2f}" if row.get('6m') is not None else "-",
-                    self._format_chg(row.get('6m_chg')),
-                    row.get('model', '-'),
-                    row.get('user', '-')
-                ]
+            # Determine source label
+            source = row.get('_source', 'unknown')
+            source_label = "Fixing" if source == "fixing" else "Contrib"
+
+            # Combined format: SEL, DATE, SOURCE, 1W, 1M, CHG, 2M, CHG, 3M, CHG, 6M, CHG, MODEL
+            values = [
+                checkbox,
+                row['date'],
+                source_label,
+                f"{row['1w']:.2f}" if row.get('1w') is not None else "-",
+                f"{row['1m']:.2f}" if row.get('1m') is not None else "-",
+                self._format_chg(row.get('1m_chg')),
+                f"{row['2m']:.2f}" if row.get('2m') is not None else "-",
+                self._format_chg(row.get('2m_chg')),
+                f"{row['3m']:.2f}" if row.get('3m') is not None else "-",
+                self._format_chg(row.get('3m_chg')),
+                f"{row['6m']:.2f}" if row.get('6m') is not None else "-",
+                self._format_chg(row.get('6m_chg')),
+                row.get('model', '-')
+            ]
 
             self.table.add_row(values, style="normal")
 
