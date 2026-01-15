@@ -311,10 +311,10 @@ class NiborTerminalCTK(ctk.CTk):
         sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         sidebar.grid_propagate(False)
 
-        # Sidebar title - smaller
+        # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=16, pady=(12, 8))
+                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=16, pady=(12, 8))
 
         # Navigation buttons with line-art icons (icon, name, page_class)
         self.PAGES_CONFIG = [
@@ -345,17 +345,17 @@ class NiborTerminalCTK(ctk.CTk):
             indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3, corner_radius=0)
             indicator.pack(side="left", fill="y")
 
-            # Icon label - larger, muted color
+            # Icon label - 16pt, muted color
             icon_label = ctk.CTkLabel(
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 14),
-                width=24
+                font=("Segoe UI", 16),
+                width=28
             )
             icon_label.pack(side="left", padx=(12, 8))
 
-            # Text button - larger, same muted color as Quick Access
+            # Text button - 16pt, muted color
             btn = ctk.CTkButton(
                 btn_container,
                 text=page_name,
@@ -363,7 +363,7 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 16),
                 anchor="w",
                 corner_radius=0,
                 height=36
@@ -382,12 +382,12 @@ class NiborTerminalCTK(ctk.CTk):
         # Divider
         ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=10)
 
-        # Quick Access - matching smaller header
+        # Quick Access header - 20pt
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=16, pady=(0, 6))
+                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=16, pady=(0, 6))
 
-        # History folder button - matching style
+        # History folder button - 16pt
         history_btn = ctk.CTkButton(
             sidebar,
             text="📂  History",
@@ -395,14 +395,14 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 12),
+            font=("Segoe UI", 16),
             anchor="w",
             corner_radius=4,
             height=36
         )
         history_btn.pack(fill="x", padx=10, pady=1)
 
-        # GRSS folder button - matching style
+        # GRSS folder button - 16pt
         grss_btn = ctk.CTkButton(
             sidebar,
             text="📂  GRSS",
@@ -410,7 +410,7 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 12),
+            font=("Segoe UI", 16),
             anchor="w",
             corner_radius=4,
             height=36
