@@ -908,16 +908,14 @@ class NiborTerminalCTK(ctk.CTk):
         
         self.after(0, self._apply_excel_result, excel_ok, excel_msg)
 
-        if blpapi:
-            # Use dynamic tickers - F043 for Dev mode, F033 for Prod mode
-            self.engine.fetch_snapshot(
-                get_all_real_tickers(),
-                lambda d, meta: self.after(0, self._apply_bbg_result, d, meta, None),
-                lambda e: self.after(0, self._apply_bbg_result, {}, {}, str(e)),
-                fields=["PX_LAST", "CHG_NET_1D", "LAST_UPDATE"]
-            )
-        else:
-            self.after(0, self._apply_bbg_result, {}, {}, "BLPAPI not installed")
+        # Always call engine.fetch_snapshot - it handles mock mode internally if blpapi unavailable
+        # Use dynamic tickers - F043 for both Dev and Prod mode
+        self.engine.fetch_snapshot(
+            get_all_real_tickers(),
+            lambda d, meta: self.after(0, self._apply_bbg_result, d, meta, None),
+            lambda e: self.after(0, self._apply_bbg_result, {}, {}, str(e)),
+            fields=["PX_LAST", "CHG_NET_1D", "LAST_UPDATE"]
+        )
 
     def _compute_group_health(self, bbg_meta: dict, market_data: dict) -> dict[str, str]:
         meta = bbg_meta or {}
@@ -983,7 +981,8 @@ class NiborTerminalCTK(ctk.CTk):
     def _apply_bbg_result(self, bbg_data: dict, bbg_meta: dict, bbg_err: str | None):
         self.last_bbg_meta = dict(bbg_meta or {})
 
-        if bbg_data and not bbg_err and blpapi:
+        # Accept data from both real Bloomberg and mock engine
+        if bbg_data and not bbg_err:
             self.cached_market_data = dict(bbg_data)
             self.bbg_last_ok_ts = datetime.now()
             self.bbg_ok = True
