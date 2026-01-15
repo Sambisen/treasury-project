@@ -674,7 +674,139 @@ class DashboardPage(BaseFrame):
         
         popup = TrendPopup(self.winfo_toplevel())
         popup.grab_set()
-        
+
+    def _show_match_popup(self, tenor_key):
+        """Show popup with detailed match criteria for NIBOR contribution."""
+        if not hasattr(self, '_match_data') or tenor_key not in self._match_data:
+            return
+
+        data = self._match_data[tenor_key]
+
+        # Create popup window
+        popup = tk.Toplevel(self.winfo_toplevel())
+        popup.title(f"NIBOR Match Details - {data['tenor']}")
+        popup.configure(bg=THEME["bg_panel"])
+        popup.geometry("500x400")
+        popup.resizable(False, False)
+
+        # Center on parent
+        popup.transient(self.winfo_toplevel())
+        popup.grab_set()
+
+        # Header
+        header_frame = tk.Frame(popup, bg=THEME["bg_card"])
+        header_frame.pack(fill="x", padx=0, pady=0)
+
+        status_color = "#00C853" if data.get('all_matched') else "#FF3B30"
+        status_text = "✓ ALL MATCHED" if data.get('all_matched') else "✗ MISMATCH FOUND"
+
+        tk.Label(header_frame,
+                text=f"NIBOR Contribution Match - {data['tenor']}",
+                font=("Segoe UI Semibold", 14),
+                fg=THEME["text"], bg=THEME["bg_card"]).pack(pady=(15, 5))
+
+        tk.Label(header_frame,
+                text=status_text,
+                font=("Segoe UI Semibold", 12),
+                fg=status_color, bg=THEME["bg_card"]).pack(pady=(0, 15))
+
+        # GUI Rate display
+        gui_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+        gui_frame.pack(fill="x", padx=20, pady=10)
+
+        tk.Label(gui_frame,
+                text="GUI NIBOR Rate:",
+                font=("Segoe UI", 11),
+                fg=THEME["muted"], bg=THEME["bg_panel"]).pack(side="left")
+
+        gui_rate = data.get('gui_rate')
+        tk.Label(gui_frame,
+                text=f"{gui_rate:.4f}%" if gui_rate else "N/A",
+                font=("Consolas", 12, "bold"),
+                fg=THEME["accent"], bg=THEME["bg_panel"]).pack(side="right")
+
+        # Separator
+        tk.Frame(popup, bg=THEME["border"], height=1).pack(fill="x", padx=20, pady=5)
+
+        # Criteria list
+        criteria_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+        criteria_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        tk.Label(criteria_frame,
+                text="Matchningskriterier:",
+                font=("Segoe UI Semibold", 11),
+                fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+        for i, criterion in enumerate(data.get('criteria', []), 1):
+            # Criterion card
+            card = tk.Frame(criteria_frame, bg=THEME["bg_card"], highlightbackground=THEME["border"], highlightthickness=1)
+            card.pack(fill="x", pady=5)
+
+            # Status indicator
+            match_status = criterion.get('matched', False)
+            status_icon = "✓" if match_status else "✗"
+            status_fg = "#00C853" if match_status else "#FF3B30"
+
+            # Header row
+            header_row = tk.Frame(card, bg=THEME["bg_card"])
+            header_row.pack(fill="x", padx=10, pady=(8, 4))
+
+            tk.Label(header_row,
+                    text=f"{status_icon} Kriterium {i}: {criterion.get('name', '')}",
+                    font=("Segoe UI Semibold", 10),
+                    fg=status_fg, bg=THEME["bg_card"]).pack(side="left")
+
+            tk.Label(header_row,
+                    text=f"({criterion.get('description', '')})",
+                    font=("Segoe UI", 9),
+                    fg=THEME["muted"], bg=THEME["bg_card"]).pack(side="right")
+
+            # Values row
+            values_row = tk.Frame(card, bg=THEME["bg_card"])
+            values_row.pack(fill="x", padx=10, pady=(0, 8))
+
+            gui_val = criterion.get('gui_value')
+            excel_val = criterion.get('excel_value')
+            decimals = 4 if "4 dec" in criterion.get('description', '') else 2
+
+            gui_text = f"{gui_val:.{decimals}f}" if gui_val is not None else "N/A"
+            excel_text = f"{excel_val:.{decimals}f}" if excel_val is not None else "N/A"
+
+            tk.Label(values_row,
+                    text=f"GUI: {gui_text}",
+                    font=("Consolas", 10),
+                    fg=THEME["text"], bg=THEME["bg_card"]).pack(side="left")
+
+            tk.Label(values_row,
+                    text="vs",
+                    font=("Segoe UI", 9),
+                    fg=THEME["muted"], bg=THEME["bg_card"]).pack(side="left", padx=10)
+
+            tk.Label(values_row,
+                    text=f"Excel ({criterion.get('excel_cell', '')}): {excel_text}",
+                    font=("Consolas", 10),
+                    fg=THEME["text"], bg=THEME["bg_card"]).pack(side="left")
+
+        # Close button
+        btn_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+        btn_frame.pack(fill="x", padx=20, pady=15)
+
+        close_btn = tk.Button(btn_frame,
+                             text="Stäng",
+                             font=("Segoe UI", 10),
+                             fg=THEME["text"],
+                             bg=THEME["bg_card"],
+                             activebackground=THEME["bg_card_2"],
+                             activeforeground=THEME["text"],
+                             relief="flat",
+                             cursor="hand2",
+                             padx=20, pady=8,
+                             command=popup.destroy)
+        close_btn.pack(side="right")
+
+        # Focus popup
+        popup.focus_set()
+
     def _show_funding_details(self, tenor_key):
         """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
         # Auto-update if data not available
@@ -1102,8 +1234,17 @@ class DashboardPage(BaseFrame):
         self.app.funding_calc_data = {}
 
         # Excel cells for NIBOR Contribution reconciliation (from latest sheet)
-        # NIBOR GUI must match AA7-AA10 (2 decimals) - input row contributions
-        EXCEL_AA_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
+        # 3 criteria for matching:
+        # 1. GUI vs Z30-Z33 (4 decimals)
+        # 2. GUI vs AA7-AA10 (2 decimals) - input row
+        # 3. GUI vs AA30-AA33 (2 decimals) - output row
+        EXCEL_Z_CELLS = {"1m": "Z30", "2m": "Z31", "3m": "Z32", "6m": "Z33"}
+        EXCEL_AA_INPUT_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
+        EXCEL_AA_OUTPUT_CELLS = {"1m": "AA30", "2m": "AA31", "3m": "AA32", "6m": "AA33"}
+
+        # Store match data for popup
+        if not hasattr(self, '_match_data'):
+            self._match_data = {}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -1173,35 +1314,125 @@ class DashboardPage(BaseFrame):
                     cells["chg"].config(text="-", fg=THEME["muted"])
 
             # ================================================================
-            # RECON COL 1: NIBOR Contrib - GUI vs AA7-AA10 (2 decimals)
+            # RECON COL 1: NIBOR Contrib - 3 criteria matching
             # ================================================================
             if "nibor_contrib" in cells and final_rate is not None:
-                aa_cell = EXCEL_AA_CELLS.get(tenor_key)
-                matched = False
+                z_cell = EXCEL_Z_CELLS.get(tenor_key)
+                aa_input_cell = EXCEL_AA_INPUT_CELLS.get(tenor_key)
+                aa_output_cell = EXCEL_AA_OUTPUT_CELLS.get(tenor_key)
+
+                # Store match details for popup
+                match_details = {
+                    'tenor': tenor_key.upper(),
+                    'gui_rate': final_rate,
+                    'criteria': []
+                }
+
+                all_matched = True
                 errors = []
 
-                if hasattr(self.app, 'excel_engine') and aa_cell:
-                    # Check AA cell (2 decimals) - AA7=1m, AA8=2m, AA9=3m, AA10=6m
-                    excel_aa = self.app.excel_engine.get_recon_value(aa_cell)
-                    if excel_aa is not None:
-                        try:
-                            excel_aa = float(excel_aa)
-                            gui_2dec = round(final_rate, 2)
-                            excel_2dec = round(excel_aa, 2)
-                            matched = (gui_2dec == excel_2dec)
-                            if not matched:
-                                errors.append(f"{aa_cell}: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}")
-                        except (ValueError, TypeError):
-                            errors.append(f"{aa_cell}: parse error")
+                if hasattr(self.app, 'excel_engine'):
+                    # Criterion 1: GUI vs Z30-Z33 (4 decimals)
+                    if z_cell:
+                        excel_z = self.app.excel_engine.get_recon_value(z_cell)
+                        criterion_1 = {
+                            'name': f'GUI vs {z_cell}',
+                            'description': '4 decimaler',
+                            'gui_value': round(final_rate, 4) if final_rate else None,
+                            'excel_cell': z_cell,
+                            'excel_value': None,
+                            'matched': False
+                        }
+                        if excel_z is not None:
+                            try:
+                                excel_z = float(excel_z)
+                                gui_4dec = round(final_rate, 4)
+                                excel_4dec = round(excel_z, 4)
+                                criterion_1['excel_value'] = excel_4dec
+                                criterion_1['matched'] = (gui_4dec == excel_4dec)
+                                if not criterion_1['matched']:
+                                    all_matched = False
+                                    errors.append(f"{z_cell}: GUI {gui_4dec:.4f} ≠ Excel {excel_4dec:.4f}")
+                            except (ValueError, TypeError):
+                                all_matched = False
+                                errors.append(f"{z_cell}: parse error")
+                        else:
+                            all_matched = False
+                        match_details['criteria'].append(criterion_1)
+
+                    # Criterion 2: GUI vs AA7-AA10 (2 decimals) - input row
+                    if aa_input_cell:
+                        excel_aa_input = self.app.excel_engine.get_recon_value(aa_input_cell)
+                        criterion_2 = {
+                            'name': f'GUI vs {aa_input_cell}',
+                            'description': '2 decimaler (input)',
+                            'gui_value': round(final_rate, 2) if final_rate else None,
+                            'excel_cell': aa_input_cell,
+                            'excel_value': None,
+                            'matched': False
+                        }
+                        if excel_aa_input is not None:
+                            try:
+                                excel_aa_input = float(excel_aa_input)
+                                gui_2dec = round(final_rate, 2)
+                                excel_2dec = round(excel_aa_input, 2)
+                                criterion_2['excel_value'] = excel_2dec
+                                criterion_2['matched'] = (gui_2dec == excel_2dec)
+                                if not criterion_2['matched']:
+                                    all_matched = False
+                                    errors.append(f"{aa_input_cell}: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}")
+                            except (ValueError, TypeError):
+                                all_matched = False
+                                errors.append(f"{aa_input_cell}: parse error")
+                        else:
+                            all_matched = False
+                        match_details['criteria'].append(criterion_2)
+
+                    # Criterion 3: GUI vs AA30-AA33 (2 decimals) - output row
+                    if aa_output_cell:
+                        excel_aa_output = self.app.excel_engine.get_recon_value(aa_output_cell)
+                        criterion_3 = {
+                            'name': f'GUI vs {aa_output_cell}',
+                            'description': '2 decimaler (output)',
+                            'gui_value': round(final_rate, 2) if final_rate else None,
+                            'excel_cell': aa_output_cell,
+                            'excel_value': None,
+                            'matched': False
+                        }
+                        if excel_aa_output is not None:
+                            try:
+                                excel_aa_output = float(excel_aa_output)
+                                gui_2dec = round(final_rate, 2)
+                                excel_2dec = round(excel_aa_output, 2)
+                                criterion_3['excel_value'] = excel_2dec
+                                criterion_3['matched'] = (gui_2dec == excel_2dec)
+                                if not criterion_3['matched']:
+                                    all_matched = False
+                                    errors.append(f"{aa_output_cell}: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}")
+                            except (ValueError, TypeError):
+                                all_matched = False
+                                errors.append(f"{aa_output_cell}: parse error")
+                        else:
+                            all_matched = False
+                        match_details['criteria'].append(criterion_3)
+
+                # Store match data for popup
+                match_details['all_matched'] = all_matched
+                match_details['errors'] = errors
+                self._match_data[tenor_key] = match_details
 
                 # Professional pill badge status display
                 lbl = cells["nibor_contrib"]
                 badge = cells.get("nibor_contrib_badge")
 
-                if matched:
+                # Make label clickable for popup
+                lbl.config(cursor="hand2")
+                lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
+
+                if all_matched and match_details['criteria']:
                     # Matched - Green pill badge
                     if CTK_AVAILABLE and badge:
-                        badge.configure(fg_color="#1A3320")  # rgba(0,200,83,0.15) equivalent
+                        badge.configure(fg_color="#1A3320")
                         lbl.configure(text="✓ Matched", text_color="#00C853")
                     else:
                         lbl.config(text="✓ Matched", fg="#00C853", bg="#1A3320",
@@ -1212,7 +1443,7 @@ class DashboardPage(BaseFrame):
                 elif errors:
                     # Failed - Red pill badge
                     if CTK_AVAILABLE and badge:
-                        badge.configure(fg_color="#3D1F1F")  # rgba(255,59,48,0.15) equivalent
+                        badge.configure(fg_color="#3D1F1F")
                         lbl.configure(text="✗ Failed", text_color="#FF3B30")
                     else:
                         lbl.config(text="✗ Failed", fg="#FF3B30", bg="#3D1F1F",
