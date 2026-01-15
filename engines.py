@@ -597,16 +597,27 @@ class ExcelEngine:
         opened_by_us = False
 
         try:
-            # Check if workbook is already open
+            # Check if workbook is already open (match by filename, not full path)
             file_path_str = str(nibor_file.resolve())
-            for workbook in excel.Workbooks:
-                if workbook.FullName.lower() == file_path_str.lower():
-                    wb = workbook
-                    log.info(f"[ExcelEngine] Found open workbook: {wb.Name}")
-                    break
+            target_filename = nibor_file.name.lower()
+
+            log.info(f"[ExcelEngine] Looking for workbook: {target_filename}")
+            log.info(f"[ExcelEngine] Full path: {file_path_str}")
+
+            # List all open workbooks for debugging
+            try:
+                for i, workbook in enumerate(excel.Workbooks):
+                    log.info(f"[ExcelEngine]   Open workbook {i+1}: {workbook.Name} ({workbook.FullName})")
+                    if workbook.Name.lower() == target_filename:
+                        wb = workbook
+                        log.info(f"[ExcelEngine] Found matching workbook: {wb.Name}")
+                        break
+            except Exception as e:
+                log.info(f"[ExcelEngine] Error listing workbooks: {e}")
 
             if wb is None:
                 # Open the workbook
+                log.info(f"[ExcelEngine] Workbook not found open, opening: {file_path_str}")
                 wb = excel.Workbooks.Open(file_path_str)
                 opened_by_us = True
                 log.info(f"[ExcelEngine] Opened workbook: {wb.Name}")
@@ -625,17 +636,24 @@ class ExcelEngine:
             ws = wb.Sheets(latest_sheet_name)
 
             log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
+            log.info(f"[ExcelEngine] Tenors to confirm: {tenors_to_confirm}")
+            log.info(f"[ExcelEngine] Confirm text: {confirm_text}")
 
             # Write confirmation to each tenor cell (text only, no formatting)
             confirmed_tenors = []
             for tenor in tenors_to_confirm:
                 cell_addr = confirm_cell_mapping.get(tenor)
+                log.info(f"[ExcelEngine] Tenor {tenor} -> cell {cell_addr}")
                 if cell_addr:
-                    ws.Range(cell_addr).Value = confirm_text
-                    confirmed_tenors.append(tenor.upper())
-                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text}")
+                    try:
+                        ws.Range(cell_addr).Value = confirm_text
+                        confirmed_tenors.append(tenor.upper())
+                        log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text}")
+                    except Exception as write_err:
+                        log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
 
             # Save the workbook (DO NOT close it!)
+            log.info(f"[ExcelEngine] Saving workbook...")
             wb.Save()
             log.info(f"[ExcelEngine] Workbook saved (kept open)")
 

@@ -2753,13 +2753,21 @@ class HistoryPage(tk.Frame):
 
         # Then write stamp to Excel (use win32com-only method to avoid corruption)
         if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
-            success, msg = self.app.excel_engine.write_confirmation_to_excel()
-            if success:
-                log.info(f"Confirmation stamp written: {msg}")
-                messagebox.showinfo("Nibor Confirmed", f"✓ NIBOR confirmed and logged!\n\n{msg}")
-            else:
-                log.error(f"Failed to write stamp: {msg}")
-                messagebox.showwarning("Warning", f"Snapshot saved but Excel stamp failed:\n\n{msg}")
+            try:
+                log.info("Calling write_confirmation_to_excel()...")
+                success, msg = self.app.excel_engine.write_confirmation_to_excel()
+                log.info(f"write_confirmation_to_excel returned: success={success}, msg={msg}")
+                if success:
+                    log.info(f"Confirmation stamp written: {msg}")
+                    messagebox.showinfo("Nibor Confirmed", f"✓ NIBOR confirmed and logged!\n\n{msg}")
+                else:
+                    log.error(f"Failed to write stamp: {msg}")
+                    messagebox.showwarning("Warning", f"Snapshot saved but Excel stamp failed:\n\n{msg}")
+            except Exception as e:
+                log.error(f"Exception in write_confirmation_to_excel: {e}")
+                import traceback
+                traceback.print_exc()
+                messagebox.showerror("Error", f"Exception writing to Excel:\n\n{e}")
         else:
             messagebox.showwarning("Warning", "Snapshot saved but Excel engine not available for stamp.")
 
