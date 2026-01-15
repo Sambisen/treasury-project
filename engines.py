@@ -398,21 +398,23 @@ class ExcelEngine:
             dict: Rates mapped by tenor key (e.g., 'EUR_1M': 1.94)
             None: If file not found or error
         """
-        from config import NIBOR_WORKBOOK_PATH, INTERNAL_BASKET_MAPPING
+        from config import INTERNAL_BASKET_MAPPING
         import re
-        
-        log.info(f"[ExcelEngine] Loading Internal Basket Rates from {NIBOR_WORKBOOK_PATH}")
-        
-        if not NIBOR_WORKBOOK_PATH.exists():
-            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
+
+        # Use dynamic file lookup
+        nibor_file = get_nibor_file_path()
+        log.info(f"[ExcelEngine] Loading Internal Basket Rates from {nibor_file}")
+
+        if not nibor_file.exists():
+            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {nibor_file}")
             return None
-        
+
         try:
             wb = None
             try:
-                wb = load_workbook(NIBOR_WORKBOOK_PATH, data_only=True, read_only=True)
+                wb = load_workbook(nibor_file, data_only=True, read_only=True)
             except Exception:
-                temp_path = copy_to_cache_fast(NIBOR_WORKBOOK_PATH)
+                temp_path = copy_to_cache_fast(nibor_file)
                 wb = load_workbook(temp_path, data_only=True, read_only=True)
             
             # Find latest sheet (YYYY-MM-DD format)
@@ -454,11 +456,12 @@ class ExcelEngine:
             dict: {"1m": {"nibor": 4.52}, "2m": {...}, ...} or None if failed
             Also returns the sheet name (date) as "_date" key
         """
-        from config import NIBOR_WORKBOOK_PATH
         import re
 
+        # Use dynamic file lookup
+        nibor_file = get_nibor_file_path()
         log.info("[ExcelEngine] Loading previous sheet NIBOR rates for CHG calculation...")
-        log.info(f"[ExcelEngine] Workbook path: {NIBOR_WORKBOOK_PATH}")
+        log.info(f"[ExcelEngine] Workbook path: {nibor_file}")
 
         # Mapping: tenor -> cell address for NIBOR rates
         nibor_cell_mapping = {
@@ -469,17 +472,17 @@ class ExcelEngine:
         }
 
         # Check if file exists
-        if not NIBOR_WORKBOOK_PATH.exists():
-            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {NIBOR_WORKBOOK_PATH}")
+        if not nibor_file.exists():
+            log.info(f"[ExcelEngine] ERROR: Nibor workbook not found at {nibor_file}")
             return None
 
         try:
             # Try to load workbook
             try:
-                wb = load_workbook(NIBOR_WORKBOOK_PATH, data_only=True, read_only=True)
+                wb = load_workbook(nibor_file, data_only=True, read_only=True)
             except Exception as e:
                 log.info(f"[ExcelEngine] Direct load failed ({e}), trying cache...")
-                temp_path = copy_to_cache_fast(NIBOR_WORKBOOK_PATH)
+                temp_path = copy_to_cache_fast(nibor_file)
                 wb = load_workbook(temp_path, data_only=True, read_only=True)
 
             # Find date-formatted sheets (YYYY-MM-DD format)
@@ -723,7 +726,9 @@ class ExcelEngine:
             tuple: (success: bool, message: str)
         """
         import getpass
-        from config import RECON_FILE
+
+        # Use dynamic file lookup
+        nibor_file = get_nibor_file_path()
 
         # Create stamp text
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -731,13 +736,14 @@ class ExcelEngine:
         stamp = f"✓ CONFIRMED {timestamp} by {user}"
 
         log.info(f"[ExcelEngine] Writing confirmation stamp to AE30-AE33: {stamp}")
+        log.info(f"[ExcelEngine] Target file: {nibor_file}")
 
         # Try xlwings first (works with open Excel files on Windows)
         try:
             import xlwings as xw
 
             # Find the open workbook by name
-            filename = RECON_FILE.name
+            filename = nibor_file.name
             wb = None
 
             # Try to find the workbook in open Excel instances
@@ -751,7 +757,7 @@ class ExcelEngine:
 
             if wb is None:
                 # Try to open it
-                wb = xw.Book(str(RECON_FILE))
+                wb = xw.Book(str(nibor_file))
 
             # Get the last sheet
             ws = wb.sheets[-1]
@@ -780,10 +786,10 @@ class ExcelEngine:
             from openpyxl import load_workbook
             from openpyxl.styles import Font, PatternFill, Alignment
 
-            if not RECON_FILE.exists():
-                return False, f"Excel file not found: {RECON_FILE}"
+            if not nibor_file.exists():
+                return False, f"Excel file not found: {nibor_file}"
 
-            wb = load_workbook(RECON_FILE, data_only=False)
+            wb = load_workbook(nibor_file, data_only=False)
             ws = wb.worksheets[-1]
 
             green_fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
@@ -796,7 +802,7 @@ class ExcelEngine:
                 cell.font = font
                 cell.alignment = Alignment(horizontal="left")
 
-            wb.save(RECON_FILE)
+            wb.save(nibor_file)
             wb.close()
 
             log.info(f"[ExcelEngine] Confirmation stamp written via openpyxl")
