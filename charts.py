@@ -619,65 +619,79 @@ class TrendPopup(tk.Toplevel):
         self.canvas.mpl_connect('motion_notify_event', self._on_hover)
 
     def _create_rates_table(self):
-        """Create the scrollable rates table - Modern light theme."""
+        """Create the scrollable rates table - Pre-built for speed."""
         # Table container - Clean card
-        table_container = tk.Frame(self._table_frame, bg=self.LIGHT_CARD,
+        self._table_container = tk.Frame(self._table_frame, bg=self.LIGHT_CARD,
                                   highlightthickness=1, highlightbackground="#E2E8F0")
-        table_container.pack(fill="both", expand=True)
+        self._table_container.pack(fill="both", expand=True)
 
-        # Header row - Subtle background
-        header_frame = tk.Frame(table_container, bg="#F8FAFC")
+        # Header row - Date | Swedbank | Fixing
+        header_frame = tk.Frame(self._table_container, bg="#F8FAFC")
         header_frame.pack(fill="x")
 
-        headers = [("DATE", 140), ("SOURCE", 110), ("RATE", 120), ("CHANGE", 100)]
-        for header_text, width in headers:
-            tk.Label(header_frame, text=header_text, fg="#64748B", bg="#F8FAFC",
-                    font=("Segoe UI", 9, "bold"), width=width//8, anchor="w").pack(
-                        side="left", padx=20, pady=12)
+        # Fixed width columns
+        tk.Label(header_frame, text="DATE", fg="#64748B", bg="#F8FAFC",
+                font=("Segoe UI", 9, "bold"), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=12)
+        tk.Label(header_frame, text="SWEDBANK", fg=self.SWEDBANK_ORANGE, bg="#F8FAFC",
+                font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
+        tk.Label(header_frame, text="FIXING", fg=self.FIXING_BLUE, bg="#F8FAFC",
+                font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
 
         # Separator line
-        tk.Frame(table_container, bg="#E2E8F0", height=1).pack(fill="x")
+        tk.Frame(self._table_container, bg="#E2E8F0", height=1).pack(fill="x")
 
         # Scrollable area
-        canvas = tk.Canvas(table_container, bg=self.LIGHT_CARD, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(table_container, orient="vertical", command=canvas.yview)
-        self._table_scroll_frame = tk.Frame(canvas, bg=self.LIGHT_CARD)
+        self._table_canvas = tk.Canvas(self._table_container, bg=self.LIGHT_CARD, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self._table_container, orient="vertical", command=self._table_canvas.yview)
+        self._table_scroll_frame = tk.Frame(self._table_canvas, bg=self.LIGHT_CARD)
 
         self._table_scroll_frame.bind("<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self._table_scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+            lambda e: self._table_canvas.configure(scrollregion=self._table_canvas.bbox("all")))
+        self._table_canvas.create_window((0, 0), window=self._table_scroll_frame, anchor="nw")
+        self._table_canvas.configure(yscrollcommand=scrollbar.set)
 
-        canvas.pack(side="left", fill="both", expand=True)
+        self._table_canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
         # Mouse wheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            self._table_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self._table_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
     def _populate_table(self):
-        """Fill the table with data - Modern clean design."""
+        """Build table with Date | Swedbank | Fixing columns - called once on data load."""
         # Clear existing rows
         for widget in self._table_scroll_frame.winfo_children():
             widget.destroy()
 
         tenor = self._tenor_var.get().lower()
-        show_contrib = self._show_contrib_var.get()
-        show_fixing = self._show_fixing_var.get()
 
-        # Combine data from selected sources
-        combined_data = []
-        if show_contrib and self._contrib_data:
-            for row in self._contrib_data:
-                row['_source'] = 'Swedbank'
-            combined_data.extend(self._contrib_data)
-        if show_fixing and self._fixing_data:
-            for row in self._fixing_data:
-                row['_source'] = 'Fixing'
-            combined_data.extend(self._fixing_data)
+        # Build a merged dataset by date
+        date_map = {}  # date -> {swedbank: rate, fixing: rate}
 
-        if not combined_data:
+        for row in self._contrib_data:
+            dt = row.get('dt')
+            if dt:
+                if dt not in date_map:
+                    date_map[dt] = {'swedbank': None, 'fixing': None}
+                try:
+                    val = row.get(tenor)
+                    date_map[dt]['swedbank'] = float(val) if val is not None else None
+                except (ValueError, TypeError):
+                    pass
+
+        for row in self._fixing_data:
+            dt = row.get('dt')
+            if dt:
+                if dt not in date_map:
+                    date_map[dt] = {'swedbank': None, 'fixing': None}
+                try:
+                    val = row.get(tenor)
+                    date_map[dt]['fixing'] = float(val) if val is not None else None
+                except (ValueError, TypeError):
+                    pass
+
+        if not date_map:
             empty_frame = tk.Frame(self._table_scroll_frame, bg=self.LIGHT_CARD)
             empty_frame.pack(fill="x", pady=60)
             tk.Label(empty_frame, text="No data available",
@@ -686,72 +700,45 @@ class TrendPopup(tk.Toplevel):
             return
 
         # Sort by date descending
-        sorted_data = sorted(combined_data, key=lambda x: x.get('dt', datetime.min.date()), reverse=True)
+        sorted_dates = sorted(date_map.keys(), reverse=True)
 
-        prev_rate = None
-        for i, row in enumerate(sorted_data):
-            date_val = row.get('dt')
-            rate_val = row.get(tenor)
-            source_label = row.get('_source', '-')
+        for i, dt in enumerate(sorted_dates):
+            data = date_map[dt]
+            swedbank_rate = data['swedbank']
+            fixing_rate = data['fixing']
 
-            if date_val is None:
-                continue
-
-            # Subtle alternating - white/very light gray
+            # Subtle alternating rows
             bg_color = self.LIGHT_CARD if i % 2 == 0 else "#FAFBFC"
 
             row_frame = tk.Frame(self._table_scroll_frame, bg=bg_color)
             row_frame.pack(fill="x")
 
-            # Date - Clean format
-            date_str = date_val.strftime("%Y-%m-%d") if hasattr(date_val, 'strftime') else str(date_val)
+            # Date
+            date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)
             tk.Label(row_frame, text=date_str, fg=self.LIGHT_TEXT, bg=bg_color,
-                    font=("Consolas", 10), width=16, anchor="w").pack(side="left", padx=20, pady=10)
+                    font=("Consolas", 10), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=8)
 
-            # Source - Pill badge style
-            source_color = self.SWEDBANK_ORANGE if source_label == 'Swedbank' else self.FIXING_BLUE
-            source_bg = "#FFF7ED" if source_label == 'Swedbank' else "#E0F2FE"
-
-            source_lbl = tk.Label(row_frame, text=source_label, fg=source_color, bg=source_bg,
-                    font=("Segoe UI", 9, "bold"), padx=8, pady=2)
-            source_lbl.pack(side="left", padx=10, pady=10)
-
-            # Rate - Bold accent
-            try:
-                rate_float = float(rate_val) if rate_val is not None else None
-                rate_str = f"{rate_float:.4f}%" if rate_float is not None else "-"
-            except (ValueError, TypeError):
-                rate_float = None
-                rate_str = "-"
-
-            tk.Label(row_frame, text=rate_str, fg=self.LIGHT_TEXT, bg=bg_color,
-                    font=("Consolas", 10, "bold"), width=14, anchor="w").pack(side="left", padx=20, pady=10)
-
-            # Change - Color coded
-            if rate_float is not None and prev_rate is not None:
-                change = rate_float - prev_rate
-                change_str = f"{change:+.4f}"
-                if change > 0:
-                    change_color = "#10B981"  # Green
-                    change_bg = "#ECFDF5"
-                elif change < 0:
-                    change_color = "#EF4444"  # Red
-                    change_bg = "#FEF2F2"
-                else:
-                    change_color = "#64748B"
-                    change_bg = bg_color
+            # Swedbank rate
+            if swedbank_rate is not None:
+                sw_str = f"{swedbank_rate:.4f}"
+                sw_color = self.SWEDBANK_ORANGE
             else:
-                change_str = "-"
-                change_color = "#94A3B8"
-                change_bg = bg_color
+                sw_str = "-"
+                sw_color = "#CBD5E1"
+            tk.Label(row_frame, text=sw_str, fg=sw_color, bg=bg_color,
+                    font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
-            change_lbl = tk.Label(row_frame, text=change_str, fg=change_color, bg=change_bg,
-                    font=("Consolas", 10, "bold"), padx=8, pady=2)
-            change_lbl.pack(side="left", padx=15, pady=10)
+            # Fixing rate
+            if fixing_rate is not None:
+                fx_str = f"{fixing_rate:.4f}"
+                fx_color = self.FIXING_BLUE
+            else:
+                fx_str = "-"
+                fx_color = "#CBD5E1"
+            tk.Label(row_frame, text=fx_str, fg=fx_color, bg=bg_color,
+                    font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
-            prev_rate = rate_float
-
-        self._status_label.config(text=f"Showing {len(sorted_data)} entries for {tenor.upper()}")
+        self._status_label.config(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
     def _switch_view(self, view_name):
         """Switch between chart and table view."""
@@ -764,7 +751,7 @@ class TrendPopup(tk.Toplevel):
         else:
             self._chart_frame.pack_forget()
             self._table_frame.pack(fill="both", expand=True)
-            self._populate_table()
+            # Table is pre-built on data load - instant switch!
 
     def _update_view_buttons(self):
         """Update visual state of view toggle buttons."""
@@ -775,8 +762,8 @@ class TrendPopup(tk.Toplevel):
                 btn.config(bg="#F1F5F9", fg=self.LIGHT_MUTED)
 
     def _on_tenor_change(self, event=None):
-        """Handle tenor dropdown change."""
-        if self._current_view == "table":
+        """Handle tenor dropdown change - rebuild table for new tenor."""
+        if self._data_loaded:
             self._populate_table()
 
     def _on_source_change(self, event=None):
@@ -1085,13 +1072,19 @@ class TrendPopup(tk.Toplevel):
 
         print(f"[TrendPopup] ====================================\n")
 
-        # Update our embedded chart
+        # Mark data as loaded
+        self._data_loaded = True
+
+        # Update chart
         self._redraw_chart()
 
-        # Update status - Clean format
+        # Pre-build table for instant switching
+        self._populate_table()
+
+        # Update status
         contrib_count = len(self._contrib_data)
         fixing_count = len(self._fixing_data)
-        self._status_label.config(text=f"Swedbank: {contrib_count}  ·  Fixing: {fixing_count} entries")
+        self._status_label.config(text=f"Swedbank: {contrib_count}  ·  Fixing: {fixing_count} dates")
 
     def _process_data(self, raw_data):
         """Normalize and process data."""
