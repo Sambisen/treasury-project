@@ -345,25 +345,25 @@ class NiborTerminalCTK(ctk.CTk):
             indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3, corner_radius=0)
             indicator.pack(side="left", fill="y")
 
-            # Icon label
+            # Icon label - larger, muted color
             icon_label = ctk.CTkLabel(
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 12),
-                width=20
+                font=("Segoe UI", 14),
+                width=24
             )
-            icon_label.pack(side="left", padx=(10, 8))
+            icon_label.pack(side="left", padx=(12, 8))
 
-            # Text button - smaller font
+            # Text button - larger, same muted color as Quick Access
             btn = ctk.CTkButton(
                 btn_container,
                 text=page_name,
                 command=lambda pk=page_key: self.show_page(pk),
                 fg_color="transparent",
                 hover_color=hover_color,
-                text_color=THEME["text"],
-                font=("Segoe UI", 11),
+                text_color=THEME["muted"],
+                font=("Segoe UI", 12),
                 anchor="w",
                 corner_radius=0,
                 height=36
@@ -387,7 +387,7 @@ class NiborTerminalCTK(ctk.CTk):
                     text_color=THEME["text_muted"],
                     font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=16, pady=(0, 6))
 
-        # History folder button - matching size
+        # History folder button - matching style
         history_btn = ctk.CTkButton(
             sidebar,
             text="📂  History",
@@ -395,14 +395,14 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 11),
+            font=("Segoe UI", 12),
             anchor="w",
             corner_radius=4,
             height=36
         )
         history_btn.pack(fill="x", padx=10, pady=1)
 
-        # GRSS folder button - matching size
+        # GRSS folder button - matching style
         grss_btn = ctk.CTkButton(
             sidebar,
             text="📂  GRSS",
@@ -410,7 +410,7 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 11),
+            font=("Segoe UI", 12),
             anchor="w",
             corner_radius=4,
             height=36
