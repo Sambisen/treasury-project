@@ -2,6 +2,11 @@
 UI components for Nibor Terminal.
 Contains reusable GUI widgets.
 CustomTkinter Edition - Modern UI components with rounded corners.
+
+NOTE: This file uses the dark theme from config.py.
+For the new Nordic Light design system, use ui.components instead.
+Migration path:
+    from ui.components import PrimaryButton, Card, Badge, ...
 """
 import tkinter as tk
 from tkinter import ttk
@@ -16,6 +21,16 @@ except ImportError:
 
 from config import THEME, CURRENT_MODE, CTK_CORNER_RADIUS
 from utils import fmt_ts, LogoPipelineTK
+
+# New Nordic Light theme (optional - use for new components)
+try:
+    from ui.theme import COLORS as NORDIC_COLORS, FONTS as NORDIC_FONTS, SPACING
+    NORDIC_THEME_AVAILABLE = True
+except ImportError:
+    NORDIC_THEME_AVAILABLE = False
+    NORDIC_COLORS = None
+    NORDIC_FONTS = None
+    SPACING = None
 
 
 def style_ttk(root: tk.Tk):

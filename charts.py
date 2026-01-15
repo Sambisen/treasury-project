@@ -19,6 +19,15 @@ except ImportError:
 
 from config import THEME, CURRENT_MODE, FONTS
 
+# Try to import new Nordic Light theme (optional - falls back to config.THEME)
+try:
+    from ui.theme import COLORS as NORDIC_COLORS, apply_matplotlib_theme
+    NORDIC_THEME_AVAILABLE = True
+except ImportError:
+    NORDIC_THEME_AVAILABLE = False
+    NORDIC_COLORS = None
+    apply_matplotlib_theme = None
+
 # Tenor colors mapping - Professional colors for light theme
 TENOR_COLORS = {
     '1w': '#7C3AED',  # Purple (Violet-600)
@@ -357,16 +366,28 @@ class TrendChart(tk.Frame):
 class TrendPopup(tk.Toplevel):
     """Popup with trend chart - Light Nordic theme, professional design."""
 
-    # Light Nordic color palette
-    LIGHT_BG = "#F8FAFC"           # Subtle cool gray background
-    LIGHT_CARD = "#FFFFFF"         # Pure white cards
-    LIGHT_BORDER = "#E2E8F0"       # Soft border
-    LIGHT_TEXT = "#1E293B"         # Slate dark text
-    LIGHT_MUTED = "#64748B"        # Slate muted
-    LIGHT_ACCENT = "#0EA5E9"       # Sky blue accent
-    SWEDBANK_ORANGE = "#F97316"    # Vibrant orange
-    FIXING_BLUE = "#0369A1"        # Sky 700 for fixing
-    HOVER_BG = "#F1F5F9"           # Hover background
+    # Light Nordic color palette - use new theme if available
+    if NORDIC_THEME_AVAILABLE and NORDIC_COLORS:
+        LIGHT_BG = NORDIC_COLORS.BG
+        LIGHT_CARD = NORDIC_COLORS.SURFACE
+        LIGHT_BORDER = NORDIC_COLORS.BORDER
+        LIGHT_TEXT = NORDIC_COLORS.TEXT
+        LIGHT_MUTED = NORDIC_COLORS.TEXT_MUTED
+        LIGHT_ACCENT = NORDIC_COLORS.ACCENT
+        SWEDBANK_ORANGE = NORDIC_COLORS.ACCENT  # Swedbank orange
+        FIXING_BLUE = "#0369A1"  # Sky 700 for fixing (distinct from Swedbank)
+        HOVER_BG = NORDIC_COLORS.SURFACE_HOVER
+    else:
+        # Fallback colors
+        LIGHT_BG = "#F8FAFC"           # Subtle cool gray background
+        LIGHT_CARD = "#FFFFFF"         # Pure white cards
+        LIGHT_BORDER = "#E2E8F0"       # Soft border
+        LIGHT_TEXT = "#1E293B"         # Slate dark text
+        LIGHT_MUTED = "#64748B"        # Slate muted
+        LIGHT_ACCENT = "#0EA5E9"       # Sky blue accent
+        SWEDBANK_ORANGE = "#F97316"    # Vibrant orange
+        FIXING_BLUE = "#0369A1"        # Sky 700 for fixing
+        HOVER_BG = "#F1F5F9"           # Hover background
 
     def __init__(self, parent):
         super().__init__(parent)
