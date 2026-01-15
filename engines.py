@@ -565,8 +565,16 @@ class ExcelEngine:
             return False, f"Nibor workbook not found: {nibor_file}"
 
         try:
-            # Load workbook for writing (NOT read_only!)
-            wb = load_workbook(nibor_file, data_only=False)
+            # Try to load workbook for writing (NOT read_only!)
+            wb = None
+            try:
+                wb = load_workbook(nibor_file, data_only=False)
+            except PermissionError:
+                return False, f"Excel file is open or locked. Please close it and try again."
+            except Exception as e:
+                # Try using cache copy method
+                log.info(f"[ExcelEngine] Direct load failed ({e}), file may be locked")
+                return False, f"Cannot write to Excel: {e}. Is the file open?"
 
             # Find the latest date sheet
             import re
@@ -593,7 +601,13 @@ class ExcelEngine:
                     log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text}")
 
             # Save workbook
-            wb.save(nibor_file)
+            try:
+                wb.save(nibor_file)
+                log.info(f"[ExcelEngine] Workbook saved to {nibor_file}")
+            except PermissionError:
+                wb.close()
+                return False, "Cannot save Excel file - it's open or locked. Close Excel and try again."
+
             wb.close()
 
             msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
