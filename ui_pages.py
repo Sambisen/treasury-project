@@ -4281,6 +4281,28 @@ class SettingsPage(tk.Frame):
 
     def _build_data(self):
         """Build Data & Refresh settings."""
+        self._add_section_header(self._content_inner, "NIBOR File Source")
+
+        # Development mode toggle (TEST vs PROD files)
+        right = self._add_setting_row(self._content_inner, "Data Mode",
+                                      "TEST loads _TEST files, PROD loads production files")
+        self._create_radio_group(right, "development_mode",
+                                [("TEST", "True"), ("PROD", "False")]).pack()
+
+        # Info label about current file
+        info_frame = tk.Frame(self._content_inner, bg=THEME["bg_card"])
+        info_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        self._file_mode_label = tk.Label(
+            info_frame,
+            text="",
+            fg=THEME["muted"],
+            bg=THEME["bg_card"],
+            font=FONTS["body_small"]
+        )
+        self._file_mode_label.pack(anchor="w", padx=10, pady=5)
+        self._update_file_mode_label()
+
         self._add_section_header(self._content_inner, "Auto Refresh")
 
         # Auto-refresh toggle
@@ -4577,6 +4599,31 @@ class SettingsPage(tk.Frame):
         self.settings.save()
         self._unsaved_label.config(text="✓ Settings saved")
         self.after(2000, lambda: self._unsaved_label.config(text=""))
+
+        # Update file mode label if it exists
+        if hasattr(self, '_file_mode_label'):
+            self._update_file_mode_label()
+
+    def _update_file_mode_label(self):
+        """Update the label showing current NIBOR file mode and path."""
+        try:
+            from nibor_file_manager import get_nibor_file_path, _get_development_mode
+            dev_mode = _get_development_mode()
+            mode_str = "TEST" if dev_mode else "PROD"
+
+            # Get the current file path
+            try:
+                file_path = get_nibor_file_path()
+                filename = file_path.name if file_path else "Unknown"
+            except Exception:
+                filename = "File not found"
+
+            self._file_mode_label.config(
+                text=f"Current: {mode_str} mode - {filename}",
+                fg=THEME["accent"] if dev_mode else THEME["good"]
+            )
+        except Exception as e:
+            self._file_mode_label.config(text=f"Error: {e}", fg=THEME["bad"])
 
     def _restore_defaults(self):
         """Restore all settings to defaults."""

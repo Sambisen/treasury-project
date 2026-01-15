@@ -13,6 +13,9 @@ log = get_logger("settings")
 
 # Default settings
 DEFAULT_SETTINGS = {
+    # Data Source Mode
+    "development_mode": True,  # True = TEST files, False = PROD files
+
     # Appearance
     "theme": "dark",  # dark, light
     "accent_color": "red",  # red, blue, green, orange

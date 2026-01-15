@@ -3,7 +3,7 @@ NIBOR File Manager - Dynamic file discovery for NIBOR fixing workbooks.
 
 Handles automatic searching for the right NIBOR file based on:
 1. Current date (year + quarter)
-2. Config-based TEST vs PROD mode switching
+2. Settings-based TEST vs PROD mode switching (GUI configurable)
 
 File naming convention:
 - PROD: "Nibor fixing Q1 2026.xlsx"
@@ -14,9 +14,25 @@ import platform
 from datetime import datetime
 from pathlib import Path
 
-from config import get_logger, DATA_DIR, USE_MOCK_DATA, DEVELOPMENT_MODE
+from config import get_logger, DATA_DIR, USE_MOCK_DATA
 
 log = get_logger("nibor_file_manager")
+
+
+def _get_development_mode() -> bool:
+    """
+    Get development mode setting from settings.py.
+
+    Returns True for TEST mode, False for PROD mode.
+    Uses lazy import to avoid circular dependencies.
+    """
+    try:
+        from settings import get_setting
+        return get_setting("development_mode", True)  # Default to TEST mode
+    except ImportError:
+        # Fallback to config if settings not available
+        from config import DEVELOPMENT_MODE
+        return DEVELOPMENT_MODE
 
 
 class NiborFileManager:
@@ -266,10 +282,10 @@ def get_nibor_file(mode: str | None = None) -> str:
     """
     Wrapper function to get the correct NIBOR file path.
 
-    Uses DEVELOPMENT_MODE from config if mode is not specified.
+    Uses development_mode setting from settings.py if mode is not specified.
 
     Args:
-        mode: "PROD" or "TEST". If None, uses DEVELOPMENT_MODE from config.
+        mode: "PROD" or "TEST". If None, uses development_mode from settings.
 
     Returns:
         str: Full path to the file
@@ -278,9 +294,11 @@ def get_nibor_file(mode: str | None = None) -> str:
         ValueError: If invalid mode
         FileNotFoundError: If no file found
     """
-    # Determine mode from config if not specified
+    # Determine mode from settings if not specified
     if mode is None:
-        mode = "TEST" if DEVELOPMENT_MODE else "PROD"
+        dev_mode = _get_development_mode()
+        mode = "TEST" if dev_mode else "PROD"
+        log.info(f"[get_nibor_file] Using mode from settings: {mode} (development_mode={dev_mode})")
 
     if mode not in ["PROD", "TEST"]:
         raise ValueError(f"Invalid mode: {mode}. Use 'PROD' or 'TEST'")

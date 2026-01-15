@@ -37,7 +37,9 @@ def get_logger(name):
 #   - Uses production history file (nibor_log.json)
 #
 # Dynamic file lookup is handled by nibor_file_manager.py
-DEVELOPMENT_MODE = False
+# NOTE: This is the fallback value. The actual setting is stored in settings.json
+# and can be changed via GUI: Settings > Data & Refresh > Data Mode
+DEVELOPMENT_MODE = True  # Default to TEST mode
 
 # ============================================================================
 # NIBOR FIXING TICKERS (Bloomberg)
