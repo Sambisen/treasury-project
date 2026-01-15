@@ -14,7 +14,7 @@ except ImportError:
     CTK_AVAILABLE = False
     ctk = None
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger, get_market_structure
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
@@ -566,7 +566,7 @@ class DashboardPage(BaseFrame):
     # DATA MODE TOGGLE (TEST/PROD)
     # ================================================================
     def _create_mode_toggle_ctk(self, parent):
-        """Create TEST/PROD toggle button using CustomTkinter."""
+        """Create Dev/Prod toggle button using CustomTkinter."""
         from settings import get_settings
         settings = get_settings()
         dev_mode = settings.get("development_mode", True)
@@ -575,26 +575,26 @@ class DashboardPage(BaseFrame):
         mode_frame = ctk.CTkFrame(parent, fg_color="transparent")
         mode_frame.pack(side="left", padx=(30, 0))
 
-        # Mode indicator/button
-        mode_text = "TEST" if dev_mode else "PROD"
-        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+        # Mode indicator/button - cleaner design
+        mode_text = "Dev" if dev_mode else "Prod"
+        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
 
         self._mode_btn = ctk.CTkButton(
             mode_frame,
-            text=f"MODE: {mode_text}",
+            text=mode_text,
             fg_color=mode_color,
-            hover_color=THEME["bg_card_2"],
+            hover_color="#1C1C1E",
             text_color="#FFFFFF",
-            font=("Segoe UI Semibold", 11),
-            width=110,
-            height=28,
-            corner_radius=6,
+            font=("Segoe UI Semibold", 12, "bold"),
+            width=70,
+            height=30,
+            corner_radius=15,
             command=self._toggle_data_mode
         )
         self._mode_btn.pack(side="left")
 
     def _create_mode_toggle_tk(self, parent):
-        """Create TEST/PROD toggle button using tkinter."""
+        """Create Dev/Prod toggle button using tkinter."""
         from settings import get_settings
         settings = get_settings()
         dev_mode = settings.get("development_mode", True)
@@ -603,27 +603,27 @@ class DashboardPage(BaseFrame):
         mode_frame = tk.Frame(parent, bg=THEME["bg_panel"])
         mode_frame.pack(side="left", padx=(30, 0))
 
-        # Mode indicator/button
-        mode_text = "TEST" if dev_mode else "PROD"
-        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+        # Mode indicator/button - cleaner pill design
+        mode_text = "Dev" if dev_mode else "Prod"
+        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
 
         self._mode_btn = tk.Label(
             mode_frame,
-            text=f"  MODE: {mode_text}  ",
+            text=f"  {mode_text}  ",
             fg="#FFFFFF",
             bg=mode_color,
-            font=("Segoe UI Semibold", 10),
+            font=("Segoe UI Semibold", 11, "bold"),
             cursor="hand2",
-            padx=12,
-            pady=4
+            padx=15,
+            pady=5
         )
         self._mode_btn.pack(side="left")
         self._mode_btn.bind("<Button-1>", lambda e: self._toggle_data_mode())
-        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg=THEME["bg_card_2"]))
+        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg="#1C1C1E"))
         self._mode_btn.bind("<Leave>", lambda e: self._update_mode_button_color())
 
     def _toggle_data_mode(self):
-        """Toggle between TEST and PROD mode and reload data."""
+        """Toggle between Dev and Prod mode and reload data."""
         from settings import get_settings
         settings = get_settings()
 
@@ -638,7 +638,7 @@ class DashboardPage(BaseFrame):
         self._update_mode_button_color()
 
         # Show feedback
-        mode_text = "TEST" if new_mode else "PROD"
+        mode_text = "Dev" if new_mode else "Prod"
         log.info(f"[Dashboard] Switched to {mode_text} mode")
 
         # Trigger data reload
@@ -655,14 +655,14 @@ class DashboardPage(BaseFrame):
         settings = get_settings()
         dev_mode = settings.get("development_mode", True)
 
-        mode_text = "TEST" if dev_mode else "PROD"
-        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+        mode_text = "Dev" if dev_mode else "Prod"
+        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
 
         if hasattr(self, '_mode_btn'):
             if CTK_AVAILABLE and isinstance(self._mode_btn, ctk.CTkButton):
-                self._mode_btn.configure(text=f"MODE: {mode_text}", fg_color=mode_color)
+                self._mode_btn.configure(text=mode_text, fg_color=mode_color)
             else:
-                self._mode_btn.config(text=f"  MODE: {mode_text}  ", bg=mode_color)
+                self._mode_btn.config(text=f"  {mode_text}  ", bg=mode_color)
 
     def _show_trend_popup(self):
         """Show popup with NIBOR trend history chart."""
@@ -1102,9 +1102,8 @@ class DashboardPage(BaseFrame):
         self.app.funding_calc_data = {}
 
         # Excel cells for NIBOR Contribution reconciliation (from latest sheet)
-        # NIBOR GUI must match Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
-        EXCEL_Z_CELLS = {"1m": "Z30", "2m": "Z31", "3m": "Z32", "6m": "Z33"}
-        EXCEL_AA_CELLS = {"1m": "AA30", "2m": "AA31", "3m": "AA32", "6m": "AA33"}
+        # NIBOR GUI must match AA7-AA10 (2 decimals) - input row contributions
+        EXCEL_AA_CELLS = {"1m": "AA7", "2m": "AA8", "3m": "AA9", "6m": "AA10"}
 
         # Get previous sheet rates for CHG calculation (from Excel second-to-last sheet)
         try:
@@ -1174,49 +1173,32 @@ class DashboardPage(BaseFrame):
                     cells["chg"].config(text="-", fg=THEME["muted"])
 
             # ================================================================
-            # RECON COL 1: NIBOR Contrib - GUI vs Z30-Z33 (4 dec) AND AA30-AA33 (2 dec)
+            # RECON COL 1: NIBOR Contrib - GUI vs AA7-AA10 (2 decimals)
             # ================================================================
             if "nibor_contrib" in cells and final_rate is not None:
-                z_cell = EXCEL_Z_CELLS.get(tenor_key)
                 aa_cell = EXCEL_AA_CELLS.get(tenor_key)
-                match_z = False
-                match_aa = False
+                matched = False
                 errors = []
 
-                if hasattr(self.app, 'excel_engine'):
-                    # Check Z cell (4 decimals)
-                    if z_cell:
-                        excel_z = self.app.excel_engine.get_recon_value(z_cell)
-                        if excel_z is not None:
-                            try:
-                                excel_z = float(excel_z)
-                                gui_4dec = round(final_rate, 4)
-                                excel_4dec = round(excel_z, 4)
-                                match_z = (gui_4dec == excel_4dec)
-                                if not match_z:
-                                    errors.append(f"{z_cell}: GUI {gui_4dec:.4f} ≠ {excel_4dec:.4f}")
-                            except (ValueError, TypeError):
-                                errors.append(f"{z_cell}: parse error")
-
-                    # Check AA cell (2 decimals)
-                    if aa_cell:
-                        excel_aa = self.app.excel_engine.get_recon_value(aa_cell)
-                        if excel_aa is not None:
-                            try:
-                                excel_aa = float(excel_aa)
-                                gui_2dec = round(final_rate, 2)
-                                excel_2dec = round(excel_aa, 2)
-                                match_aa = (gui_2dec == excel_2dec)
-                                if not match_aa:
-                                    errors.append(f"{aa_cell}: GUI {gui_2dec:.2f} ≠ {excel_2dec:.2f}")
-                            except (ValueError, TypeError):
-                                errors.append(f"{aa_cell}: parse error")
+                if hasattr(self.app, 'excel_engine') and aa_cell:
+                    # Check AA cell (2 decimals) - AA7=1m, AA8=2m, AA9=3m, AA10=6m
+                    excel_aa = self.app.excel_engine.get_recon_value(aa_cell)
+                    if excel_aa is not None:
+                        try:
+                            excel_aa = float(excel_aa)
+                            gui_2dec = round(final_rate, 2)
+                            excel_2dec = round(excel_aa, 2)
+                            matched = (gui_2dec == excel_2dec)
+                            if not matched:
+                                errors.append(f"{aa_cell}: GUI {gui_2dec:.2f} ≠ Excel {excel_2dec:.2f}")
+                        except (ValueError, TypeError):
+                            errors.append(f"{aa_cell}: parse error")
 
                 # Professional pill badge status display
                 lbl = cells["nibor_contrib"]
                 badge = cells.get("nibor_contrib_badge")
 
-                if match_z and match_aa:
+                if matched:
                     # Matched - Green pill badge
                     if CTK_AVAILABLE and badge:
                         badge.configure(fg_color="#1A3320")  # rgba(0,200,83,0.15) equivalent
@@ -1670,7 +1652,7 @@ class BloombergPage(tk.Frame):
         self.table.clear()
         data = self.app.cached_market_data or {}
 
-        for group_name, items in MARKET_STRUCTURE.items():
+        for group_name, items in get_market_structure().items():
             self.table.add_row([group_name, "", "", "", ""], style="section")
             for ticker, label in items:
                 inf = data.get(ticker)

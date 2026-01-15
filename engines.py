@@ -916,11 +916,24 @@ def _load_mock_defaults_from_excel() -> dict:
         if "NK1W TPSF Curncy" not in prices:
             prices["NK1W TPSF Curncy"] = 7
 
+        # Duplicate F033 tickers to F043 for Dev/Prod mode compatibility
+        prices = _add_dual_ticker_suffixes(prices)
         return prices
 
     except Exception as e:
         log.warning(f"Could not load mock defaults from Excel: {e}")
-        return fallback
+        return _add_dual_ticker_suffixes(fallback)
+
+
+def _add_dual_ticker_suffixes(data: dict) -> dict:
+    """Duplicate F033 tickers to F043 and vice versa for Dev/Prod mode compatibility."""
+    result = dict(data)
+    for ticker, value in list(data.items()):
+        if "F033" in ticker:
+            result[ticker.replace("F033", "F043")] = value
+        elif "F043" in ticker:
+            result[ticker.replace("F043", "F033")] = value
+    return result
 
 
 class BloombergEngine:
@@ -1365,6 +1378,8 @@ class MockBloombergEngine:
             "NKCM3M SWET Curncy": 4.52,
             "NKCM6M SWET Curncy": 4.35,
         }
+        # Add F043 versions for Dev mode compatibility
+        self._base_prices = _add_dual_ticker_suffixes(self._base_prices)
 
     def last_meta(self) -> dict:
         """Return metadata from the last fetch operation."""

@@ -42,6 +42,32 @@ def get_logger(name):
 DEVELOPMENT_MODE = True  # Default to TEST mode
 
 # ============================================================================
+# BLOOMBERG TICKER SUFFIX (F033 for Prod, F043 for Dev)
+# ============================================================================
+def get_ticker_suffix():
+    """Get the Bloomberg ticker suffix based on current mode.
+    Dev mode: F043, Prod mode: F033
+    """
+    try:
+        from settings import get_setting
+        dev_mode = get_setting("development_mode", True)
+    except ImportError:
+        dev_mode = DEVELOPMENT_MODE
+    return "F043" if dev_mode else "F033"
+
+def get_ticker(base_ticker):
+    """Convert a base ticker to use the correct suffix for current mode.
+    Example: 'NKEU F033 Curncy' -> 'NKEU F043 Curncy' in Dev mode
+    """
+    suffix = get_ticker_suffix()
+    # Replace F033 or F043 with the correct suffix
+    if "F033" in base_ticker:
+        return base_ticker.replace("F033", suffix)
+    elif "F043" in base_ticker:
+        return base_ticker.replace("F043", suffix)
+    return base_ticker
+
+# ============================================================================
 # NIBOR FIXING TICKERS (Bloomberg)
 # ============================================================================
 NIBOR_FIXING_TICKERS = {
@@ -513,3 +539,27 @@ ALL_REAL_TICKERS = sorted(list(set(
 )))
 
 SWET_CM_RECON_MAPPING: list[tuple[str, str, str]] = []
+
+# ============================================================================
+# DYNAMIC TICKER GETTERS (for Dev/Prod mode switching)
+# ============================================================================
+def get_recon_mapping():
+    """Get RECON_MAPPING with correct ticker suffix for current mode."""
+    return [(cell, desc, get_ticker(ticker)) for cell, desc, ticker in RECON_MAPPING]
+
+def get_market_structure():
+    """Get MARKET_STRUCTURE with correct ticker suffix for current mode."""
+    result = {}
+    for group, items in MARKET_STRUCTURE.items():
+        result[group] = [(get_ticker(ticker), desc) for ticker, desc in items]
+    return result
+
+def get_all_real_tickers():
+    """Get ALL_REAL_TICKERS with correct ticker suffix for current mode."""
+    ms = get_market_structure()
+    rm = get_recon_mapping()
+    return sorted(list(set(
+        [t for sec in ms.values() for t, _ in sec] +
+        [m[2] for m in rm] +
+        ["USCM6M SWET Curncy"]
+    )))

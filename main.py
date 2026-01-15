@@ -23,6 +23,7 @@ from config import (
     RULES_DB, RECON_MAPPING, DAYS_MAPPING, MARKET_STRUCTURE,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, SWET_CM_RECON_MAPPING,
     ALL_REAL_TICKERS,
+    get_recon_mapping, get_market_structure,
     setup_logging, get_logger
 )
 
@@ -932,9 +933,10 @@ class NiborTerminalCTK(ctk.CTk):
             suffix = "cache" if from_cache else f"{dur}ms"
             return f"BBG {ok}/{total} OK | {suffix}"
 
-        spot_tickers = [t for t, _ in MARKET_STRUCTURE.get("SPOT RATES", [])]
-        fwd_tickers = [t for g in ("USDNOK FORWARDS", "EURNOK FORWARDS") for t, _ in MARKET_STRUCTURE.get(g, [])]
-        cm_tickers = [t for t, _ in MARKET_STRUCTURE.get("SWET CM CURVES", [])]
+        ms = get_market_structure()
+        spot_tickers = [t for t, _ in ms.get("SPOT RATES", [])]
+        fwd_tickers = [t for g in ("USDNOK FORWARDS", "EURNOK FORWARDS") for t, _ in ms.get(g, [])]
+        cm_tickers = [t for t, _ in ms.get("SWET CM CURVES", [])]
 
         return {
             "SPOT": fmt_group(spot_tickers),
@@ -1066,7 +1068,7 @@ class NiborTerminalCTK(ctk.CTk):
             section_ok = True
             market_ready = bool(market_data)
 
-            for cell, desc, ticker in RECON_MAPPING:
+            for cell, desc, ticker in get_recon_mapping():
                 if not any(cell.startswith(p) for p in filter_prefixes):
                     continue
 
