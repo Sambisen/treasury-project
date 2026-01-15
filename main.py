@@ -1025,6 +1025,16 @@ class NiborTerminalCTK(ctk.CTk):
         elif self.bbg_ok or self.excel_ok:
             self.toast.warning("Partial data refresh - check connections")
 
+        # Auto-save NIBOR fixings from Bloomberg (3 most recent)
+        if self.bbg_ok:
+            try:
+                from history import backfill_fixings
+                saved_count, saved_dates = backfill_fixings(self.engine, num_dates=3)
+                if saved_count > 0:
+                    log.info(f"Auto-saved {saved_count} NIBOR fixings: {saved_dates}")
+            except Exception as e:
+                log.error(f"Failed to auto-save fixings: {e}")
+
         # Auto-save snapshot after successful data refresh
         if hasattr(self, 'funding_calc_data') and self.funding_calc_data:
             try:
