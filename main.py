@@ -28,7 +28,7 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, HistoricalDataManager, blpapi
 from snapshot_engine import SnapshotEngine
-from ui_components import style_ttk, NavButtonTK, SourceCardTK
+from ui_components import style_ttk, NavButtonTK, SourceCardTK, MatchCriteriaPopup
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
     NiborDaysPage, NokImpliedPage, NiborMetaDataPage
@@ -76,6 +76,16 @@ class OnyxTerminalTK(tk.Tk):
         self.excel_last_ok_ts: datetime | None = None
         self.last_bbg_meta: dict = {}
         self.group_health: dict[str, str] = {}
+
+        # Criteria statistics for popup
+        self.criteria_stats: dict = {
+            "exact": {"passed": 0, "failed": 0},
+            "rounded": {"passed": 0, "failed": 0},
+            "range": {"passed": 0, "failed": 0},
+            "fixed": {"passed": 0, "failed": 0}
+        }
+        # Store detailed match data for each row
+        self.match_details: list[dict] = []
 
         self._nav_buttons = {}
         self._pages = {}
@@ -346,6 +356,17 @@ class OnyxTerminalTK(tk.Tk):
             except Exception:
                 pass
 
+    def show_criteria_popup(self):
+        """Show popup with matching criteria and statistics."""
+        MatchCriteriaPopup(self, self.criteria_stats)
+
+    def get_match_detail_by_cell(self, cell: str) -> dict | None:
+        """Get match detail for a specific cell."""
+        for detail in self.match_details:
+            if detail.get("cell") == cell:
+                return detail
+        return None
+
     def _save_daily_snapshot(self):
         """Save daily snapshot of Bloomberg and Swedbank data."""
         try:
@@ -479,14 +500,27 @@ class OnyxTerminalTK(tk.Tk):
         if view in ("ALL", "CELLS"):
             add_section("EXCEL CONSISTENCY CHECKS")
             cells_ok = True
+
+            # Reset criteria stats when doing full validation
+            if view == "ALL":
+                self.criteria_stats = {
+                    "exact": {"passed": 0, "failed": 0},
+                    "rounded": {"passed": 0, "failed": 0},
+                    "range": {"passed": 0, "failed": 0},
+                    "fixed": {"passed": 0, "failed": 0}
+                }
+                self.match_details = []
+
             for rule in RULES_DB:
-                _, top_cell, ref_target, logic, msg = rule
+                rule_id, top_cell, ref_target, logic, msg = rule
                 val_top = self.excel_engine.get_recon_value(top_cell)
                 val_bot = "-"
                 ok = False
+                criteria_type = "exact"
 
                 try:
                     if logic == "Exakt Match":
+                        criteria_type = "exact"
                         val_bot = self.excel_engine.get_recon_value(ref_target)
                         try:
                             ok = abs(float(val_top) - float(val_bot)) < 0.000001
@@ -494,20 +528,43 @@ class OnyxTerminalTK(tk.Tk):
                             ok = (str(val_top).strip() == str(val_bot).strip())
 
                     elif logic == "Avrundat 2 dec":
+                        criteria_type = "rounded"
                         val_bot = self.excel_engine.get_recon_value(ref_target)
                         ok = abs(round(float(val_top), 2) - round(float(val_bot), 2)) < 0.000001
 
                     elif "-" in logic and logic[0].isdigit():
+                        criteria_type = "range"
                         a, b = logic.split("-")
                         ok = float(a) <= float(val_top) <= float(b)
                         val_bot = f"Range {logic}"
 
                     elif "Exakt" in logic:
+                        criteria_type = "fixed"
                         target = float(logic.split()[1].replace(",", "."))
                         ok = abs(float(val_top) - target) < 0.000001
                         val_bot = f"== {target}"
                 except Exception:
                     ok = False
+
+                # Track statistics
+                if view == "ALL":
+                    if ok:
+                        self.criteria_stats[criteria_type]["passed"] += 1
+                    else:
+                        self.criteria_stats[criteria_type]["failed"] += 1
+
+                    # Store match detail for clickable rows
+                    self.match_details.append({
+                        "rule_id": rule_id,
+                        "cell": top_cell,
+                        "ref_cell": ref_target,
+                        "desc": msg,
+                        "model": str(val_top),
+                        "market": str(val_bot),
+                        "logic": logic,
+                        "status": ok,
+                        "diff": "-"
+                    })
 
                 cells_ok = cells_ok and ok
 

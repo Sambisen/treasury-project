@@ -341,3 +341,254 @@ class TimeSeriesChartTK(tk.Frame):
         self.ax.set_facecolor(THEME["bg_card"])
         self.ax.axis('off')
         self.canvas.draw()
+
+
+class MatchCriteriaPopup(tk.Toplevel):
+    """Popup showing matching criteria used in validation."""
+
+    def __init__(self, master, criteria_stats: dict = None):
+        super().__init__(master)
+        self.title("Matchningskriterier")
+        self.geometry("700x550")
+        self.configure(bg=THEME["bg_panel"])
+        self.transient(master)
+        self.grab_set()
+
+        # Center the window
+        self.update_idletasks()
+        x = (self.winfo_screenwidth() - 700) // 2
+        y = (self.winfo_screenheight() - 550) // 2
+        self.geometry(f"700x550+{x}+{y}")
+
+        # Title
+        tk.Label(self, text="MATCHNINGSKRITERIER",
+                fg=THEME["accent"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 18, "bold")).pack(pady=(20, 5))
+
+        tk.Label(self, text="Dessa kriterier används för att validera data",
+                fg=THEME["muted"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 11)).pack(pady=(0, 20))
+
+        # Main content frame
+        content = tk.Frame(self, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=30)
+
+        # Criteria definitions
+        criteria = [
+            {
+                "name": "1. Exakt Match",
+                "icon": "=",
+                "color": THEME["good"],
+                "desc": "Jämför två cellvärden för exakt likhet.\nNumeriskt: differens < 0.000001\nText: exakt strängmatchning",
+                "example": "Exempel: A6 = A29"
+            },
+            {
+                "name": "2. Avrundat 2 dec",
+                "icon": "≈",
+                "color": THEME["accent"],
+                "desc": "Avrundar båda värden till 2 decimaler\noch jämför sedan för likhet.",
+                "example": "Exempel: round(Z7, 2) = round(Z30, 2)"
+            },
+            {
+                "name": "3. Intervallkontroll",
+                "icon": "[]",
+                "color": THEME["warn"],
+                "desc": "Kontrollerar att värdet ligger inom\nett specificerat intervall.",
+                "example": "Exempel: 0.10 ≤ Y6 ≤ 0.20"
+            },
+            {
+                "name": "4. Exakt Värde",
+                "icon": "≡",
+                "color": "#9F7AEA",
+                "desc": "Kontrollerar att värdet är exakt lika\nmed ett fast specificerat värde.",
+                "example": "Exempel: Y29 == 0.15 (fast spread)"
+            }
+        ]
+
+        for i, c in enumerate(criteria):
+            frame = tk.Frame(content, bg=THEME["bg_card"],
+                           highlightthickness=1, highlightbackground=THEME["border"])
+            frame.pack(fill="x", pady=8)
+
+            # Icon
+            tk.Label(frame, text=c["icon"], fg=c["color"], bg=THEME["bg_card"],
+                    font=("Consolas", 24, "bold"), width=3).pack(side="left", padx=15, pady=15)
+
+            # Text content
+            text_frame = tk.Frame(frame, bg=THEME["bg_card"])
+            text_frame.pack(side="left", fill="both", expand=True, pady=10)
+
+            tk.Label(text_frame, text=c["name"], fg=c["color"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 12, "bold"), anchor="w").pack(anchor="w")
+
+            tk.Label(text_frame, text=c["desc"], fg=THEME["text"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 10), anchor="w", justify="left").pack(anchor="w", pady=(5, 0))
+
+            tk.Label(text_frame, text=c["example"], fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Consolas", 9), anchor="w").pack(anchor="w", pady=(5, 0))
+
+            # Stats if available
+            if criteria_stats:
+                stat_key = ["exact", "rounded", "range", "fixed"][i]
+                stats = criteria_stats.get(stat_key, {})
+                passed = stats.get("passed", 0)
+                failed = stats.get("failed", 0)
+                total = passed + failed
+
+                stat_frame = tk.Frame(frame, bg=THEME["bg_card"])
+                stat_frame.pack(side="right", padx=15)
+
+                status_color = THEME["good"] if failed == 0 else THEME["bad"]
+                tk.Label(stat_frame, text=f"{passed}/{total}",
+                        fg=status_color, bg=THEME["bg_card"],
+                        font=("Consolas", 14, "bold")).pack()
+                tk.Label(stat_frame, text="OK",
+                        fg=THEME["muted"], bg=THEME["bg_card"],
+                        font=("Segoe UI", 9)).pack()
+
+        # Close button
+        OnyxButtonTK(self, "Stäng", command=self.destroy,
+                    variant="default").pack(pady=20)
+
+
+class MatchDetailPopup(tk.Toplevel):
+    """Popup showing details of a specific match."""
+
+    def __init__(self, master, match_data: dict):
+        super().__init__(master)
+        self.title("Matchningsdetaljer")
+        self.geometry("600x450")
+        self.configure(bg=THEME["bg_panel"])
+        self.transient(master)
+        self.grab_set()
+
+        # Center the window
+        self.update_idletasks()
+        x = (self.winfo_screenwidth() - 600) // 2
+        y = (self.winfo_screenheight() - 450) // 2
+        self.geometry(f"600x450+{x}+{y}")
+
+        cell = match_data.get("cell", "-")
+        desc = match_data.get("desc", "-")
+        model_val = match_data.get("model", "-")
+        market_val = match_data.get("market", "-")
+        logic = match_data.get("logic", "Exakt Match")
+        status = match_data.get("status", False)
+        diff = match_data.get("diff", "-")
+
+        # Header with status
+        header = tk.Frame(self, bg=THEME["bg_panel"])
+        header.pack(fill="x", padx=30, pady=(25, 15))
+
+        status_icon = "✔" if status else "✘"
+        status_color = THEME["good"] if status else THEME["bad"]
+        status_text = "MATCHED" if status else "MISMATCH"
+
+        tk.Label(header, text=status_icon, fg=status_color, bg=THEME["bg_panel"],
+                font=("Segoe UI", 36, "bold")).pack(side="left")
+
+        title_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        title_frame.pack(side="left", padx=15)
+
+        tk.Label(title_frame, text=f"Cell {cell}", fg=THEME["text"], bg=THEME["bg_panel"],
+                font=("Segoe UI", 18, "bold")).pack(anchor="w")
+        tk.Label(title_frame, text=status_text, fg=status_color, bg=THEME["bg_panel"],
+                font=("Segoe UI", 12, "bold")).pack(anchor="w")
+
+        # Details card
+        card = tk.Frame(self, bg=THEME["bg_card"],
+                       highlightthickness=1, highlightbackground=THEME["border"])
+        card.pack(fill="both", expand=True, padx=30, pady=10)
+
+        def add_detail_row(parent, label, value, value_color=THEME["text"], row=0):
+            tk.Label(parent, text=label, fg=THEME["muted"], bg=THEME["bg_card"],
+                    font=("Segoe UI", 11), anchor="e", width=18).grid(row=row, column=0, sticky="e", padx=(20, 10), pady=8)
+            tk.Label(parent, text=str(value), fg=value_color, bg=THEME["bg_card"],
+                    font=("Consolas", 12, "bold"), anchor="w").grid(row=row, column=1, sticky="w", padx=(0, 20), pady=8)
+
+        add_detail_row(card, "Beskrivning:", desc, row=0)
+        add_detail_row(card, "Matchningslogik:", logic, THEME["accent"], row=1)
+        add_detail_row(card, "Modellvärde:", model_val, THEME["text"], row=2)
+        add_detail_row(card, "Referensvärde:", market_val, THEME["text"], row=3)
+        add_detail_row(card, "Differens:", diff, THEME["warn"] if diff != "-" and diff != "0" else THEME["text"], row=4)
+
+        # Logic explanation
+        logic_frame = tk.Frame(card, bg=THEME["bg_card_2"])
+        logic_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=15, pady=(15, 15))
+
+        logic_text = self._get_logic_explanation(logic, model_val, market_val)
+        tk.Label(logic_frame, text="Så här fungerar matchningen:",
+                fg=THEME["accent"], bg=THEME["bg_card_2"],
+                font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=15, pady=(10, 5))
+        tk.Label(logic_frame, text=logic_text,
+                fg=THEME["text"], bg=THEME["bg_card_2"],
+                font=("Segoe UI", 10), justify="left").pack(anchor="w", padx=15, pady=(0, 10))
+
+        card.grid_columnconfigure(1, weight=1)
+
+        # Close button
+        OnyxButtonTK(self, "Stäng", command=self.destroy,
+                    variant="default").pack(pady=20)
+
+    def _get_logic_explanation(self, logic: str, model_val: str, market_val: str) -> str:
+        if logic == "Exakt Match":
+            return f"Kontrollerar om {model_val} är exakt lika med {market_val}.\nTolerans: 0.000001 för numeriska värden."
+        elif logic == "Avrundat 2 dec":
+            return f"Avrundar {model_val} och {market_val} till 2 decimaler\noch jämför sedan för likhet."
+        elif "-" in logic and logic[0].isdigit():
+            parts = logic.split("-")
+            return f"Kontrollerar om {model_val} ligger inom intervallet [{parts[0]}, {parts[1]}]."
+        elif "Exakt" in logic:
+            target = logic.split()[1] if len(logic.split()) > 1 else "-"
+            return f"Kontrollerar om {model_val} är exakt lika med det fasta värdet {target}."
+        return "Okänd matchningslogik."
+
+
+class ClickableDataTableTree(DataTableTree):
+    """DataTableTree with clickable rows that can show match details."""
+
+    def __init__(self, master, columns, col_widths=None, height=18, on_row_click=None):
+        super().__init__(master, columns, col_widths, height)
+        self.on_row_click = on_row_click
+        self._row_data = []
+
+        # Bind click event
+        self.tree.bind("<Double-1>", self._on_double_click)
+        self.tree.bind("<Return>", self._on_double_click)
+
+        # Change cursor on hover for rows with data
+        self.tree.bind("<Motion>", self._on_motion)
+
+    def clear(self):
+        super().clear()
+        self._row_data = []
+
+    def add_row(self, values, style="normal", row_data=None):
+        super().add_row(values, style)
+        self._row_data.append(row_data)
+
+    def _on_double_click(self, event):
+        if self.on_row_click is None:
+            return
+
+        item = self.tree.selection()
+        if not item:
+            return
+
+        # Get row index
+        idx = self.tree.index(item[0])
+        if 0 <= idx < len(self._row_data):
+            row_data = self._row_data[idx]
+            if row_data:
+                self.on_row_click(row_data)
+
+    def _on_motion(self, event):
+        item = self.tree.identify_row(event.y)
+        if item:
+            idx = self.tree.index(item)
+            if 0 <= idx < len(self._row_data) and self._row_data[idx]:
+                self.tree.configure(cursor="hand2")
+            else:
+                self.tree.configure(cursor="")
+        else:
+            self.tree.configure(cursor="")

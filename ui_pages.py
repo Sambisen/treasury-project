@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from config import THEME, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE
-from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, TimeSeriesChartTK
+from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, TimeSeriesChartTK, ClickableDataTableTree, MatchDetailPopup, MatchCriteriaPopup
 from utils import safe_float
 from calculations import calc_implied_yield
 
@@ -32,8 +32,13 @@ class DashboardPage(tk.Frame):
         OnyxButtonTK(btns, "History", command=self.app.open_history_folder).pack(side="left", padx=6)
         OnyxButtonTK(btns, "GRSS Spreadsheets", command=self.app.open_stibor_folder).pack(side="left", padx=6)
 
-        self.btn_update = OnyxButtonTK(btns, "UPDATE SYSTEM", command=self.app.refresh_data, variant="accent")
-        self.btn_update.pack(side="left", padx=(12, 0))
+        # Match button that shows criteria popup with results
+        self.btn_match = OnyxButtonTK(btns, "MATCH", command=self._on_match_click, variant="accent")
+        self.btn_match.pack(side="left", padx=(12, 0))
+        self.app.register_update_button(self.btn_match)
+
+        self.btn_update = OnyxButtonTK(btns, "UPDATE SYSTEM", command=self.app.refresh_data, variant="default")
+        self.btn_update.pack(side="left", padx=(6, 0))
         self.app.register_update_button(self.btn_update)
 
         grid = tk.Frame(self, bg=THEME["bg_panel"])
@@ -186,6 +191,22 @@ class DashboardPage(tk.Frame):
         card._status = lbl_status
         card._sub = lbl_sub
         return card
+
+    def _on_match_click(self):
+        """Handle Match button click - refresh data and show criteria popup."""
+        # First refresh the data
+        self.app.refresh_data()
+        # Show the criteria popup after a delay to allow data to load
+        self.after(500, self._show_match_popup)
+
+    def _show_match_popup(self):
+        """Show the match criteria popup with current statistics."""
+        if self.app._busy:
+            # Still loading, check again later
+            self.after(500, self._show_match_popup)
+            return
+        # Show the popup with criteria stats
+        MatchCriteriaPopup(self, self.app.criteria_stats)
 
     def _apply_state(self, card, state: str, subtext: str = "—"):
         s = (state or "WAIT").upper()
@@ -494,14 +515,25 @@ class ReconPage(tk.Frame):
         tk.Label(top, text="MODEL INTEGRITY CHECK", fg=THEME["muted"], bg=THEME["bg_panel"],
                  font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
 
+        # Hint label
+        tk.Label(top, text="Dubbelklicka på rad för detaljer", fg=THEME["muted2"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["small"])).pack(side="left", padx=(15, 0))
+
         self.mode_var = tk.StringVar(value="ALL")
         self.mode_combo = ttk.Combobox(top, textvariable=self.mode_var, values=["ALL", "SPOT", "FWDS", "DAYS", "CELLS", "WEIGHTS"], state="readonly", width=10)
         self.mode_combo.pack(side="right")
         self.mode_combo.bind("<<ComboboxSelected>>", lambda _e: self.on_mode_change())
 
-        self.table = DataTableTree(self, columns=["CELL", "DESC", "MODEL", "MARKET/FILE", "DIFF", "STATUS"],
-                                   col_widths=[110, 330, 170, 170, 140, 90], height=20)
+        # Use ClickableDataTableTree for row click support
+        self.table = ClickableDataTableTree(self, columns=["CELL", "DESC", "MODEL", "MARKET/FILE", "DIFF", "STATUS"],
+                                            col_widths=[110, 330, 170, 170, 140, 90], height=20,
+                                            on_row_click=self._on_row_click)
         self.table.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+    def _on_row_click(self, row_data: dict):
+        """Handle row click - show match detail popup."""
+        if row_data:
+            MatchDetailPopup(self, row_data)
 
     def on_mode_change(self):
         self.app.recon_view_mode = self.mode_var.get()
@@ -517,6 +549,10 @@ class ReconPage(tk.Frame):
     def update(self):
         self.table.clear()
         rows = self.app.build_recon_rows(view=self.app.recon_view_mode)
+
+        # Get match details from app for CELLS view
+        match_details = {d["cell"]: d for d in (self.app.match_details or [])}
+
         for r in rows:
             style = r.get("style", "normal")
             if style == "section":
@@ -531,7 +567,27 @@ class ReconPage(tk.Frame):
                 s = "yellow"
             else:
                 s = "normal"
-            self.table.add_row(r["values"], style=s)
+
+            # Get row data for click handler
+            cell = r["values"][0] if r["values"] else ""
+            row_data = None
+
+            # For CELLS section, get the detailed match data
+            if cell in match_details:
+                row_data = match_details[cell]
+            elif style != "section" and len(r["values"]) >= 6:
+                # Create basic row data from values for non-CELLS rows
+                row_data = {
+                    "cell": r["values"][0],
+                    "desc": r["values"][1],
+                    "model": r["values"][2],
+                    "market": r["values"][3],
+                    "diff": r["values"][4],
+                    "status": r["values"][5] == "✔",
+                    "logic": "Marknadsdata" if self.app.recon_view_mode in ("SPOT", "FWDS") else "Validering"
+                }
+
+            self.table.add_row(r["values"], style=s, row_data=row_data)
 
 
 class RulesPage(tk.Frame):
