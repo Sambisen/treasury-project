@@ -540,12 +540,12 @@ class ExcelEngine:
         if tenors_to_confirm is None:
             tenors_to_confirm = ["1m", "2m", "3m", "6m"]
 
-        # Cell mapping for confirmation stamps
+        # Cell mapping for confirmation stamps (both input row AE7-10 and output row AE30-33)
         confirm_cell_mapping = {
-            "1m": "AE30",
-            "2m": "AE31",
-            "3m": "AE32",
-            "6m": "AE33"
+            "1m": ["AE7", "AE30"],
+            "2m": ["AE8", "AE31"],
+            "3m": ["AE9", "AE32"],
+            "6m": ["AE10", "AE33"]
         }
 
         # Get username
@@ -642,15 +642,16 @@ class ExcelEngine:
             # Write confirmation to each tenor cell (text only, no formatting)
             confirmed_tenors = []
             for tenor in tenors_to_confirm:
-                cell_addr = confirm_cell_mapping.get(tenor)
-                log.info(f"[ExcelEngine] Tenor {tenor} -> cell {cell_addr}")
-                if cell_addr:
-                    try:
-                        ws.Range(cell_addr).Value = confirm_text
-                        confirmed_tenors.append(tenor.upper())
-                        log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text}")
-                    except Exception as write_err:
-                        log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
+                cell_addrs = confirm_cell_mapping.get(tenor, [])
+                log.info(f"[ExcelEngine] Tenor {tenor} -> cells {cell_addrs}")
+                if cell_addrs:
+                    for cell_addr in cell_addrs:
+                        try:
+                            ws.Range(cell_addr).Value = confirm_text
+                            log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text}")
+                        except Exception as write_err:
+                            log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
+                    confirmed_tenors.append(tenor.upper())
 
             # Save the workbook (DO NOT close it!)
             log.info(f"[ExcelEngine] Saving workbook...")

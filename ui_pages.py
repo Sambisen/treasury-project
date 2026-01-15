@@ -352,7 +352,8 @@ class DashboardPage(BaseFrame):
                 font=("Segoe UI Semibold", 13),
                 corner_radius=12,
                 width=200,
-                height=48
+                height=48,
+                state="disabled"  # Start disabled, enabled when all matched
             )
         else:
             self.confirm_rates_btn = OnyxButtonTK(
@@ -361,6 +362,7 @@ class DashboardPage(BaseFrame):
                 command=self._on_confirm_rates,
                 variant="primary"
             )
+            self.confirm_rates_btn.configure(state="disabled")  # Start disabled
         self.confirm_rates_btn.pack()
 
         # ====================================================================
@@ -1507,6 +1509,9 @@ class DashboardPage(BaseFrame):
         # Show/hide alerts
         self._update_alerts(alert_messages)
 
+        # Enable/disable Confirm button based on matching status
+        self._update_confirm_button_state()
+
     def _on_alerts_configure(self, event=None):
         """Update scrollbar visibility and scroll region based on content size."""
         self.alerts_canvas.configure(scrollregion=self.alerts_canvas.bbox("all"))
@@ -1516,6 +1521,29 @@ class DashboardPage(BaseFrame):
             self.alerts_scrollbar.pack(side="right", fill="y")
         else:
             self.alerts_scrollbar.pack_forget()
+
+    def _update_confirm_button_state(self):
+        """Enable Confirm button only if all tenors are matched."""
+        if not hasattr(self, 'confirm_rates_btn'):
+            return
+
+        # Check if all tenors (1m, 2m, 3m, 6m) are matched
+        tenors_to_check = ["1m", "2m", "3m", "6m"]
+        all_matched = True
+
+        for tenor in tenors_to_check:
+            match_data = self._match_data.get(tenor, {})
+            if not match_data.get('all_matched', False):
+                all_matched = False
+                break
+
+        # Update button state
+        if all_matched:
+            self.confirm_rates_btn.configure(state="normal")
+            log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
+        else:
+            self.confirm_rates_btn.configure(state="disabled")
+            log.info("[Dashboard] Confirm button DISABLED - not all tenors matched")
 
     def _update_alerts(self, messages):
         """Update always-visible alert box with messages or show 'All OK'.
