@@ -1121,14 +1121,16 @@ class BloombergEngine:
         self._cache_tickers: tuple[str, ...] | None = None
         self._last_meta: dict = {}
 
-        # Determine if we should use mock mode
-        self._use_mock = (blpapi is None) or USE_MOCK_DATA
+        # NEVER use mock data if Bloomberg is available - it's dangerous in production
+        # Only fall back to mock if blpapi is literally not installed
+        self._use_mock = (blpapi is None)
 
-        # Load mock prices from Excel file (used in mock mode)
-        self._mock_prices = _load_mock_defaults_from_excel() if self._use_mock else {}
-
-        # Only start Bloomberg session if not in mock mode
-        if blpapi and not self._use_mock:
+        if self._use_mock:
+            log.warning("[BloombergEngine] BLPAPI not installed - using mock data (DEV ONLY)")
+            self._mock_prices = _load_mock_defaults_from_excel()
+        else:
+            log.info("[BloombergEngine] Using REAL Bloomberg data")
+            self._mock_prices = {}
             self._start_session_async()
 
     def _start_session_async(self):
@@ -1256,10 +1258,13 @@ class BloombergEngine:
             return False, str(e)
 
     def fetch_snapshot(self, tickers: list[str], callback_func, error_callback, fields: list[str] | None = None):
-        # Use mock data if blpapi is unavailable OR USE_MOCK_DATA is True
+        # Only use mock if blpapi is literally not installed
         if self._use_mock:
+            log.warning("[BloombergEngine] Using MOCK data - blpapi not installed!")
             self._fetch_mock_snapshot(tickers, callback_func, error_callback)
             return
+
+        log.info(f"[BloombergEngine] Fetching REAL Bloomberg data for {len(tickers)} tickers")
 
         # Split tickers into TPSF (days) and regular (price) tickers
         tpsf_tickers = [t for t in tickers if "TPSF Curncy" in t]
