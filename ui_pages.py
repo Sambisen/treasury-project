@@ -1292,8 +1292,9 @@ class DashboardPage(BaseFrame):
             if "final" in cells:
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
 
-            # CHG (Change from last saved snapshot)
+            # CHG (Change from previous sheet in Excel - AA30-AA33)
             if "chg" in cells:
+                chg_lbl = cells["chg"]
                 prev_nibor = None
                 if prev_rates and tenor_key in prev_rates:
                     prev_nibor = prev_rates[tenor_key].get('nibor')
@@ -1309,9 +1310,15 @@ class DashboardPage(BaseFrame):
                     else:
                         chg_text = "0.00"
                         chg_color = THEME["muted"]
-                    cells["chg"].config(text=chg_text, fg=chg_color)
+                    if CTK_AVAILABLE and hasattr(chg_lbl, 'configure'):
+                        chg_lbl.configure(text=chg_text, text_color=chg_color)
+                    else:
+                        chg_lbl.config(text=chg_text, fg=chg_color)
                 else:
-                    cells["chg"].config(text="-", fg=THEME["muted"])
+                    if CTK_AVAILABLE and hasattr(chg_lbl, 'configure'):
+                        chg_lbl.configure(text="-", text_color=THEME["muted"])
+                    else:
+                        chg_lbl.config(text="-", fg=THEME["muted"])
 
             # ================================================================
             # RECON COL 1: NIBOR Contrib - 3 criteria matching
@@ -1437,6 +1444,12 @@ class DashboardPage(BaseFrame):
                 badge = cells.get("nibor_contrib_badge")
 
                 # Make label clickable for popup - handle CTK vs TK
+                # Unbind first to prevent multiple popups
+                try:
+                    lbl.unbind("<Button-1>")
+                except:
+                    pass
+
                 if CTK_AVAILABLE and hasattr(lbl, 'configure'):
                     lbl.configure(cursor="hand2")
                     lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
