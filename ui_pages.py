@@ -1310,15 +1310,9 @@ class DashboardPage(BaseFrame):
                     else:
                         chg_text = "0.00"
                         chg_color = THEME["muted"]
-                    if CTK_AVAILABLE and hasattr(chg_lbl, 'configure'):
-                        chg_lbl.configure(text=chg_text, text_color=chg_color)
-                    else:
-                        chg_lbl.config(text=chg_text, fg=chg_color)
+                    chg_lbl.config(text=chg_text, fg=chg_color)
                 else:
-                    if CTK_AVAILABLE and hasattr(chg_lbl, 'configure'):
-                        chg_lbl.configure(text="-", text_color=THEME["muted"])
-                    else:
-                        chg_lbl.config(text="-", fg=THEME["muted"])
+                    chg_lbl.config(text="-", fg=THEME["muted"])
 
             # ================================================================
             # RECON COL 1: NIBOR Contrib - 3 criteria matching
@@ -1443,23 +1437,25 @@ class DashboardPage(BaseFrame):
                 lbl = cells["nibor_contrib"]
                 badge = cells.get("nibor_contrib_badge")
 
-                # Make label clickable for popup - handle CTK vs TK
+                # Make label clickable for popup
                 # Unbind first to prevent multiple popups
                 try:
                     lbl.unbind("<Button-1>")
                 except:
                     pass
 
-                if CTK_AVAILABLE and hasattr(lbl, 'configure'):
+                # Check if CTK widget (CTkLabel) or regular tk widget
+                is_ctk_widget = CTK_AVAILABLE and 'ctk' in str(type(lbl).__module__).lower()
+
+                if is_ctk_widget:
                     lbl.configure(cursor="hand2")
-                    lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
                 else:
                     lbl.config(cursor="hand2")
-                    lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
+                lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
 
                 if all_matched and match_details['criteria']:
                     # Matched - Green pill badge
-                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
+                    if is_ctk_widget:
                         badge.configure(fg_color="#1A3320")
                         lbl.configure(text="✓ Matched", text_color="#00C853")
                     else:
@@ -1470,7 +1466,7 @@ class DashboardPage(BaseFrame):
                     self._stop_blink(lbl)
                 elif errors:
                     # Failed - Red pill badge
-                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
+                    if is_ctk_widget:
                         badge.configure(fg_color="#3D1F1F")
                         lbl.configure(text="✗ Failed", text_color="#FF3B30")
                     else:
@@ -1483,7 +1479,7 @@ class DashboardPage(BaseFrame):
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
                     # Pending - neutral state
-                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
+                    if is_ctk_widget:
                         badge.configure(fg_color="transparent")
                         lbl.configure(text="-", text_color=THEME["muted"])
                     else:
