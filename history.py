@@ -618,7 +618,7 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
 
 def confirm_rates(app) -> tuple[bool, str]:
     """
-    Confirm rates: backfill fixings and save contribution snapshot.
+    Confirm rates: backfill fixings, save contribution snapshot, and write to Excel.
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
     today = datetime.now().strftime("%Y-%m-%d")
@@ -631,10 +631,20 @@ def confirm_rates(app) -> tuple[bool, str]:
 
         date_key = save_snapshot(app)
 
+        # Write confirmation stamp to Excel (AE30-AE33)
+        excel_engine = getattr(app, 'excel_engine', None)
+        excel_msg = ""
+        if excel_engine:
+            excel_ok, excel_result = excel_engine.write_confirmation_to_excel()
+            if excel_ok:
+                excel_msg = f" Excel: {excel_result}."
+            else:
+                log.warning(f"[{mode_str}] Excel confirmation failed: {excel_result}")
+
         if saved_count > 0:
-            msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates."
+            msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates.{excel_msg}"
         else:
-            msg = f"Rates confirmed and saved for {date_key}. Fixings already up to date."
+            msg = f"Rates confirmed and saved for {date_key}. Fixings already up to date.{excel_msg}"
 
         log.info(f"[{mode_str}] {msg}")
         return True, msg

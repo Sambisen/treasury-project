@@ -518,6 +518,92 @@ class ExcelEngine:
             log.info(f"[ExcelEngine] ERROR loading previous sheet NIBOR rates: {e}")
             return None
 
+    def write_confirmation_to_excel(self, tenors_to_confirm: list[str] = None):
+        """
+        Write confirmation stamp to Excel cells AE30-AE33.
+
+        Format: ✓ CONFIRMED 2026-01-15 11:45 by username
+
+        Args:
+            tenors_to_confirm: List of tenors to confirm ["1m", "2m", "3m", "6m"]
+                              If None, confirms all tenors.
+
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        import os
+        import getpass
+        from datetime import datetime
+
+        # Default to all tenors if not specified
+        if tenors_to_confirm is None:
+            tenors_to_confirm = ["1m", "2m", "3m", "6m"]
+
+        # Cell mapping for confirmation stamps
+        confirm_cell_mapping = {
+            "1m": "AE30",
+            "2m": "AE31",
+            "3m": "AE32",
+            "6m": "AE33"
+        }
+
+        # Get username
+        try:
+            username = getpass.getuser()
+        except:
+            username = os.environ.get('USERNAME', os.environ.get('USER', 'unknown'))
+
+        # Create confirmation text
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        confirm_text = f"✓ CONFIRMED {timestamp} by {username}"
+
+        # Get workbook path
+        nibor_file = get_nibor_file_path()
+        log.info(f"[ExcelEngine] Writing confirmation to {nibor_file}")
+
+        if not nibor_file.exists():
+            return False, f"Nibor workbook not found: {nibor_file}"
+
+        try:
+            # Load workbook for writing (NOT read_only!)
+            wb = load_workbook(nibor_file, data_only=False)
+
+            # Find the latest date sheet
+            import re
+            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+            date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
+
+            if not date_sheets:
+                wb.close()
+                return False, "No date sheets found in workbook"
+
+            # Get the latest sheet
+            latest_sheet_name = sorted(date_sheets)[-1]
+            ws = wb[latest_sheet_name]
+
+            log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
+
+            # Write confirmation to each tenor cell
+            confirmed_tenors = []
+            for tenor in tenors_to_confirm:
+                cell_addr = confirm_cell_mapping.get(tenor)
+                if cell_addr:
+                    ws[cell_addr] = confirm_text
+                    confirmed_tenors.append(tenor.upper())
+                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text}")
+
+            # Save workbook
+            wb.save(nibor_file)
+            wb.close()
+
+            msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
+            log.info(f"[ExcelEngine] {msg}")
+            return True, msg
+
+        except Exception as e:
+            log.error(f"[ExcelEngine] ERROR writing confirmation: {e}")
+            return False, f"Failed to write confirmation: {e}"
+
     def get_latest_weights(self, weights_path):
         """
         Get latest weights from Wheights.xlsx file.
