@@ -336,8 +336,8 @@ class NiborTerminalCTK(ctk.CTk):
         active_bg = "#1E1714"  # Approximation of orange 10% on dark navy
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
-            # Container frame - compact 36px height
-            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=36)
+            # Container frame - height for 16pt text
+            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=44)
             btn_container.pack(fill="x", pady=0)
             btn_container.pack_propagate(False)
 
@@ -366,7 +366,7 @@ class NiborTerminalCTK(ctk.CTk):
                 font=("Segoe UI", 16),
                 anchor="w",
                 corner_radius=0,
-                height=36
+                height=44
             )
             btn.pack(side="left", fill="x", expand=True)
 
@@ -387,7 +387,7 @@ class NiborTerminalCTK(ctk.CTk):
                     text_color=THEME["text_muted"],
                     font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=16, pady=(0, 6))
 
-        # History folder button - 16pt
+        # History folder button - 16pt, matching height
         history_btn = ctk.CTkButton(
             sidebar,
             text="📂  History",
@@ -398,11 +398,11 @@ class NiborTerminalCTK(ctk.CTk):
             font=("Segoe UI", 16),
             anchor="w",
             corner_radius=4,
-            height=36
+            height=44
         )
         history_btn.pack(fill="x", padx=10, pady=1)
 
-        # GRSS folder button - 16pt
+        # GRSS folder button - 16pt, matching height
         grss_btn = ctk.CTkButton(
             sidebar,
             text="📂  GRSS",
@@ -413,7 +413,7 @@ class NiborTerminalCTK(ctk.CTk):
             font=("Segoe UI", 16),
             anchor="w",
             corner_radius=4,
-            height=36
+            height=44
         )
         grss_btn.pack(fill="x", padx=10, pady=1)
 
