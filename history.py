@@ -305,6 +305,13 @@ def load_fixings_from_excel(excel_path: Path = None, num_dates: int = 3) -> dict
         df = pd.read_excel(excel_path)
         log.info(f"Loaded NIBOR history Excel with {len(df)} rows")
 
+        # Sort by date descending to get most recent first
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df = df.dropna(subset=['Date'])
+            df = df.sort_values('Date', ascending=False)
+            log.info(f"Sorted by date. Most recent: {df.iloc[0]['Date'] if len(df) > 0 else 'N/A'}")
+
         # Column mapping: Excel columns -> JSON keys
         col_map = {
             '1 Week': '1w',
@@ -378,13 +385,20 @@ def should_save_fixing(history: dict, date_key: str) -> bool:
     return False
 
 
-def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict) -> bool:
+def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict, force: bool = False) -> bool:
     """
-    Save fixing rates for a specific date (idempotent).
+    Save fixing rates for a specific date.
+
+    Args:
+        history: The history dict to update
+        date_key: Date string (YYYY-MM-DD)
+        fixing_rates: Dict with tenor rates
+        force: If True, always overwrite existing data
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
 
-    if not should_save_fixing(history, date_key):
+    # Check if we should save (skip if exists and not forcing)
+    if not force and not should_save_fixing(history, date_key):
         log.info(f"[{mode_str}] SKIP: Fixing already exists for {date_key}")
         return False
 
@@ -397,16 +411,18 @@ def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict) -> bo
     history[date_key]['fixing_saved_at'] = datetime.now().isoformat()
     history[date_key]['fixing_source'] = 'BDH'
 
-    log.info(f"[{mode_str}] SAVED: Fixing for {date_key}: {fixing_rates}")
+    action = "OVERWRITE" if force else "SAVED"
+    log.info(f"[{mode_str}] {action}: Fixing for {date_key}: {fixing_rates}")
     return True
 
 
 def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
     """
     Backfill NIBOR fixings for the last N dates.
+    ALWAYS overwrites the most recent fixings to ensure fresh data.
     """
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
-    log.info(f"[{mode_str}] Starting backfill for last {num_dates} fixing dates...")
+    log.info(f"[{mode_str}] Starting backfill for last {num_dates} fixing dates (FORCE OVERWRITE)...")
 
     # Load current history
     history = load_history()
@@ -417,6 +433,8 @@ def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
     if engine is not None:
         try:
             fixings = fetch_fixings_from_bloomberg(engine, num_dates)
+            if fixings:
+                log.info(f"[{mode_str}] Got {len(fixings)} fixings from Bloomberg BDH")
         except Exception as e:
             log.warning(f"Bloomberg BDH failed: {e}, falling back to Excel")
 
@@ -429,21 +447,20 @@ def backfill_fixings(engine=None, num_dates: int = 3) -> tuple[int, list[str]]:
         log.error("No fixing data available from any source")
         return 0, []
 
-    # Save each fixing (idempotent)
+    # ALWAYS save/overwrite the most recent fixings (force=True)
     saved_count = 0
     saved_dates = []
 
     for date_key, rates in fixings.items():
-        if save_fixing_for_date(history, date_key, rates):
+        # Force overwrite to ensure we always have the latest data
+        if save_fixing_for_date(history, date_key, rates, force=True):
             saved_count += 1
             saved_dates.append(date_key)
 
-    # Only save if we made changes
+    # Always save since we're forcing overwrites
     if saved_count > 0:
         save_history(history)
-        log.info(f"[{mode_str}] Backfill complete: {saved_count} dates saved ({saved_dates})")
-    else:
-        log.info(f"[{mode_str}] Backfill complete: All {len(fixings)} dates already exist")
+        log.info(f"[{mode_str}] Backfill complete: {saved_count} dates updated ({saved_dates})")
 
     return saved_count, saved_dates
 
