@@ -521,6 +521,7 @@ class ExcelEngine:
     def write_confirmation_to_excel(self, tenors_to_confirm: list[str] = None):
         """
         Write confirmation stamp to Excel cells AE30-AE33.
+        Works even if Excel file is open (uses win32com if available).
 
         Format: ✓ CONFIRMED 2026-01-15 11:45 by username
 
@@ -564,20 +565,118 @@ class ExcelEngine:
         if not nibor_file.exists():
             return False, f"Nibor workbook not found: {nibor_file}"
 
+        # Try win32com first (works with open Excel files)
+        try:
+            return self._write_confirmation_win32com(
+                nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
+            )
+        except ImportError:
+            log.info("[ExcelEngine] win32com not available, trying openpyxl")
+        except Exception as e:
+            log.warning(f"[ExcelEngine] win32com failed: {e}, trying openpyxl")
+
+        # Fallback to openpyxl (requires file to be closed)
+        return self._write_confirmation_openpyxl(
+            nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
+        )
+
+    def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
+        """Write confirmation using win32com (works with open Excel files)."""
+        import win32com.client
+        import re
+        import pythoncom
+
+        # Initialize COM for this thread
+        pythoncom.CoInitialize()
+
+        try:
+            excel = win32com.client.GetObject(Class="Excel.Application")
+            log.info("[ExcelEngine] Connected to running Excel instance")
+        except:
+            # Excel not running, start it
+            excel = win32com.client.Dispatch("Excel.Application")
+            log.info("[ExcelEngine] Started new Excel instance")
+
+        wb = None
+        opened_by_us = False
+
+        try:
+            # Check if workbook is already open
+            file_path_str = str(nibor_file.resolve())
+            for workbook in excel.Workbooks:
+                if workbook.FullName.lower() == file_path_str.lower():
+                    wb = workbook
+                    log.info(f"[ExcelEngine] Found open workbook: {wb.Name}")
+                    break
+
+            if wb is None:
+                # Open the workbook
+                wb = excel.Workbooks.Open(file_path_str)
+                opened_by_us = True
+                log.info(f"[ExcelEngine] Opened workbook: {wb.Name}")
+
+            # Find the latest date sheet
+            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+            date_sheets = [s.Name for s in wb.Sheets if date_pattern.match(s.Name)]
+
+            if not date_sheets:
+                if opened_by_us:
+                    wb.Close(SaveChanges=False)
+                return False, "No date sheets found in workbook"
+
+            # Get the latest sheet
+            latest_sheet_name = sorted(date_sheets)[-1]
+            ws = wb.Sheets(latest_sheet_name)
+
+            log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
+
+            # Write confirmation to each tenor cell
+            confirmed_tenors = []
+            for tenor in tenors_to_confirm:
+                cell_addr = confirm_cell_mapping.get(tenor)
+                if cell_addr:
+                    ws.Range(cell_addr).Value = confirm_text
+                    confirmed_tenors.append(tenor.upper())
+                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text}")
+
+            # Save the workbook
+            wb.Save()
+            log.info(f"[ExcelEngine] Workbook saved")
+
+            if opened_by_us:
+                wb.Close(SaveChanges=True)
+
+            msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
+            log.info(f"[ExcelEngine] {msg}")
+            return True, msg
+
+        except Exception as e:
+            log.error(f"[ExcelEngine] win32com ERROR: {e}")
+            if wb and opened_by_us:
+                try:
+                    wb.Close(SaveChanges=False)
+                except:
+                    pass
+            raise
+        finally:
+            pythoncom.CoUninitialize()
+
+    def _write_confirmation_openpyxl(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
+        """Write confirmation using openpyxl (requires file to be closed)."""
+        import re
+
         try:
             # Try to load workbook for writing (NOT read_only!)
             wb = None
             try:
                 wb = load_workbook(nibor_file, data_only=False)
             except PermissionError:
-                return False, f"Excel file is open or locked. Please close it and try again."
+                return False, f"Excel file is open. Install win32com or close Excel first."
             except Exception as e:
-                # Try using cache copy method
-                log.info(f"[ExcelEngine] Direct load failed ({e}), file may be locked")
-                return False, f"Cannot write to Excel: {e}. Is the file open?"
+                log.info(f"[ExcelEngine] openpyxl load failed: {e}")
+                return False, f"Cannot write to Excel: {e}"
 
             # Find the latest date sheet
-            import re
             date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
             date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
 
@@ -606,7 +705,7 @@ class ExcelEngine:
                 log.info(f"[ExcelEngine] Workbook saved to {nibor_file}")
             except PermissionError:
                 wb.close()
-                return False, "Cannot save Excel file - it's open or locked. Close Excel and try again."
+                return False, "Cannot save - Excel file is open. Close Excel and try again."
 
             wb.close()
 
@@ -615,7 +714,7 @@ class ExcelEngine:
             return True, msg
 
         except Exception as e:
-            log.error(f"[ExcelEngine] ERROR writing confirmation: {e}")
+            log.error(f"[ExcelEngine] openpyxl ERROR: {e}")
             return False, f"Failed to write confirmation: {e}"
 
     def get_latest_weights(self, weights_path):
