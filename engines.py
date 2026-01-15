@@ -1395,21 +1395,26 @@ class BloombergEngine:
         """
         from config import NIBOR_FIXING_TICKERS
 
+        log.info(f"[BloombergEngine] fetch_fixing_history called for {num_dates} dates")
+        log.info(f"[BloombergEngine] _use_mock={self._use_mock}, _is_ready={self._is_ready}, blpapi={'available' if blpapi else 'None'}")
+
         # If in mock mode, return empty to trigger Excel fallback
         if self._use_mock:
             log.info("[BloombergEngine] Mock mode - skipping BDH, will use Excel fallback")
             return {}
 
-        if not blpapi or not self._is_ready:
-            log.warning("[BloombergEngine] Not ready for BDH request")
+        if not blpapi:
+            log.warning("[BloombergEngine] blpapi not available")
             return {}
 
+        # Try to ensure session is ready
         try:
             with self._lock:
                 ok, err = self._ensure_ready_sync()
                 if not ok:
                     log.error(f"[BloombergEngine] BDH session not ready: {err}")
                     return {}
+                log.info("[BloombergEngine] Session ready for BDH request")
 
                 # Calculate date range (14 calendar days to ensure we get at least 3 business days)
                 end_date = datetime.now()

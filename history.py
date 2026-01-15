@@ -469,8 +469,29 @@ def fetch_fixings_from_bloomberg(engine, num_dates: int = 3) -> dict:
     """
     Fetch NIBOR fixings from Bloomberg using BDH (historical data).
     """
+    mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
+    log.info(f"[{mode_str}] Attempting to fetch NIBOR fixings from Bloomberg BDH...")
+
+    if engine is None:
+        log.warning(f"[{mode_str}] No Bloomberg engine provided")
+        return {}
+
     if hasattr(engine, 'fetch_fixing_history'):
-        return engine.fetch_fixing_history(num_dates)
+        log.info(f"[{mode_str}] Calling engine.fetch_fixing_history({num_dates})...")
+        try:
+            result = engine.fetch_fixing_history(num_dates)
+            if result:
+                log.info(f"[{mode_str}] Bloomberg BDH returned {len(result)} dates: {list(result.keys())}")
+            else:
+                log.warning(f"[{mode_str}] Bloomberg BDH returned empty result")
+            return result
+        except Exception as e:
+            log.error(f"[{mode_str}] Bloomberg BDH error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+    else:
+        log.warning(f"[{mode_str}] Engine does not have fetch_fixing_history method")
     return {}
 
 
