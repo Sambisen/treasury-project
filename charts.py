@@ -486,16 +486,23 @@ class TrendPopup(tk.Toplevel):
         self._content_frame = tk.Frame(self, bg=self.LIGHT_BG)
         self._content_frame.pack(fill="both", expand=True, padx=28, pady=20)
 
-        # Chart view
+        # Chart view - show loading first
         self._chart_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
         self.chart = None
-        self._setup_light_chart()
+        self._chart_initialized = False
 
-        # Table view
+        # Loading indicator (shown while chart initializes)
+        self._loading_frame = tk.Frame(self._chart_frame, bg=self.LIGHT_CARD)
+        self._loading_frame.pack(fill="both", expand=True)
+        tk.Label(self._loading_frame, text="Loading chart...",
+                fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
+                font=("Segoe UI", 12)).pack(expand=True)
+
+        # Table view - create structure only (fast)
         self._table_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
         self._create_rates_table()
 
-        # Show chart by default
+        # Show chart frame by default
         self._chart_frame.pack(fill="both", expand=True)
 
         # ==========================
@@ -523,8 +530,10 @@ class TrendPopup(tk.Toplevel):
         self.bind("<Escape>", lambda e: self.destroy())
         self.focus_set()
 
-        # Load data immediately (no delay)
-        self.after(10, self._load_data)
+        # Show window immediately, then load data
+        self.update_idletasks()
+        self.deiconify()
+        self.after(1, self._load_data)
 
     def _toggle_source(self, source):
         """Toggle source button state."""
@@ -1011,71 +1020,35 @@ class TrendPopup(tk.Toplevel):
         if closest_info and closest_dist < 5:
             d, r, label, source = closest_info
             date_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
-            self._hover_label.config(text=f"📍 {date_str}  |  {label}: {r:.4f}%")
+            self._hover_label.config(text=f"{date_str}  ·  {label}: {r:.4f}%")
         else:
             self._hover_label.config(text="")
 
     def _load_data(self):
-        """Load rates data from history."""
-        from history import get_rates_table_data, get_fixing_table_data, load_history
+        """Load rates data from history - fast loading."""
+        from history import get_rates_table_data, get_fixing_table_data
 
-        today = datetime.now().date()
-        today_str = today.strftime("%Y-%m-%d")
-        print(f"\n[TrendPopup] ========== LOADING DATA ==========")
-        print(f"[TrendPopup] Today's date: {today_str}")
+        # Ensure loading message is visible
+        self.update_idletasks()
 
-        # First check raw history for today's fixing
-        history = load_history()
-        if today_str in history:
-            entry = history[today_str]
-            if 'fixing_rates' in entry:
-                print(f"[TrendPopup] ✓ Today's fixing EXISTS in history: {entry['fixing_rates']}")
-            else:
-                print(f"[TrendPopup] ✗ Today's entry exists but NO fixing_rates! Keys: {entry.keys()}")
-        else:
-            print(f"[TrendPopup] ✗ Today ({today_str}) NOT in history at all")
-            # Show what dates ARE in history
-            dates = sorted(history.keys(), reverse=True)[:5]
-            print(f"[TrendPopup]   Most recent history dates: {dates}")
-
+        # Load data from JSON (fast)
         contrib = get_rates_table_data(limit=500)
         fixing = get_fixing_table_data(limit=500)
-
-        print(f"[TrendPopup] Raw contrib entries: {len(contrib)}")
-        print(f"[TrendPopup] Raw fixing entries: {len(fixing)}")
-
-        if fixing:
-            # Show the most recent fixing dates
-            dates = [f.get('date') for f in fixing[:5]]
-            print(f"[TrendPopup] Most recent fixing dates from get_fixing_table_data: {dates}")
-            # Check if today is in the list
-            today_in_fixing = any(f.get('date') == today_str for f in fixing)
-            print(f"[TrendPopup] Today ({today_str}) in fixing list: {today_in_fixing}")
 
         # Process data
         self._contrib_data = self._process_data(contrib)
         self._fixing_data = self._process_data(fixing)
 
-        print(f"[TrendPopup] Processed contrib: {len(self._contrib_data)}")
-        print(f"[TrendPopup] Processed fixing: {len(self._fixing_data)}")
-
-        if self._fixing_data:
-            # Show last 3 processed entries (should include today if present)
-            recent = self._fixing_data[-3:] if len(self._fixing_data) >= 3 else self._fixing_data
-            print(f"[TrendPopup] Last 3 processed fixing entries:")
-            for r in recent:
-                print(f"[TrendPopup]   {r.get('dt')}: 1m={r.get('1m')}, 3m={r.get('3m')}, 6m={r.get('6m')}")
-
-            # Check if today is in processed data
-            today_processed = any(r.get('dt') == today for r in self._fixing_data)
-            print(f"[TrendPopup] Today ({today}) in processed fixing: {today_processed}")
-
-        print(f"[TrendPopup] ====================================\n")
-
         # Mark data as loaded
         self._data_loaded = True
 
-        # Update chart
+        # Initialize chart now (deferred from __init__ for faster popup)
+        if not self._chart_initialized:
+            self._loading_frame.destroy()
+            self._setup_light_chart()
+            self._chart_initialized = True
+
+        # Draw chart with data
         self._redraw_chart()
 
         # Pre-build table for instant switching
