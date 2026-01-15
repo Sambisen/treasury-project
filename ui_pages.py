@@ -1316,7 +1316,7 @@ class DashboardPage(BaseFrame):
             # ================================================================
             # RECON COL 1: NIBOR Contrib - 3 criteria matching
             # ================================================================
-            if "nibor_contrib" in cells and final_rate is not None:
+            if "nibor_contrib" in cells:
                 z_cell = EXCEL_Z_CELLS.get(tenor_key)
                 aa_input_cell = EXCEL_AA_INPUT_CELLS.get(tenor_key)
                 aa_output_cell = EXCEL_AA_OUTPUT_CELLS.get(tenor_key)
@@ -1333,7 +1333,10 @@ class DashboardPage(BaseFrame):
 
                 has_excel = hasattr(self.app, 'excel_engine') and self.app.excel_engine is not None
 
-                if not has_excel:
+                if final_rate is None:
+                    all_matched = False
+                    errors.append("GUI rate not calculated")
+                elif not has_excel:
                     all_matched = False
                     errors.append("Excel engine not loaded")
                 else:
