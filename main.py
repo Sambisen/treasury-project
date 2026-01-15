@@ -476,7 +476,7 @@ class NiborTerminalCTK(ctk.CTk):
         from config import APP_VERSION
 
         status_bar = ctk.CTkFrame(self, fg_color=THEME["bg_nav"], height=36, corner_radius=0)
-        status_bar.pack(side="bottom", fill="x", pady=(25, 0))
+        status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
 
         # Left side - connection status panel (still uses tk for compatibility)

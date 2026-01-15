@@ -371,7 +371,7 @@ class DashboardPage(BaseFrame):
         # CONFIRM RATES BUTTON - Prominent CTA inside card
         # ====================================================================
         confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        confirm_btn_frame.pack(anchor="center", pady=(55, 45))
+        confirm_btn_frame.pack(anchor="center", pady=(25, 20))
 
         if CTK_AVAILABLE:
             self.confirm_rates_btn = ctk.CTkButton(
@@ -408,7 +408,7 @@ class DashboardPage(BaseFrame):
         # ====================================================================
         # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
         # ====================================================================
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(55, 0))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(15, 0))
 
         checks_bar = tk.Frame(card_content, bg=THEME["bg_card"])
         checks_bar.pack(fill="x", pady=(15, 10))
