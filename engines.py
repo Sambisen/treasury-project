@@ -1463,7 +1463,8 @@ class BloombergEngine:
                                 row = field_data.getValueAsElement(i)
                                 if row.hasElement("date") and row.hasElement("PX_LAST"):
                                     date_val = row.getElementAsDatetime("date")
-                                    date_str = f"{date_val.year()}-{date_val.month():02d}-{date_val.day():02d}"
+                                    # blpapi.Datetime has year/month/day as properties, not methods
+                                    date_str = f"{date_val.year}-{date_val.month:02d}-{date_val.day:02d}"
                                     price = row.getElementAsFloat("PX_LAST")
 
                                     if date_str not in results_by_date:
