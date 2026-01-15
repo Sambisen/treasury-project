@@ -565,20 +565,16 @@ class ExcelEngine:
         if not nibor_file.exists():
             return False, f"Nibor workbook not found: {nibor_file}"
 
-        # Try win32com first (works with open Excel files)
+        # Use win32com only (openpyxl corrupts Excel files with drawings)
         try:
             return self._write_confirmation_win32com(
                 nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
             )
         except ImportError:
-            log.info("[ExcelEngine] win32com not available, trying openpyxl")
+            return False, "win32com not installed. Run: pip install pywin32"
         except Exception as e:
-            log.warning(f"[ExcelEngine] win32com failed: {e}, trying openpyxl")
-
-        # Fallback to openpyxl (requires file to be closed)
-        return self._write_confirmation_openpyxl(
-            nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
-        )
+            log.error(f"[ExcelEngine] win32com failed: {e}")
+            return False, f"Failed to write to Excel: {e}"
 
     def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
         """Write confirmation using win32com (works with open Excel files)."""
@@ -664,68 +660,6 @@ class ExcelEngine:
         finally:
             pythoncom.CoUninitialize()
 
-    def _write_confirmation_openpyxl(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
-        """Write confirmation using openpyxl (requires file to be closed)."""
-        import re
-
-        try:
-            # Try to load workbook for writing (NOT read_only!)
-            wb = None
-            try:
-                wb = load_workbook(nibor_file, data_only=False)
-            except PermissionError:
-                return False, f"Excel file is open. Install win32com or close Excel first."
-            except Exception as e:
-                log.info(f"[ExcelEngine] openpyxl load failed: {e}")
-                return False, f"Cannot write to Excel: {e}"
-
-            # Find the latest date sheet
-            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-            date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
-
-            if not date_sheets:
-                wb.close()
-                return False, "No date sheets found in workbook"
-
-            # Get the latest sheet
-            latest_sheet_name = sorted(date_sheets)[-1]
-            ws = wb[latest_sheet_name]
-
-            log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
-
-            # Write confirmation to each tenor cell with green background
-            from openpyxl.styles import PatternFill, Font
-            green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-            green_font = Font(color="008050", bold=True)
-
-            confirmed_tenors = []
-            for tenor in tenors_to_confirm:
-                cell_addr = confirm_cell_mapping.get(tenor)
-                if cell_addr:
-                    cell = ws[cell_addr]
-                    cell.value = confirm_text
-                    cell.fill = green_fill
-                    cell.font = green_font
-                    confirmed_tenors.append(tenor.upper())
-                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text} (green)")
-
-            # Save workbook
-            try:
-                wb.save(nibor_file)
-                log.info(f"[ExcelEngine] Workbook saved to {nibor_file}")
-            except PermissionError:
-                wb.close()
-                return False, "Cannot save - Excel file is open. Close Excel and try again."
-
-            wb.close()
-
-            msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
-            log.info(f"[ExcelEngine] {msg}")
-            return True, msg
-
-        except Exception as e:
-            log.error(f"[ExcelEngine] openpyxl ERROR: {e}")
-            return False, f"Failed to write confirmation: {e}"
 
     def get_latest_weights(self, weights_path):
         """
