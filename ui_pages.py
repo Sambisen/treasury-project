@@ -88,6 +88,9 @@ class DashboardPage(BaseFrame):
         # Initialize blink tracking
         self._blink_widgets = {}
 
+        # Initialize match data for all tenors (ensures button state works on first update)
+        self._match_data = {}
+
         # ====================================================================
         # NAVIGATION REMOVED - Now in main.py (visible on ALL pages)
         # ====================================================================
@@ -1531,19 +1534,27 @@ class DashboardPage(BaseFrame):
         tenors_to_check = ["1m", "2m", "3m", "6m"]
         all_matched = True
 
-        for tenor in tenors_to_check:
-            match_data = self._match_data.get(tenor, {})
-            if not match_data.get('all_matched', False):
-                all_matched = False
-                break
+        # First check that all tenors have been evaluated
+        if len(self._match_data) < len(tenors_to_check):
+            all_matched = False
+            log.info(f"[Dashboard] Confirm button DISABLED - only {len(self._match_data)}/{len(tenors_to_check)} tenors evaluated")
+        else:
+            for tenor in tenors_to_check:
+                match_data = self._match_data.get(tenor, {})
+                if not match_data.get('all_matched', False):
+                    all_matched = False
+                    log.info(f"[Dashboard] Tenor {tenor} not matched")
+                    break
 
         # Update button state
-        if all_matched:
-            self.confirm_rates_btn.configure(state="normal")
-            log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
-        else:
-            self.confirm_rates_btn.configure(state="disabled")
-            log.info("[Dashboard] Confirm button DISABLED - not all tenors matched")
+        try:
+            if all_matched:
+                self.confirm_rates_btn.configure(state="normal")
+                log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
+            else:
+                self.confirm_rates_btn.configure(state="disabled")
+        except Exception as e:
+            log.error(f"[Dashboard] Error updating confirm button state: {e}")
 
     def _update_alerts(self, messages):
         """Update always-visible alert box with messages or show 'All OK'.
