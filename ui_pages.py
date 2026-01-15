@@ -371,7 +371,7 @@ class DashboardPage(BaseFrame):
         # CONFIRM RATES BUTTON - Prominent CTA inside card
         # ====================================================================
         confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        confirm_btn_frame.pack(anchor="center", pady=(30, 25))
+        confirm_btn_frame.pack(anchor="center", pady=(55, 45))
 
         if CTK_AVAILABLE:
             self.confirm_rates_btn = ctk.CTkButton(
