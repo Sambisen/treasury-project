@@ -176,7 +176,7 @@ class DashboardPage(BaseFrame):
             history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 10))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 35))
 
         # Table frame for grid layout - FULL WIDTH
         funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
