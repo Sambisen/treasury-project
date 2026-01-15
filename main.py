@@ -295,7 +295,7 @@ class NiborTerminalCTK(ctk.CTk):
         # BODY with Command Center Sidebar + Content - tighter spacing
         # ====================================================================
         self.body = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
-        self.body.pack(fill="both", expand=True, padx=hpad, pady=(4, 5))
+        self.body.pack(fill="both", expand=True, padx=hpad, pady=(2, 2))
 
         # Configure grid layout: sidebar (0) | separator (1) | content (2)
         self.body.grid_columnconfigure(0, weight=0, minsize=220)  # Sidebar fixed
@@ -392,9 +392,6 @@ class NiborTerminalCTK(ctk.CTk):
             height=44
         )
         grss_btn.pack(fill="x", padx=10, pady=1)
-
-        # Spacer
-        ctk.CTkFrame(sidebar, fg_color="transparent").pack(fill="both", expand=True)
 
         # Subtle separator line
         separator = ctk.CTkFrame(self.body, fg_color=THEME["border"], width=1)

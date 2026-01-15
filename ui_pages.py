@@ -106,7 +106,7 @@ class DashboardPage(BaseFrame):
             content = ctk.CTkFrame(self, fg_color="transparent")
         else:
             content = tk.Frame(self, bg=THEME["bg_panel"])
-        content.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        content.pack(fill="both", expand=True, padx=12, pady=(0, 6))
 
         # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
@@ -137,13 +137,13 @@ class DashboardPage(BaseFrame):
 
         # Card inner padding container
         card_content = tk.Frame(nibor_card, bg=THEME["bg_card"])
-        card_content.pack(fill="both", expand=True, padx=32, pady=28)
+        card_content.pack(fill="both", expand=True, padx=24, pady=16)
 
         # ----------------------------------------------------------------
         # CARD HEADER ROW: Title | Dev Badge | View History link (right)
         # ----------------------------------------------------------------
         header_row = tk.Frame(card_content, bg=THEME["bg_card"])
-        header_row.pack(fill="x", pady=(0, 20))
+        header_row.pack(fill="x", pady=(0, 10))
 
         # Left side: Title with accent underline effect
         title_container = tk.Frame(header_row, bg=THEME["bg_card"])
@@ -176,7 +176,7 @@ class DashboardPage(BaseFrame):
             history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 20))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 10))
 
         # Table frame for grid layout - FULL WIDTH
         funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
@@ -207,7 +207,7 @@ class DashboardPage(BaseFrame):
                     fg=header_text_color,
                     bg=header_bg,
                     font=("Segoe UI Semibold", 10),
-                    width=width, pady=14, padx=20,
+                    width=width, pady=10, padx=16,
                     anchor=anchor).grid(row=0, column=col, sticky="nsew")
 
         # Vertical separator between main cols and contribution
@@ -218,7 +218,7 @@ class DashboardPage(BaseFrame):
                 fg=header_text_color,
                 bg=header_bg,
                 font=("Segoe UI Semibold", 10),
-                width=20, pady=14, padx=20,
+                width=20, pady=10, padx=16,
                 anchor="center").grid(row=0, column=6, sticky="nsew")
 
         # Header bottom separator
@@ -246,19 +246,19 @@ class DashboardPage(BaseFrame):
             if tenor.get("disabled"):
                 tk.Label(funding_frame, text=tenor["label"],
                         fg=THEME["text_light"], bg=row_bg,
-                        font=("Segoe UI", 12), width=12, pady=16, padx=20,
+                        font=("Segoe UI", 12), width=12, pady=10, padx=16,
                         anchor="center").grid(row=row_idx, column=0, sticky="nsew")
 
                 for col in range(1, 5):
                     anchor = "e" if col > 0 else "center"
                     tk.Label(funding_frame, text="—", fg=THEME["text_light"],
                             bg=row_bg, font=("Consolas", 12),
-                            anchor=anchor, pady=16, padx=20).grid(row=row_idx, column=col, sticky="nsew")
+                            anchor=anchor, pady=10, padx=16).grid(row=row_idx, column=col, sticky="nsew")
 
                 # Contribution column for disabled row
                 tk.Label(funding_frame, text="—", fg=THEME["text_light"],
                         bg=row_bg, font=("Consolas", 11),
-                        anchor="center", pady=16, padx=20).grid(row=row_idx, column=6, sticky="nsew")
+                        anchor="center", pady=10, padx=16).grid(row=row_idx, column=6, sticky="nsew")
 
                 # Subtle row separator
                 tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
@@ -272,7 +272,7 @@ class DashboardPage(BaseFrame):
             # TENOR label - bold, larger
             tenor_lbl = tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
                     bg=row_bg, font=("Segoe UI Semibold", 13),
-                    width=12, anchor="center", pady=16, padx=20)
+                    width=12, anchor="center", pady=10, padx=16)
             tenor_lbl.grid(row=row_idx, column=0, sticky="nsew")
             row_widgets.append(tenor_lbl)
 
@@ -282,7 +282,7 @@ class DashboardPage(BaseFrame):
             funding_lbl = tk.Label(funding_frame, text="—",
                                   fg=THEME["text"], bg=row_bg,
                                   font=("Consolas", 12),
-                                  width=18, anchor="e", cursor="hand2", pady=16, padx=20)
+                                  width=18, anchor="e", cursor="hand2", pady=10, padx=16)
             funding_lbl.grid(row=row_idx, column=1, sticky="nsew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(funding_lbl)
@@ -293,7 +293,7 @@ class DashboardPage(BaseFrame):
             spread_lbl = tk.Label(funding_frame, text="—",
                                  fg=THEME["text_muted"], bg=row_bg,
                                  font=("Consolas", 12),
-                                 width=12, anchor="e", pady=16, padx=20)
+                                 width=12, anchor="e", pady=10, padx=16)
             spread_lbl.grid(row=row_idx, column=2, sticky="nsew")
             row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
@@ -302,7 +302,7 @@ class DashboardPage(BaseFrame):
             final_lbl = tk.Label(funding_frame, text="—",
                                 fg=THEME["accent"], bg=row_bg,
                                 font=("Consolas", 16, "bold"),
-                                width=18, anchor="e", cursor="hand2", pady=16, padx=20)
+                                width=18, anchor="e", cursor="hand2", pady=10, padx=16)
             final_lbl.grid(row=row_idx, column=3, sticky="nsew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(final_lbl)
@@ -313,7 +313,7 @@ class DashboardPage(BaseFrame):
             chg_lbl = tk.Label(funding_frame, text="—",
                               fg=THEME["text_muted"], bg=row_bg,
                               font=("Consolas", 12),
-                              width=12, anchor="e", pady=16, padx=20)
+                              width=12, anchor="e", pady=10, padx=16)
             chg_lbl.grid(row=row_idx, column=4, sticky="nsew")
             row_widgets.append(chg_lbl)
             cells["chg"] = chg_lbl
@@ -371,7 +371,7 @@ class DashboardPage(BaseFrame):
         # CONFIRM RATES BUTTON - Prominent CTA inside card
         # ====================================================================
         confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        confirm_btn_frame.pack(anchor="center", pady=(28, 12))
+        confirm_btn_frame.pack(anchor="center", pady=(12, 8))
 
         if CTK_AVAILABLE:
             self.confirm_rates_btn = ctk.CTkButton(
@@ -408,10 +408,10 @@ class DashboardPage(BaseFrame):
         # ====================================================================
         # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
         # ====================================================================
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(20, 0))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(8, 0))
 
         checks_bar = tk.Frame(card_content, bg=THEME["bg_card"])
-        checks_bar.pack(fill="x", pady=(16, 0))
+        checks_bar.pack(fill="x", pady=(10, 0))
 
         # Validation checks label
         tk.Label(checks_bar, text="Validation:",
