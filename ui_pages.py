@@ -408,7 +408,7 @@ class DashboardPage(BaseFrame):
         # ====================================================================
         # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
         # ====================================================================
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(15, 0))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(40, 0))
 
         checks_bar = tk.Frame(card_content, bg=THEME["bg_card"])
         checks_bar.pack(fill="x", pady=(15, 10))
