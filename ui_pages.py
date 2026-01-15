@@ -1331,7 +1331,12 @@ class DashboardPage(BaseFrame):
                 all_matched = True
                 errors = []
 
-                if hasattr(self.app, 'excel_engine'):
+                has_excel = hasattr(self.app, 'excel_engine') and self.app.excel_engine is not None
+
+                if not has_excel:
+                    all_matched = False
+                    errors.append("Excel engine not loaded")
+                else:
                     # Criterion 1: GUI vs Z30-Z33 (4 decimals)
                     if z_cell:
                         excel_z = self.app.excel_engine.get_recon_value(z_cell)
