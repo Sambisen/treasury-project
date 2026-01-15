@@ -481,10 +481,12 @@ class TrendPopup(tk.Toplevel):
         close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#94A3B8"))
 
         # ==========================
-        # CONTENT AREA
+        # CONTENT AREA - Use grid for instant view switching
         # ==========================
         self._content_frame = tk.Frame(self, bg=self.LIGHT_BG)
         self._content_frame.pack(fill="both", expand=True, padx=28, pady=20)
+        self._content_frame.grid_rowconfigure(0, weight=1)
+        self._content_frame.grid_columnconfigure(0, weight=1)
 
         # Chart view - show loading first
         self._chart_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
@@ -494,16 +496,18 @@ class TrendPopup(tk.Toplevel):
         # Loading indicator (shown while chart initializes)
         self._loading_frame = tk.Frame(self._chart_frame, bg=self.LIGHT_CARD)
         self._loading_frame.pack(fill="both", expand=True)
-        tk.Label(self._loading_frame, text="Loading chart...",
+        tk.Label(self._loading_frame, text="Loading...",
                 fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
-                font=("Segoe UI", 12)).pack(expand=True)
+                font=("Segoe UI", 11)).pack(expand=True)
 
         # Table view - create structure only (fast)
         self._table_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
         self._create_rates_table()
 
-        # Show chart frame by default
-        self._chart_frame.pack(fill="both", expand=True)
+        # Place both in same grid cell - use tkraise for instant switching
+        self._chart_frame.grid(row=0, column=0, sticky="nsew")
+        self._table_frame.grid(row=0, column=0, sticky="nsew")
+        self._chart_frame.tkraise()  # Show chart by default
 
         # ==========================
         # FOOTER - Minimal
@@ -616,8 +620,8 @@ class TrendPopup(tk.Toplevel):
             btn.bind("<Button-1>", lambda e, t=tenor: self._toggle_tenor(t))
             self._tenor_btns[tenor] = btn
 
-        # Matplotlib figure - LIGHT THEME
-        self.fig = Figure(figsize=(10, 5), dpi=100, facecolor=self.LIGHT_CARD)
+        # Matplotlib figure - LIGHT THEME (reduced DPI for speed)
+        self.fig = Figure(figsize=(9, 4), dpi=80, facecolor=self.LIGHT_CARD)
         self.ax = self.fig.add_subplot(111)
         self._style_light_axes()
 
@@ -750,17 +754,14 @@ class TrendPopup(tk.Toplevel):
         self._status_label.config(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
     def _switch_view(self, view_name):
-        """Switch between chart and table view."""
+        """Switch between chart and table view - instant with tkraise."""
         self._current_view = view_name
         self._update_view_buttons()
 
         if view_name == "chart":
-            self._table_frame.pack_forget()
-            self._chart_frame.pack(fill="both", expand=True)
+            self._chart_frame.tkraise()
         else:
-            self._chart_frame.pack_forget()
-            self._table_frame.pack(fill="both", expand=True)
-            # Table is pre-built on data load - instant switch!
+            self._table_frame.tkraise()
 
     def _update_view_buttons(self):
         """Update visual state of view toggle buttons."""
@@ -882,7 +883,7 @@ class TrendPopup(tk.Toplevel):
         if not show_contrib and not show_fixing:
             self.ax.text(0.5, 0.5, "Select a source above", ha='center', va='center',
                         color=self.LIGHT_MUTED, fontsize=12, transform=self.ax.transAxes)
-            self.canvas.draw()
+            self.canvas.draw_idle()
             return
 
         # Calculate time cutoff
@@ -923,20 +924,14 @@ class TrendPopup(tk.Toplevel):
                     if valid_points:
                         label = f"Swedbank {tenor.upper()}"
                         line, = self.ax.plot(dates, rates, color=self.SWEDBANK_ORANGE,
-                                           linewidth=2.5, label=label, marker='o', markersize=3)
+                                           linewidth=2, label=label)
                         self._plot_lines.append((line, dates, rates, label, 'Swedbank'))
                         has_lines = True
 
         # Plot Fixing data (Dark blue)
         if show_fixing and self._fixing_data:
             plot_data = self._fixing_data if cutoff is None else [d for d in self._fixing_data if d['dt'] >= cutoff]
-            print(f"[TrendPopup] Fixing plot_data after cutoff filter: {len(plot_data)} entries")
             if plot_data:
-                # Debug: show date range being plotted
-                if len(plot_data) > 0:
-                    first_date = plot_data[0].get('dt')
-                    last_date = plot_data[-1].get('dt')
-                    print(f"[TrendPopup] Fixing date range: {first_date} to {last_date}")
                 dates = [d['dt'] for d in plot_data]
                 for tenor in selected_tenors:
                     rates = []
@@ -950,14 +945,14 @@ class TrendPopup(tk.Toplevel):
                     if valid_points:
                         label = f"Fixing {tenor.upper()}"
                         line, = self.ax.plot(dates, rates, color=self.FIXING_BLUE,
-                                           linewidth=2.5, label=label, marker='s', markersize=3)
+                                           linewidth=2, label=label)
                         self._plot_lines.append((line, dates, rates, label, 'Fixing'))
                         has_lines = True
 
         if not has_lines:
             self.ax.text(0.5, 0.5, f"No data for {time_range}", ha='center', va='center',
                         color=self.LIGHT_MUTED, fontsize=12, transform=self.ax.transAxes)
-            self.canvas.draw()
+            self.canvas.draw_idle()
             return
 
         # Date formatting - INCLUDE YEAR for MAX and 1Y!
@@ -982,15 +977,13 @@ class TrendPopup(tk.Toplevel):
         self.ax.set_ylabel('Rate (%)', color=self.LIGHT_TEXT, fontsize=10)
         self.ax.yaxis.set_major_formatter(lambda x, p: f'{x:.2f}%')
 
-        # Legend - Professional style
+        # Legend - Simple style
         if has_lines:
-            legend = self.ax.legend(loc='upper right', fontsize=9, framealpha=0.95,
-                                   facecolor=self.LIGHT_CARD, edgecolor=self.LIGHT_BORDER,
-                                   labelcolor=self.LIGHT_TEXT)
-            legend.get_frame().set_linewidth(1)
+            self.ax.legend(loc='upper right', fontsize=9, framealpha=0.9,
+                          facecolor=self.LIGHT_CARD, edgecolor=self.LIGHT_BORDER)
 
-        self.fig.tight_layout()
-        self.canvas.draw()
+        self.fig.subplots_adjust(left=0.08, right=0.95, top=0.9, bottom=0.15)
+        self.canvas.draw_idle()
 
     def _on_hover(self, event):
         """Handle mouse hover to show rate and date."""
