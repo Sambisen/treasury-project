@@ -379,7 +379,7 @@ class TrendPopup(tk.Toplevel):
         # Data storage
         self._contrib_data = []
         self._fixing_data = []
-        self._current_view = "chart"
+        self._current_view = "table"  # Start with table (instant)
         self._hover_annotation = None
         self._data_loaded = False
 
@@ -507,7 +507,7 @@ class TrendPopup(tk.Toplevel):
         # Place both in same grid cell - use tkraise for instant switching
         self._chart_frame.grid(row=0, column=0, sticky="nsew")
         self._table_frame.grid(row=0, column=0, sticky="nsew")
-        self._chart_frame.tkraise()  # Show chart by default
+        self._table_frame.tkraise()  # Show table by default (instant!)
 
         # ==========================
         # FOOTER - Minimal
@@ -754,11 +754,17 @@ class TrendPopup(tk.Toplevel):
         self._status_label.config(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
     def _switch_view(self, view_name):
-        """Switch between chart and table view - instant with tkraise."""
+        """Switch between chart and table view - lazy load chart."""
         self._current_view = view_name
         self._update_view_buttons()
 
         if view_name == "chart":
+            # Lazy-load chart on first access
+            if not self._chart_initialized and self._data_loaded:
+                self._loading_frame.destroy()
+                self._setup_light_chart()
+                self._chart_initialized = True
+                self._redraw_chart()
             self._chart_frame.tkraise()
         else:
             self._table_frame.tkraise()
@@ -1018,11 +1024,8 @@ class TrendPopup(tk.Toplevel):
             self._hover_label.config(text="")
 
     def _load_data(self):
-        """Load rates data from history - fast loading."""
+        """Load rates data from history - instant table view."""
         from history import get_rates_table_data, get_fixing_table_data
-
-        # Ensure loading message is visible
-        self.update_idletasks()
 
         # Load data from JSON (fast)
         contrib = get_rates_table_data(limit=500)
@@ -1035,22 +1038,15 @@ class TrendPopup(tk.Toplevel):
         # Mark data as loaded
         self._data_loaded = True
 
-        # Initialize chart now (deferred from __init__ for faster popup)
-        if not self._chart_initialized:
-            self._loading_frame.destroy()
-            self._setup_light_chart()
-            self._chart_initialized = True
-
-        # Draw chart with data
-        self._redraw_chart()
-
-        # Pre-build table for instant switching
+        # Build table immediately (fast!)
         self._populate_table()
 
         # Update status
         contrib_count = len(self._contrib_data)
         fixing_count = len(self._fixing_data)
         self._status_label.config(text=f"Swedbank: {contrib_count}  ·  Fixing: {fixing_count} dates")
+
+        # Chart is lazy-loaded when user clicks Chart tab
 
     def _process_data(self, raw_data):
         """Normalize and process data."""
