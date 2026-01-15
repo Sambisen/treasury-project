@@ -16,8 +16,9 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING, get_logger
+    EXCEL_CM_RATES_MAPPING, get_logger, DEVELOPMENT_MODE
 )
+from nibor_file_manager import get_nibor_file_path, NiborFileManager
 
 log = get_logger("engines")
 from utils import copy_to_cache_fast, safe_float, to_date
@@ -159,11 +160,42 @@ class ExcelEngine:
             self._day_data_ready = True
 
     def resolve_latest_path(self):
+        """
+        Resolve the latest NIBOR fixing workbook path.
+
+        Uses dynamic lookup based on current date and DEVELOPMENT_MODE:
+        - DEVELOPMENT_MODE=True: Loads "_TEST" suffixed files
+        - DEVELOPMENT_MODE=False: Loads production files
+
+        Falls back to static RECON_FILE if dynamic lookup fails.
+        """
+        try:
+            # Use dynamic file lookup based on date and mode
+            mode = "TEST" if DEVELOPMENT_MODE else "PROD"
+            file_path = get_nibor_file_path(mode)
+
+            if file_path.exists():
+                self.current_folder_path = file_path.parent
+                self.current_year_loaded = file_path.parent.name
+                self.current_filename = file_path.name
+
+                mode_display = "TEST" if DEVELOPMENT_MODE else "PROD"
+                log.info(f"[ExcelEngine] Resolved NIBOR file ({mode_display}): {file_path.name}")
+                return file_path, "OK"
+
+        except FileNotFoundError as e:
+            log.warning(f"[ExcelEngine] Dynamic file lookup failed: {e}")
+        except Exception as e:
+            log.warning(f"[ExcelEngine] Error in dynamic file lookup: {e}")
+
+        # Fallback to static RECON_FILE
         if RECON_FILE.exists():
             self.current_folder_path = RECON_FILE.parent
             self.current_year_loaded = RECON_FILE.parent.name
             self.current_filename = RECON_FILE.name
+            log.info(f"[ExcelEngine] Using fallback RECON_FILE: {RECON_FILE.name}")
             return RECON_FILE, "OK"
+
         return None, "File Not Found"
 
     def load_weights_file(self) -> bool:

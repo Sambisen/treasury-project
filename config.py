@@ -26,9 +26,18 @@ def get_logger(name):
     return logging.getLogger(name)
 
 # ============================================================================
-# DEVELOPMENT MODE
+# DEVELOPMENT MODE - Controls TEST vs PRODUCTION file loading
 # ============================================================================
-DEVELOPMENT_MODE = False  # Set True for testing without Bloomberg/Excel
+# When DEVELOPMENT_MODE = True:
+#   - Loads NIBOR files with "_TEST" suffix (e.g., "Nibor fixing Q1 2026_TEST.xlsx")
+#   - Uses test history file (nibor_log_test.json)
+#
+# When DEVELOPMENT_MODE = False:
+#   - Loads production NIBOR files (e.g., "Nibor fixing Q1 2026.xlsx")
+#   - Uses production history file (nibor_log.json)
+#
+# Dynamic file lookup is handled by nibor_file_manager.py
+DEVELOPMENT_MODE = False
 
 # ============================================================================
 # NIBOR FIXING TICKERS (Bloomberg)
@@ -253,6 +262,10 @@ DAY_FILES = [
     DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2025.xlsx",
     DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2026.xlsx"
 ]
+
+# RECON_FILE: Static fallback path for NIBOR fixing workbook
+# NOTE: Dynamic file lookup is handled by nibor_file_manager.get_nibor_file()
+# This static path is used as fallback when dynamic lookup fails (e.g., in Codespaces)
 RECON_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
 
 # WEIGHTS (Monthly control)
@@ -262,8 +275,9 @@ WEIGHTS_FILE = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Weights.xlsx
 # CALCULATION MODEL PATHS & MAPPINGS
 # ============================================================================
 
-# Nibor fixing workbook for Swedbank Calc Model
-NIBOR_FIXING_WORKBOOK_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
+# Nibor fixing workbook for Swedbank Calc Model (static fallback)
+# NOTE: Use nibor_file_manager.get_nibor_file() for dynamic lookup
+NIBOR_FIXING_WORKBOOK_PATH = RECON_FILE  # Same as RECON_FILE
 
 # Weights file for dynamic weight loading
 WEIGHTS_FILE_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Vikter" / "Weights.xlsx"
@@ -417,8 +431,9 @@ EXCEL_CM_RATES_MAPPING = {
 CALC_MODEL_NORE = "nore"  # Nore Calculation (Bloomberg CM rates)
 CALC_MODEL_NIBOR = "nibor"  # Nibor Contribution (Excel Internal Basket rates) - DEFAULT
 
-# Nibor Contribution calculation model - Internal Basket Rates
-NIBOR_WORKBOOK_PATH = BASE_DIR / "Referensräntor" / "Nibor" / "Historik Nibor" / "2025" / "Nibor fixing Testing Workbook.xlsx"
+# Nibor Contribution calculation model - Internal Basket Rates (static fallback)
+# NOTE: Use nibor_file_manager.get_nibor_file() for dynamic lookup
+NIBOR_WORKBOOK_PATH = RECON_FILE  # Same as RECON_FILE
 
 INTERNAL_BASKET_MAPPING = {
     "EUR_1M": "M30",
