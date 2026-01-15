@@ -16,7 +16,7 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING, get_logger, DEVELOPMENT_MODE
+    EXCEL_CM_RATES_MAPPING, get_logger
 )
 from nibor_file_manager import get_nibor_file_path, NiborFileManager
 
@@ -163,23 +163,25 @@ class ExcelEngine:
         """
         Resolve the latest NIBOR fixing workbook path.
 
-        Uses dynamic lookup based on current date and DEVELOPMENT_MODE:
-        - DEVELOPMENT_MODE=True: Loads "_TEST" suffixed files
-        - DEVELOPMENT_MODE=False: Loads production files
+        Uses dynamic lookup based on current date and development_mode setting:
+        - development_mode=True: Loads "_TEST" suffixed files
+        - development_mode=False: Loads production files
 
         Falls back to static RECON_FILE if dynamic lookup fails.
         """
         try:
-            # Use dynamic file lookup based on date and mode
-            mode = "TEST" if DEVELOPMENT_MODE else "PROD"
-            file_path = get_nibor_file_path(mode)
+            # Use dynamic file lookup - get_nibor_file_path reads mode from settings
+            file_path = get_nibor_file_path()  # No mode arg = reads from settings
 
             if file_path.exists():
                 self.current_folder_path = file_path.parent
                 self.current_year_loaded = file_path.parent.name
                 self.current_filename = file_path.name
 
-                mode_display = "TEST" if DEVELOPMENT_MODE else "PROD"
+                # Get mode for logging
+                from settings import get_setting
+                dev_mode = get_setting("development_mode", True)
+                mode_display = "TEST" if dev_mode else "PROD"
                 log.info(f"[ExcelEngine] Resolved NIBOR file ({mode_display}): {file_path.name}")
                 return file_path, "OK"
 
