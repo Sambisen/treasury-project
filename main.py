@@ -211,121 +211,77 @@ class NiborTerminalCTK(ctk.CTk):
         hpad = CURRENT_MODE["hpad"]
 
         # ====================================================================
-        # GLOBAL HEADER - Visible on ALL pages
+        # GLOBAL HEADER - Compact bar with UPDATE + Clock
         # ====================================================================
-        from PIL import Image, ImageTk
-
         global_header = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
-        global_header.pack(fill="x", padx=hpad, pady=(hpad, 5))
+        global_header.pack(fill="x", padx=hpad, pady=(8, 0))
 
-        # --- LEFT: Swedbank header image ---
-        header_left = ctk.CTkFrame(global_header, fg_color="transparent")
-        header_left.pack(side="left", anchor="n")
-
-        image_path = r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Swed.png"
-
-        if os.path.exists(image_path):
-            try:
-                img = Image.open(image_path)
-                target_width = 350
-                aspect_ratio = img.height / img.width
-                target_height = int(target_width * aspect_ratio)
-                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-
-                ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=(target_width, target_height))
-                img_label = ctk.CTkLabel(header_left, image=ctk_image, text="")
-                img_label.pack(anchor="w")
-                log.info(f"Global Swedbank header loaded: {target_width}x{target_height}px")
-            except Exception as e:
-                log.warning(f"Failed to load Swedbank header: {e}")
-                ctk.CTkLabel(header_left, text="ONYX TERMINAL",
-                            text_color=THEME["text"],
-                            font=("Segoe UI", 24, "bold")).pack()
-        else:
-            log.warning(f"Image not found: {image_path}")
-            ctk.CTkLabel(header_left, text="ONYX TERMINAL",
-                        text_color=THEME["text"],
-                        font=("Segoe UI", 24, "bold")).pack()
-
-        # ====================================================================
-        # RIGHT SECTION: UPDATE button + Professional clock
-        # ====================================================================
+        # Header content container - right aligned
         header_right = ctk.CTkFrame(global_header, fg_color="transparent")
-        header_right.pack(side="right", padx=(0, 20))
+        header_right.pack(side="right")
 
-        # UPDATE button (to the left of clock) - Modern CTk button
+        # UPDATE button - compact
         self.header_update_btn = ctk.CTkButton(
             header_right,
             text="UPDATE",
             command=self.refresh_data,
             fg_color=THEME["accent"],
             hover_color=THEME["accent_hover"],
-            text_color=THEME["bg_panel"],
-            font=("Segoe UI Semibold", 12),
-            corner_radius=CTK_CORNER_RADIUS["button"],
-            width=120,
-            height=40
+            text_color="white",
+            font=("Segoe UI Semibold", 11),
+            corner_radius=8,
+            width=90,
+            height=32
         )
-        self.header_update_btn.pack(side="left", padx=(0, 20), pady=10)
+        self.header_update_btn.pack(side="left", padx=(0, 12))
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
-        # PROFESSIONAL CLOCK - Rightmost corner (Modern rounded frame)
+        # COMPACT CLOCK - Inline time + fixing countdown
         # ====================================================================
         clock_frame = ctk.CTkFrame(header_right, fg_color=THEME["bg_card"],
-                                   corner_radius=CTK_CORNER_RADIUS["frame"],
+                                   corner_radius=8,
                                    border_width=1, border_color=THEME["border"])
         clock_frame.pack(side="right")
 
         clock_inner = ctk.CTkFrame(clock_frame, fg_color="transparent")
-        clock_inner.pack(padx=20, pady=12)
+        clock_inner.pack(padx=12, pady=6)
 
-        # Left side: Time and date
+        # Time section - compact
         time_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        time_section.pack(side="left", padx=(0, 15))
+        time_section.pack(side="left", padx=(0, 8))
 
-        # Small label "LOCAL TIME"
-        ctk.CTkLabel(time_section, text="LOCAL TIME",
-                    text_color=THEME["muted"],
-                    font=("Segoe UI", 8)).pack(anchor="center")
-
-        # Time display - unified size
         self._header_clock_time = ctk.CTkLabel(time_section, text="--:--:--",
-                                               text_color=THEME["accent"],
-                                               font=("Consolas", 22, "bold"))
-        self._header_clock_time.pack(anchor="center")
+                                               text_color=THEME["text"],
+                                               font=("Consolas", 14, "bold"))
+        self._header_clock_time.pack(side="left")
 
-        # Date label below time
         self._header_clock_date = ctk.CTkLabel(time_section, text="",
-                                               text_color=THEME["muted"],
+                                               text_color=THEME["text_muted"],
                                                font=("Segoe UI", 9))
-        self._header_clock_date.pack(anchor="center")
+        self._header_clock_date.pack(side="left", padx=(8, 0))
 
-        # Vertical separator
-        sep_frame = ctk.CTkFrame(clock_inner, fg_color="transparent", width=1)
-        sep_frame.pack(side="left", padx=10, fill="y")
-        ctk.CTkFrame(sep_frame, fg_color=THEME["border"], width=1, height=60).pack(fill="y", expand=True, pady=5)
+        # Separator
+        ctk.CTkFrame(clock_inner, fg_color=THEME["border"], width=1, height=20).pack(side="left", padx=10)
 
-        # Right side: NIBOR Fixing countdown
+        # NIBOR Fixing section - compact
         nibor_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        nibor_section.pack(side="left", padx=(15, 0))
+        nibor_section.pack(side="left", padx=(8, 0))
 
-        # NIBOR Fixing label
-        ctk.CTkLabel(nibor_section, text="NIBOR FIXING",
-                    text_color=THEME["muted"],
-                    font=("Segoe UI", 8)).pack(anchor="center")
+        ctk.CTkLabel(nibor_section, text="FIXING",
+                    text_color=THEME["text_muted"],
+                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 6))
 
-        # Fixing countdown - same size as clock
         self._nibor_fixing_status = ctk.CTkLabel(nibor_section, text="--:--:--",
-                                                 text_color=THEME["accent_secondary"],
-                                                 font=("Consolas", 22, "bold"))
-        self._nibor_fixing_status.pack(anchor="center")
+                                                 text_color=THEME["accent"],
+                                                 font=("Consolas", 14, "bold"))
+        self._nibor_fixing_status.pack(side="left")
 
-        # Fixing indicator text
+        # Fixing indicator (shown inline)
         self._nibor_fixing_indicator = ctk.CTkLabel(nibor_section, text="",
-                                                    text_color=THEME["muted"],
+                                                    text_color=THEME["text_muted"],
                                                     font=("Segoe UI", 9))
-        self._nibor_fixing_indicator.pack(anchor="center")
+        self._nibor_fixing_indicator.pack(side="left", padx=(6, 0))
 
         # Start the header clock update
         self._update_header_clock()
@@ -336,29 +292,29 @@ class NiborTerminalCTK(ctk.CTk):
         self._build_status_bar()
 
         # ====================================================================
-        # BODY with Command Center Sidebar + Content
+        # BODY with Command Center Sidebar + Content - tighter spacing
         # ====================================================================
         self.body = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
-        self.body.pack(fill="both", expand=True, padx=hpad, pady=(0, 5))
+        self.body.pack(fill="both", expand=True, padx=hpad, pady=(4, 5))
 
         # Configure grid layout: sidebar (0) | separator (1) | content (2)
-        self.body.grid_columnconfigure(0, weight=0, minsize=220)  # Sidebar fixed
+        self.body.grid_columnconfigure(0, weight=0, minsize=200)  # Sidebar fixed
         self.body.grid_columnconfigure(1, weight=0, minsize=3)    # Separator fixed
         self.body.grid_columnconfigure(2, weight=1)               # Content expandable
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - ALWAYS VISIBLE (Modern rounded design)
+        # COMMAND CENTER SIDEBAR - Compact design
         # ====================================================================
-        sidebar = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=220,
+        sidebar = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=200,
                                corner_radius=CTK_CORNER_RADIUS["frame"])
         sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         sidebar.grid_propagate(False)
 
-        # Sidebar title
+        # Sidebar title - smaller
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
-                    text_color=THEME["text_light"],
-                    font=("Segoe UI Semibold", 21)).pack(anchor="w", padx=20, pady=(20, 15))
+                    text_color=THEME["text_muted"],
+                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=16, pady=(12, 8))
 
         # Navigation buttons with line-art icons (icon, name, page_class)
         self.PAGES_CONFIG = [
@@ -380,8 +336,8 @@ class NiborTerminalCTK(ctk.CTk):
         active_bg = "#1E1714"  # Approximation of orange 10% on dark navy
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
-            # Container frame - 44px height as per spec
-            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=44)
+            # Container frame - compact 36px height
+            btn_container = ctk.CTkFrame(sidebar, fg_color="transparent", height=36)
             btn_container.pack(fill="x", pady=0)
             btn_container.pack_propagate(False)
 
@@ -389,17 +345,17 @@ class NiborTerminalCTK(ctk.CTk):
             indicator = ctk.CTkFrame(btn_container, fg_color="transparent", width=3, corner_radius=0)
             indicator.pack(side="left", fill="y")
 
-            # Icon label (20x20px area, 16px gap to text)
+            # Icon label
             icon_label = ctk.CTkLabel(
                 btn_container,
                 text=icon,
                 text_color=THEME["muted"],
-                font=("Segoe UI", 14),
-                width=24
+                font=("Segoe UI", 12),
+                width=20
             )
-            icon_label.pack(side="left", padx=(12, 12))
+            icon_label.pack(side="left", padx=(10, 8))
 
-            # Text button
+            # Text button - smaller font
             btn = ctk.CTkButton(
                 btn_container,
                 text=page_name,
@@ -407,10 +363,10 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=hover_color,
                 text_color=THEME["text"],
-                font=("Segoe UI", 14),
+                font=("Segoe UI", 11),
                 anchor="w",
                 corner_radius=0,
-                height=44
+                height=36
             )
             btn.pack(side="left", fill="x", expand=True)
 
@@ -424,14 +380,14 @@ class NiborTerminalCTK(ctk.CTk):
             }
 
         # Divider
-        ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=20, pady=15)
+        ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=10)
 
-        # Quick Access
+        # Quick Access - matching smaller header
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
-                    text_color=THEME["text_light"],
-                    font=("Segoe UI Semibold", 21)).pack(anchor="w", padx=20, pady=(0, 10))
+                    text_color=THEME["text_muted"],
+                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=16, pady=(0, 6))
 
-        # History folder button
+        # History folder button - matching size
         history_btn = ctk.CTkButton(
             sidebar,
             text="📂  History",
@@ -439,14 +395,14 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 14),
+            font=("Segoe UI", 11),
             anchor="w",
-            corner_radius=6,
-            height=44
+            corner_radius=4,
+            height=36
         )
-        history_btn.pack(fill="x", padx=12, pady=2)
+        history_btn.pack(fill="x", padx=10, pady=1)
 
-        # GRSS folder button
+        # GRSS folder button - matching size
         grss_btn = ctk.CTkButton(
             sidebar,
             text="📂  GRSS",
@@ -454,12 +410,12 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=THEME["bg_nav_sel"],
             text_color=THEME["muted"],
-            font=("Segoe UI", 14),
+            font=("Segoe UI", 11),
             anchor="w",
-            corner_radius=6,
-            height=44
+            corner_radius=4,
+            height=36
         )
-        grss_btn.pack(fill="x", padx=12, pady=2)
+        grss_btn.pack(fill="x", padx=10, pady=1)
 
         # Spacer
         ctk.CTkFrame(sidebar, fg_color="transparent").pack(fill="both", expand=True)

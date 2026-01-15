@@ -100,13 +100,13 @@ class DashboardPage(BaseFrame):
         # ====================================================================
 
         # ====================================================================
-        # DASHBOARD CONTENT (CTk if available)
+        # DASHBOARD CONTENT (CTk if available) - Aligned with sidebar
         # ====================================================================
         if CTK_AVAILABLE:
             content = ctk.CTkFrame(self, fg_color="transparent")
         else:
             content = tk.Frame(self, bg=THEME["bg_panel"])
-        content.pack(fill="both", expand=True, padx=20, pady=20)
+        content.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
         # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
@@ -117,7 +117,7 @@ class DashboardPage(BaseFrame):
 
         # Outer wrapper for accent border effect (left accent stripe)
         card_wrapper = tk.Frame(content, bg=THEME["accent"])
-        card_wrapper.pack(fill="both", expand=True, pady=(16, 0))
+        card_wrapper.pack(fill="both", expand=True, pady=(0, 0))
 
         # Main card container with white surface
         if CTK_AVAILABLE:
