@@ -57,9 +57,9 @@ class ToolTip:
             self.tooltip_window.wm_overrideredirect(True)
             self.tooltip_window.wm_geometry(f"+{x}+{y}")
             label = tk.Label(
-                self.tooltip_window, 
+                self.tooltip_window,
                 text=text,
-                background="#2A2A2A",
+                background=THEME["bg_card"],
                 foreground=THEME["accent"],
                 relief="solid",
                 borderwidth=1,
@@ -181,8 +181,8 @@ class DashboardPage(BaseFrame):
         # ================================================================
         # TABLE HEADER - Grey text on transparent background
         # ================================================================
-        header_text_color = "#8B92A8"  # Grey header text
-        row_separator_color = "#1A1F2E"  # rgba(255,255,255,0.05) approximation
+        header_text_color = THEME["muted"]  # Grey header text
+        row_separator_color = THEME["border"]  # Subtle border color
 
         # ROW 2: Main headers - grey text, transparent bg
         headers = [
@@ -351,7 +351,7 @@ class DashboardPage(BaseFrame):
                 command=self._on_confirm_rates,
                 fg_color=THEME["accent"],
                 hover_color=THEME["accent_hover"],
-                text_color="#FFFFFF",
+                text_color="white",
                 font=("Segoe UI Semibold", 13),
                 corner_radius=12,
                 width=200,
@@ -428,7 +428,7 @@ class DashboardPage(BaseFrame):
             alerts_header.pack(fill="x", pady=(0, 12))
             ctk.CTkLabel(alerts_header, text="⚠", text_color=THEME["warning"],
                         font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
-            ctk.CTkLabel(alerts_header, text="ACTIVE ALERTS", text_color="#8B92A8",
+            ctk.CTkLabel(alerts_header, text="ACTIVE ALERTS", text_color=THEME["muted"],
                         font=("Segoe UI Semibold", 10)).pack(side="left")
         else:
             alerts_header = tk.Frame(alerts_container, bg=THEME["bg_panel"])
@@ -582,14 +582,14 @@ class DashboardPage(BaseFrame):
 
         # Mode indicator/button - cleaner design
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
 
         self._mode_btn = ctk.CTkButton(
             mode_frame,
             text=mode_text,
             fg_color=mode_color,
-            hover_color="#1C1C1E",
-            text_color="#FFFFFF",
+            hover_color=THEME["bg_hover"],
+            text_color="white",
             font=("Segoe UI Semibold", 12, "bold"),
             width=70,
             height=30,
@@ -610,12 +610,12 @@ class DashboardPage(BaseFrame):
 
         # Mode indicator/button - cleaner pill design
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
 
         self._mode_btn = tk.Label(
             mode_frame,
             text=f"  {mode_text}  ",
-            fg="#FFFFFF",
+            fg="white",
             bg=mode_color,
             font=("Segoe UI Semibold", 11, "bold"),
             cursor="hand2",
@@ -624,7 +624,7 @@ class DashboardPage(BaseFrame):
         )
         self._mode_btn.pack(side="left")
         self._mode_btn.bind("<Button-1>", lambda e: self._toggle_data_mode())
-        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg="#1C1C1E"))
+        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg=THEME["bg_hover"]))
         self._mode_btn.bind("<Leave>", lambda e: self._update_mode_button_color())
 
     def _toggle_data_mode(self):
@@ -661,7 +661,7 @@ class DashboardPage(BaseFrame):
         dev_mode = settings.get("development_mode", True)
 
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = "#FF9500" if dev_mode else "#34C759"  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
 
         if hasattr(self, '_mode_btn'):
             if CTK_AVAILABLE and isinstance(self._mode_btn, ctk.CTkButton):
@@ -702,7 +702,7 @@ class DashboardPage(BaseFrame):
         header_frame = tk.Frame(popup, bg=THEME["bg_card"])
         header_frame.pack(fill="x", padx=0, pady=0)
 
-        status_color = "#00C853" if data.get('all_matched') else "#FF3B30"
+        status_color = THEME["good"] if data.get('all_matched') else THEME["bad"]
         status_text = "✓ ALL MATCHED" if data.get('all_matched') else "✗ MISMATCH FOUND"
 
         tk.Label(header_frame,
@@ -750,7 +750,7 @@ class DashboardPage(BaseFrame):
             # Status indicator
             match_status = criterion.get('matched', False)
             status_icon = "✓" if match_status else "✗"
-            status_fg = "#00C853" if match_status else "#FF3B30"
+            status_fg = THEME["good"] if match_status else THEME["bad"]
 
             # Header row
             header_row = tk.Frame(card, bg=THEME["bg_card"])
@@ -1085,12 +1085,12 @@ class DashboardPage(BaseFrame):
             # Pill badge colors
             if is_ok:
                 icon = "✓"
-                text_color = "#00C853"  # Green
-                bg_color = "#1A3320"    # Dark green bg
+                text_color = THEME["good"]  # Green
+                bg_color = "#DCFCE7"    # Light green bg
             else:
                 icon = "✗"
-                text_color = "#FF3B30"  # Red
-                bg_color = "#3D1F1F"    # Dark red bg
+                text_color = THEME["bad"]  # Red
+                bg_color = "#FEE2E2"    # Light red bg
 
             # Create pill-shaped badge
             if CTK_AVAILABLE:
@@ -1461,24 +1461,24 @@ class DashboardPage(BaseFrame):
                 if all_matched and match_details['criteria']:
                     # Matched - Green pill badge
                     if is_ctk_widget:
-                        badge.configure(fg_color="#1A3320")
-                        lbl.configure(text="✓ Matched", text_color="#00C853")
+                        badge.configure(fg_color="#DCFCE7")
+                        lbl.configure(text="✓ Matched", text_color=THEME["good"])
                     else:
-                        lbl.config(text="✓ Matched", fg="#00C853", bg="#1A3320",
+                        lbl.config(text="✓ Matched", fg=THEME["good"], bg="#DCFCE7",
                                   font=("Segoe UI Semibold", 10))
                         if badge:
-                            badge.config(bg="#1A3320")
+                            badge.config(bg="#DCFCE7")
                     self._stop_blink(lbl)
                 elif errors:
                     # Failed - Red pill badge
                     if is_ctk_widget:
-                        badge.configure(fg_color="#3D1F1F")
-                        lbl.configure(text="✗ Failed", text_color="#FF3B30")
+                        badge.configure(fg_color="#FEE2E2")
+                        lbl.configure(text="✗ Failed", text_color=THEME["bad"])
                     else:
-                        lbl.config(text="✗ Failed", fg="#FF3B30", bg="#3D1F1F",
+                        lbl.config(text="✗ Failed", fg=THEME["bad"], bg="#FEE2E2",
                                   font=("Segoe UI Semibold", 10))
                         if badge:
-                            badge.config(bg="#3D1F1F")
+                            badge.config(bg="#FEE2E2")
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
@@ -1570,11 +1570,11 @@ class DashboardPage(BaseFrame):
         if not messages:
             # All OK - show success card
             if CTK_AVAILABLE:
-                success_card = ctk.CTkFrame(self.alerts_scroll_frame, fg_color="#1A3320",
+                success_card = ctk.CTkFrame(self.alerts_scroll_frame, fg_color="#DCFCE7",
                                            corner_radius=6)
                 success_card.pack(fill="x", padx=10, pady=30)
                 ctk.CTkLabel(success_card, text="✓ All Controls OK",
-                            text_color="#00C853",
+                            text_color=THEME["good"],
                             font=("Segoe UI Semibold", 12)).pack(pady=20)
             else:
                 tk.Label(self.alerts_scroll_frame, text="✓ All Controls OK",
@@ -1595,11 +1595,11 @@ class DashboardPage(BaseFrame):
                 # Set colors based on priority
                 if priority == "warning":
                     border_color = THEME["warning"]
-                    bg_color = "#3D3520"  # Dark amber/orange bg
+                    bg_color = "#FEF3C7"  # Light amber bg
                     icon_text = "⚠"
                 else:  # critical
                     border_color = THEME["bad"]
-                    bg_color = "#3D1F1F"  # Dark red bg rgba(255,59,48,0.1)
+                    bg_color = "#FEE2E2"  # Light red bg
                     icon_text = "✗"
 
                 # Card container with left border effect
@@ -2928,7 +2928,7 @@ class HistoryPage(tk.Frame):
             items = self.table.tree.get_children()
             if items:
                 # Configure orange tag for highlighting
-                self.table.tree.tag_configure("search_match", background="#FF8C00", foreground="white")
+                self.table.tree.tag_configure("search_match", background=THEME["accent"], foreground="white")
                 self.table.tree.item(items[0], tags=("search_match",))
                 self.table.tree.selection_set(items[0])
                 self._show_snapshot_detail(table_data[0]['date'])
@@ -3701,10 +3701,10 @@ class AuditLogPage(tk.Frame):
         self._stats_labels = {}
         stats_config = [
             ("total", "📊 Total:", THEME["text"]),
-            ("info", "ℹ️ Info:", "#3b82f6"),
-            ("warning", "⚠️ Warnings:", "#f59e0b"),
-            ("error", "❌ Errors:", "#ef4444"),
-            ("action", "✓ Actions:", "#4ade80"),
+            ("info", "ℹ️ Info:", "#2563EB"),  # Blue
+            ("warning", "⚠️ Warnings:", THEME["warning"]),
+            ("error", "❌ Errors:", THEME["bad"]),
+            ("action", "✓ Actions:", THEME["good"]),
         ]
 
         for key, label, color in stats_config:
@@ -3885,8 +3885,8 @@ class AuditLogPage(tk.Frame):
     def _trigger_live_pulse(self):
         """Trigger the live indicator to pulse."""
         self._live_indicator_state = True
-        self._live_dot.config(fg="#4ade80")
-        self._live_label.config(fg="#4ade80")
+        self._live_dot.config(fg=THEME["good"])
+        self._live_label.config(fg=THEME["good"])
 
         # Reset after 500ms
         self.after(500, self._reset_live_indicator)
@@ -3894,11 +3894,11 @@ class AuditLogPage(tk.Frame):
     def _reset_live_indicator(self):
         """Reset live indicator to idle state."""
         if not self._auto_scroll:
-            self._live_dot.config(fg="#f59e0b")
-            self._live_label.config(fg="#f59e0b", text="PAUSED")
+            self._live_dot.config(fg=THEME["warning"])
+            self._live_label.config(fg=THEME["warning"], text="PAUSED")
         else:
-            self._live_dot.config(fg="#666666")
-            self._live_label.config(fg="#666666", text="LIVE")
+            self._live_dot.config(fg=THEME["muted"])
+            self._live_label.config(fg=THEME["muted"], text="LIVE")
 
     def _pulse_live_indicator(self):
         """Periodic pulse for live indicator."""
@@ -4004,12 +4004,12 @@ class AuditLogPage(tk.Frame):
         self._auto_scroll = not self._auto_scroll
         if self._auto_scroll:
             self._pause_btn.config(text="⏸ Pause")
-            self._live_label.config(text="LIVE", fg="#666666")
-            self._live_dot.config(fg="#666666")
+            self._live_label.config(text="LIVE", fg=THEME["muted"])
+            self._live_dot.config(fg=THEME["muted"])
         else:
             self._pause_btn.config(text="▶ Resume")
-            self._live_label.config(text="PAUSED", fg="#f59e0b")
-            self._live_dot.config(fg="#f59e0b")
+            self._live_label.config(text="PAUSED", fg=THEME["warning"])
+            self._live_dot.config(fg=THEME["warning"])
 
     def _clear_search(self):
         """Clear search field."""
@@ -4377,7 +4377,7 @@ class SettingsPage(tk.Frame):
         footer.pack(fill="x", padx=pad, pady=(10, pad))
 
         # Unsaved changes indicator
-        self._unsaved_label = tk.Label(footer, text="", fg="#f59e0b",
+        self._unsaved_label = tk.Label(footer, text="", fg=THEME["warning"],
                                        bg=THEME["bg_panel"], font=("Segoe UI", 9))
         self._unsaved_label.pack(side="left")
 
@@ -4522,7 +4522,7 @@ class SettingsPage(tk.Frame):
                 toggle_frame.config(bg=THEME["accent"])
                 knob.place(x=22, y=2)
             else:
-                toggle_frame.config(bg="#3d3d54")
+                toggle_frame.config(bg=THEME["border"])
                 knob.place(x=2, y=2)
             on_toggle()
 

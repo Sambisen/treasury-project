@@ -110,17 +110,17 @@ class TrendChart(tk.Frame):
         # Swedbank checkbox (Orange line)
         swedbank_cb = tk.Checkbutton(source_frame, text="Swedbank",
                                      variable=self._show_contrib_var,
-                                     bg=THEME["bg_card"], fg="#EE7623",
+                                     bg=THEME["bg_card"], fg=THEME["accent"],
                                      selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
-                                     activeforeground="#EE7623", font=("Segoe UI", 10, "bold"))
+                                     activeforeground=THEME["accent"], font=("Segoe UI", 10, "bold"))
         swedbank_cb.pack(side="left", padx=4)
 
-        # Fixing checkbox (Black line)
+        # Fixing checkbox (Dark text line)
         fixing_cb = tk.Checkbutton(source_frame, text="Fixing",
                                    variable=self._show_fixing_var,
-                                   bg=THEME["bg_card"], fg="#000000",
+                                   bg=THEME["bg_card"], fg=THEME["text"],
                                    selectcolor=THEME["bg_card"], activebackground=THEME["bg_card"],
-                                   activeforeground="#000000", font=("Segoe UI", 10, "bold"))
+                                   activeforeground=THEME["text"], font=("Segoe UI", 10, "bold"))
         fixing_cb.pack(side="left", padx=4)
 
         # --- CENTER: Time Range Buttons ---
@@ -311,7 +311,7 @@ class TrendChart(tk.Frame):
                     valid_points = [r for r in rates if not math.isnan(r)]
                     if valid_points:
                         label = f"Swedbank {tenor.upper()}"
-                        self.ax.plot(dates, rates, color='#EE7623', linewidth=2, label=label)
+                        self.ax.plot(dates, rates, color=THEME["accent"], linewidth=2, label=label)
                         has_lines = True
 
         # 5. Plot Fixing data (Black line)
@@ -330,7 +330,7 @@ class TrendChart(tk.Frame):
                     valid_points = [r for r in rates if not math.isnan(r)]
                     if valid_points:
                         label = f"Fixing {tenor.upper()}"
-                        self.ax.plot(dates, rates, color='#000000', linewidth=2, label=label)
+                        self.ax.plot(dates, rates, color=THEME["text"], linewidth=2, label=label)
                         has_lines = True
 
         if not has_lines:

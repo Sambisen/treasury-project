@@ -77,7 +77,7 @@ class NiborButtonTK(tk.Button):
         elif variant == "danger":
             bg = THEME["bad"]
             fg = THEME["bg_panel"]
-            activebg = "#FF5252"
+            activebg = "#EF4444"
             activefg = THEME["bg_panel"]
         else:
             bg = THEME["bg_card_2"]
@@ -364,13 +364,13 @@ class DataTableTree(tk.Frame):
             self.tree.column(col, width=int(self.col_widths[i]), anchor="center", stretch=False)
 
         self.tree.tag_configure("section", background=THEME["bg_card_2"], foreground=THEME["accent"])
-        self.tree.tag_configure("bad", background="#3D1F1F", foreground=THEME["bad"])
-        self.tree.tag_configure("good", background="#1F3D2D", foreground=THEME["good"])
-        self.tree.tag_configure("warn", background="#3D3520", foreground=THEME["warning"])
-        self.tree.tag_configure("yellow", background="#3D3520", foreground=THEME["warning"])
+        self.tree.tag_configure("bad", background="#FEE2E2", foreground=THEME["bad"])
+        self.tree.tag_configure("good", background="#DCFCE7", foreground=THEME["good"])
+        self.tree.tag_configure("warn", background="#FEF3C7", foreground=THEME["warning"])
+        self.tree.tag_configure("yellow", background="#FEF3C7", foreground=THEME["warning"])
         self.tree.tag_configure("normal_even", background=THEME["row_even"], foreground=THEME["text"])
         self.tree.tag_configure("normal_odd", background=THEME["row_odd"], foreground=THEME["text"])
-        self.tree.tag_configure("active", background="#3D2D1F", foreground=THEME["accent"])
+        self.tree.tag_configure("active", background="#FFF7ED", foreground=THEME["accent"])
 
         self.tree.pack(side="left", fill="both", expand=True, padx=10, pady=10)
         self.vsb.pack(side="right", fill="y", padx=(0, 10), pady=10)
@@ -473,9 +473,9 @@ class ConnectionStatusIndicator(tk.Frame):
         colors = {
             self.DISCONNECTED: {"dot": THEME["muted"], "text": "--", "bg": THEME["bg_card"]},
             self.CONNECTING: {"dot": THEME["warning"], "text": "...", "bg": THEME["bg_card_2"]},
-            self.CONNECTED: {"dot": THEME["good"], "text": "OK", "bg": "#1F3D2D"},
-            self.ERROR: {"dot": THEME["bad"], "text": "ERR", "bg": "#3D1F1F"},
-            self.STALE: {"dot": THEME["warning"], "text": "OLD", "bg": "#3D3520"},
+            self.CONNECTED: {"dot": THEME["good"], "text": "OK", "bg": "#DCFCE7"},
+            self.ERROR: {"dot": THEME["bad"], "text": "ERR", "bg": "#FEE2E2"},
+            self.STALE: {"dot": THEME["warning"], "text": "OLD", "bg": "#FEF3C7"},
         }
         style = colors.get(status, colors[self.DISCONNECTED])
 

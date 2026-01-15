@@ -87,80 +87,80 @@ FUNDING_SPREADS = {
 APP_VERSION = "4.0.0-ctk"  # CustomTkinter version
 
 # ==============================================================================
-#  NORDIC DARK FINANCIAL TERMINAL THEME
+#  NORDIC LIGHT FINANCIAL TERMINAL THEME
 # ==============================================================================
 THEME = {
-    # Primary Backgrounds - Dark Navy
-    "bg_panel": "#0A0E1A",           # Main background - dark navy
-    "bg_card": "#141B2D",            # Card/container background
-    "bg_card_2": "#1E2738",          # Alternate/elevated background
-    "bg_hover": "#252D3F",           # Hover state
+    # Primary Backgrounds - Light Nordic
+    "bg_panel": "#F6F7F9",           # Main background - soft gray
+    "bg_card": "#FFFFFF",            # Card/container background - white
+    "bg_card_2": "#F0F2F5",          # Alternate/elevated background
+    "bg_hover": "#E8ECF0",           # Hover state
 
     # Swedbank Brand Colors
-    "accent": "#EE7623",             # Swedbank orange - primary actions
-    "accent_secondary": "#D86614",   # Darker orange
-    "accent_hover": "#FF8A3D",       # Lighter orange for hover
+    "accent": "#F57C00",             # Swedbank orange - primary actions
+    "accent_secondary": "#E65100",   # Darker orange
+    "accent_hover": "#FF9800",       # Lighter orange for hover
 
-    # Text - Light on dark
-    "text": "#E8EBF0",               # Primary text - light grey-white
-    "muted": "#8B92A8",              # Secondary text - muted
-    "text_light": "#5A6178",         # Tertiary text - dimmed
+    # Text - Dark on light
+    "text": "#1A1A2E",               # Primary text - dark navy
+    "muted": "#6B7280",              # Secondary text - gray
+    "text_light": "#9CA3AF",         # Tertiary text - light gray
 
     # Status Colors
-    "good": "#00C853",               # Success green (vibrant)
-    "warning": "#FFB300",            # Amber warning
-    "bad": "#FF3B30",                # Error red (vibrant)
-    "pending": "#FFB300",            # Pending amber
+    "good": "#16A34A",               # Success green
+    "warning": "#F59E0B",            # Amber warning
+    "bad": "#DC2626",                # Error red
+    "pending": "#F59E0B",            # Pending amber
 
     # UI Elements
-    "border": "#2A3447",             # Subtle dark border
-    "border_focus": "#EE7623",       # Focused border (Swedbank orange)
-    "chip": "#1E2738",               # Chip/badge background
-    "chip2": "#252D3F",              # Hover chip background
+    "border": "#E5E7EB",             # Subtle light border
+    "border_focus": "#F57C00",       # Focused border (Swedbank orange)
+    "chip": "#F3F4F6",               # Chip/badge background
+    "chip2": "#E5E7EB",              # Hover chip background
 
     # Shadows (CSS-style strings for reference)
-    "shadow_sm": "0 2px 4px rgba(0,0,0,0.3)",
-    "shadow_md": "0 4px 8px rgba(0,0,0,0.4)",
-    "shadow_lg": "0 8px 16px rgba(0,0,0,0.5)",
+    "shadow_sm": "0 1px 2px rgba(0,0,0,0.05)",
+    "shadow_md": "0 4px 6px rgba(0,0,0,0.07)",
+    "shadow_lg": "0 10px 15px rgba(0,0,0,0.1)",
 
-    # Legacy/compatibility (mapped to dark theme)
-    "bg_main": "#0A0E1A",
-    "bg_nav": "#0F1623",
-    "bg_nav_sel": "#1E2738",
-    "border_2": "#3A4557",
-    "text_secondary": "#8B92A8",
-    "muted2": "#5A6178",
-    "accent2": "#FF8A3D",
-    "warn": "#FFB300",
-    "yellow": "#FFD54F",
-    "shadow": "#000000",
-    "row_even": "#141B2D",
-    "row_odd": "#0F1623",
-    "row_hover": "#252D3F",
-    "tree_sel_bg": "#2A3447",
+    # Legacy/compatibility (mapped to light theme)
+    "bg_main": "#F6F7F9",
+    "bg_nav": "#FFFFFF",
+    "bg_nav_sel": "#FFF3E0",         # Light orange tint for selected nav
+    "border_2": "#D1D5DB",
+    "text_secondary": "#6B7280",
+    "muted2": "#9CA3AF",
+    "accent2": "#FF9800",
+    "warn": "#F59E0B",
+    "yellow": "#FBBF24",
+    "shadow": "#00000010",
+    "row_even": "#FFFFFF",
+    "row_odd": "#F9FAFB",
+    "row_hover": "#FFF7ED",          # Light orange tint on hover
+    "tree_sel_bg": "#FFF3E0",        # Light orange selection
 
     # Badge colors for status indicators
-    "badge_ok": "#00C853",
-    "badge_fail": "#FF3B30",
-    "badge_warn": "#FFB300",
-    "badge_pend": "#5A6178",
+    "badge_ok": "#16A34A",
+    "badge_fail": "#DC2626",
+    "badge_warn": "#F59E0B",
+    "badge_pend": "#9CA3AF",
 
     # Table specific
-    "table_header": "#0F1623",
-    "table_border": "#2A3447",
+    "table_header": "#F9FAFB",
+    "table_border": "#E5E7EB",
 
     # CustomTkinter specific
-    "ctk_button": "#EE7623",
-    "ctk_button_hover": "#FF8A3D",
-    "ctk_entry_bg": "#1E2738",
-    "ctk_entry_border": "#2A3447",
+    "ctk_button": "#F57C00",
+    "ctk_button_hover": "#FF9800",
+    "ctk_entry_bg": "#FFFFFF",
+    "ctk_entry_border": "#E5E7EB",
 }
 
 # ==============================================================================
 #  CUSTOMTKINTER CONFIGURATION
 # ==============================================================================
-CTK_APPEARANCE = "dark"  # "dark", "light", or "system"
-CTK_COLOR_THEME = "dark-blue"  # Default theme, we override with custom colors
+CTK_APPEARANCE = "light"  # "dark", "light", or "system"
+CTK_COLOR_THEME = "blue"  # Default theme, we override with custom colors
 
 # Corner radius for CTk widgets
 CTK_CORNER_RADIUS = {
