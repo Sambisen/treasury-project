@@ -14,7 +14,7 @@ except ImportError:
     CTK_AVAILABLE = False
     ctk = None
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger, get_market_structure, get_ticker
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, RADII, get_logger, get_market_structure, get_ticker
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
@@ -112,108 +112,114 @@ class DashboardPage(BaseFrame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES TABLE - Dark Financial Terminal Theme (Modern CTk)
+        # NIBOR RATES CARD - Nordic Light Enterprise Design
         # ====================================================================
 
-        # Title row
+        # Main card container with white surface, subtle border, 12px radius
         if CTK_AVAILABLE:
-            title_frame = ctk.CTkFrame(content, fg_color="transparent")
-            title_frame.pack(anchor="center", pady=(20, 10))
-
-            ctk.CTkLabel(title_frame, text="NIBOR RATES",
-                        text_color=THEME["text"],
-                        font=FONTS["h2"]).pack(side="left")
-
-            # === DATA MODE TOGGLE (TEST/PROD) ===
-            self._create_mode_toggle_ctk(title_frame)
-
-            # History link as button
-            if MATPLOTLIB_AVAILABLE and TrendPopup:
-                history_btn = ctk.CTkButton(title_frame, text="View History →",
-                                           fg_color="transparent",
-                                           hover_color=THEME["bg_card_2"],
-                                           text_color=THEME["accent"],
-                                           font=FONTS["body_small"],
-                                           command=self._show_trend_popup,
-                                           width=100, height=24)
-                history_btn.pack(side="left", padx=(30, 0))
+            nibor_card = ctk.CTkFrame(
+                content,
+                fg_color=THEME["bg_card"],
+                corner_radius=RADII["card"],
+                border_width=1,
+                border_color=THEME["border"]
+            )
         else:
-            title_frame = tk.Frame(content, bg=THEME["bg_panel"])
-            title_frame.pack(anchor="center", pady=(20, 10))
-
-            tk.Label(title_frame, text="NIBOR RATES",
-                    fg=THEME["text"],
-                    bg=THEME["bg_panel"],
-                    font=FONTS["h2"]).pack(side="left")
-
-            # === DATA MODE TOGGLE (TEST/PROD) ===
-            self._create_mode_toggle_tk(title_frame)
-
-            if MATPLOTLIB_AVAILABLE and TrendPopup:
-                history_btn = tk.Label(title_frame, text="View History →",
-                                      fg=THEME["accent"], bg=THEME["bg_panel"],
-                                      font=FONTS["body_small"], cursor="hand2")
-                history_btn.pack(side="left", padx=(30, 0))
-                history_btn.bind("<Button-1>", lambda e: self._show_trend_popup())
-                history_btn.bind("<Enter>", lambda e: history_btn.config(fg=THEME["accent_hover"]))
-                history_btn.bind("<Leave>", lambda e: history_btn.config(fg=THEME["accent"]))
-
-        # Table container with dark background
-        if CTK_AVAILABLE:
-            table_container = ctk.CTkFrame(content, fg_color="transparent")
-        else:
-            table_container = tk.Frame(content, bg=THEME["bg_panel"])
-        table_container.pack(fill="both", expand=True, pady=(0, 15))
-
-        # Table frame with rounded corners (CTk) or border (tk)
-        if CTK_AVAILABLE:
-            table_frame = ctk.CTkFrame(table_container, fg_color=THEME["bg_card"],
-                                       corner_radius=CTK_CORNER_RADIUS["frame"],
-                                       border_width=1, border_color=THEME["table_border"])
-        else:
-            table_frame = tk.Frame(table_container, bg=THEME["table_border"])
-        table_frame.pack(anchor="center")
-
-        # Inner frame for table content (uses tk for grid layout compatibility)
-        funding_frame = tk.Frame(table_frame, bg=THEME["bg_card"])
-        funding_frame.pack(padx=10, pady=10)
-
-        # ================================================================
-        # TABLE HEADER - Grey text on transparent background
-        # ================================================================
-        header_text_color = THEME["muted"]  # Grey header text
-        row_separator_color = THEME["border"]  # Subtle border color
-
-        # ROW 2: Main headers - grey text, transparent bg
-        headers = [
-            ("TENOR", 12),
-            ("FUNDING RATE", 16),
-            ("SPREAD", 12),
-            ("NIBOR", 16),
-            ("CHG", 10),
-        ]
-        for col, (text, width) in enumerate(headers):
-            tk.Label(funding_frame, text=text,
-                    fg=header_text_color,
-                    bg=THEME["bg_card"],
-                    font=("Segoe UI Semibold", 9),
-                    width=width, pady=16, padx=20).grid(row=0, column=col, sticky="nsew")
-
-        # Vertical separator between main cols and recon
-        tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=12)
-
-        # Recon header
-        tk.Label(funding_frame, text="NIBOR Contribution",
-                fg=header_text_color,
+            nibor_card = tk.Frame(
+                content,
                 bg=THEME["bg_card"],
-                font=("Segoe UI Semibold", 9),
-                width=18, pady=16, padx=20).grid(row=0, column=6, sticky="nsew")
+                highlightthickness=1,
+                highlightbackground=THEME["border"]
+            )
+        nibor_card.pack(fill="both", expand=True, pady=(16, 0))
+
+        # Card inner padding container
+        card_content = tk.Frame(nibor_card, bg=THEME["bg_card"])
+        card_content.pack(fill="both", expand=True, padx=24, pady=24)
+
+        # ----------------------------------------------------------------
+        # CARD HEADER ROW: Title | Dev Badge | View History link (right)
+        # ----------------------------------------------------------------
+        header_row = tk.Frame(card_content, bg=THEME["bg_card"])
+        header_row.pack(fill="x", pady=(0, 16))
+
+        # Left side: Title
+        tk.Label(
+            header_row,
+            text="NIBOR RATES",
+            fg=THEME["text"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI Semibold", 16)
+        ).pack(side="left")
+
+        # Dev/Prod badge pill (next to title)
+        self._create_mode_badge(header_row)
+
+        # Right side: View History link
+        if MATPLOTLIB_AVAILABLE and TrendPopup:
+            history_link = tk.Label(
+                header_row,
+                text="View History →",
+                fg=THEME["accent"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 11),
+                cursor="hand2"
+            )
+            history_link.pack(side="right")
+            history_link.bind("<Button-1>", lambda e: self._show_trend_popup())
+            history_link.bind("<Enter>", lambda e: history_link.config(fg=THEME["accent_hover"]))
+            history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 16))
+
+        # Table frame for grid layout
+        funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
+        funding_frame.pack(fill="x")
+
+        # ================================================================
+        # TABLE HEADER - Nordic Light premium styling
+        # ================================================================
+        header_text_color = THEME["text_muted"]  # Muted text for headers
+        header_bg = THEME["table_header_bg"]     # Subtle header background
+        row_separator_color = THEME["border"]     # Subtle border
+
+        # Header row background
+        header_row_frame = tk.Frame(funding_frame, bg=header_bg)
+        header_row_frame.grid(row=0, column=0, columnspan=7, sticky="nsew")
+
+        # Main headers with premium styling
+        headers = [
+            ("TENOR", 10, "center"),
+            ("FUNDING RATE", 14, "e"),
+            ("SPREAD", 10, "e"),
+            ("NIBOR", 14, "e"),
+            ("CHG", 10, "e"),
+        ]
+        for col, (text, width, anchor) in enumerate(headers):
+            tk.Label(funding_frame, text=text,
+                    fg=header_text_color,
+                    bg=header_bg,
+                    font=("Segoe UI Semibold", 9),
+                    width=width, pady=12, padx=16,
+                    anchor=anchor).grid(row=0, column=col, sticky="nsew")
+
+        # Vertical separator between main cols and contribution
+        tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=8)
+
+        # Contribution header
+        tk.Label(funding_frame, text="NIBOR Contribution",
+                fg=header_text_color,
+                bg=header_bg,
+                font=("Segoe UI Semibold", 9),
+                width=16, pady=12, padx=16,
+                anchor="center").grid(row=0, column=6, sticky="nsew")
+
+        # Header bottom separator
         tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=1, column=0, columnspan=7, sticky="ew")
 
         # ================================================================
-        # DATA ROWS - Transparent background with row separators
+        # DATA ROWS - Nordic Light with row hover effects
         # ================================================================
         self.funding_cells = {}
         tenors = [
@@ -224,7 +230,8 @@ class DashboardPage(BaseFrame):
             {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "disabled": False}
         ]
 
-        row_bg = THEME["bg_card"]  # Transparent/card background for all rows
+        row_bg = THEME["bg_card"]         # Card white background
+        hover_bg = THEME["row_hover"]     # Subtle hover state
 
         for i, tenor in enumerate(tenors):
             row_idx = (i * 2) + 2  # Leave room for separator rows
@@ -233,101 +240,120 @@ class DashboardPage(BaseFrame):
             if tenor.get("disabled"):
                 tk.Label(funding_frame, text=tenor["label"],
                         fg=THEME["text_light"], bg=row_bg,
-                        font=("Segoe UI", 11), width=12, pady=16, padx=20).grid(row=row_idx, column=0, sticky="ew")
+                        font=("Segoe UI", 11), width=10, pady=14, padx=16,
+                        anchor="center").grid(row=row_idx, column=0, sticky="ew")
 
                 for col in range(1, 5):
-                    tk.Label(funding_frame, text="---", fg=THEME["text_light"],
+                    anchor = "e" if col > 0 else "center"
+                    tk.Label(funding_frame, text="—", fg=THEME["text_light"],
                             bg=row_bg, font=("Consolas", 11),
-                            anchor="center", pady=16, padx=20).grid(row=row_idx, column=col, sticky="ew")
+                            anchor=anchor, pady=14, padx=16).grid(row=row_idx, column=col, sticky="ew")
 
-                # Single recon column for disabled row
-                tk.Label(funding_frame, text="---", fg=THEME["text_light"],
+                # Contribution column for disabled row
+                tk.Label(funding_frame, text="—", fg=THEME["text_light"],
                         bg=row_bg, font=("Consolas", 10),
-                        anchor="center", pady=16, padx=20).grid(row=row_idx, column=6, sticky="ew")
+                        anchor="center", pady=14, padx=16).grid(row=row_idx, column=6, sticky="ew")
 
-                # Row separator
+                # Subtle row separator
                 tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
 
                 self.funding_cells[tenor["key"]] = {}
                 continue
 
-            # TENOR label - bold and prominent
-            tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
-                    bg=row_bg, font=("Segoe UI Semibold", 12),
-                    width=12, anchor="center", pady=16, padx=20).grid(row=row_idx, column=0, sticky="ew")
+            # Collect all widgets in this row for hover effect
+            row_widgets = []
+
+            # TENOR label - bold
+            tenor_lbl = tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
+                    bg=row_bg, font=("Segoe UI Semibold", 11),
+                    width=10, anchor="center", pady=14, padx=16)
+            tenor_lbl.grid(row=row_idx, column=0, sticky="ew")
+            row_widgets.append(tenor_lbl)
 
             cells = {}
-            hover_bg = THEME["bg_card_2"]
 
-            # FUNDING RATE - monospace, clickable with hover
-            funding_lbl = tk.Label(funding_frame, text="-",
+            # FUNDING RATE - monospace, right-aligned, clickable
+            funding_lbl = tk.Label(funding_frame, text="—",
                                   fg=THEME["text"], bg=row_bg,
                                   font=("Consolas", 11),
-                                  width=16, cursor="hand2", pady=16, padx=20)
+                                  width=14, anchor="e", cursor="hand2", pady=14, padx=16)
             funding_lbl.grid(row=row_idx, column=1, sticky="ew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
-            funding_lbl.bind("<Enter>", lambda e, lbl=funding_lbl, hbg=hover_bg: lbl.config(bg=hbg))
-            funding_lbl.bind("<Leave>", lambda e, lbl=funding_lbl, rbg=row_bg: lbl.config(bg=rbg))
+            row_widgets.append(funding_lbl)
             cells["funding"] = funding_lbl
             ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
 
-            # SPREAD - monospace
-            spread_lbl = tk.Label(funding_frame, text="-",
-                                 fg=THEME["muted"], bg=row_bg,
+            # SPREAD - monospace, right-aligned, muted
+            spread_lbl = tk.Label(funding_frame, text="—",
+                                 fg=THEME["text_muted"], bg=row_bg,
                                  font=("Consolas", 11),
-                                 width=12, pady=16, padx=20)
+                                 width=10, anchor="e", pady=14, padx=16)
             spread_lbl.grid(row=row_idx, column=2, sticky="ew")
+            row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
 
-            # NIBOR - Large, bold, accent color, monospace
-            final_lbl = tk.Label(funding_frame, text="-",
+            # NIBOR - Large, bold, accent color, right-aligned
+            final_lbl = tk.Label(funding_frame, text="—",
                                 fg=THEME["accent"], bg=row_bg,
-                                font=("Consolas", 14, "bold"),
-                                width=16, cursor="hand2", pady=16, padx=20)
+                                font=("Consolas", 13, "bold"),
+                                width=14, anchor="e", cursor="hand2", pady=14, padx=16)
             final_lbl.grid(row=row_idx, column=3, sticky="ew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
-            final_lbl.bind("<Enter>", lambda e, lbl=final_lbl, hbg=hover_bg: lbl.config(bg=hbg))
-            final_lbl.bind("<Leave>", lambda e, lbl=final_lbl, rbg=row_bg: lbl.config(bg=rbg))
+            row_widgets.append(final_lbl)
             cells["final"] = final_lbl
             ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
 
-            # CHG - monospace
-            chg_lbl = tk.Label(funding_frame, text="-",
-                              fg=THEME["muted"], bg=row_bg,
+            # CHG - monospace, right-aligned (color set dynamically)
+            chg_lbl = tk.Label(funding_frame, text="—",
+                              fg=THEME["text_muted"], bg=row_bg,
                               font=("Consolas", 11),
-                              width=10, pady=16, padx=20)
+                              width=10, anchor="e", pady=14, padx=16)
             chg_lbl.grid(row=row_idx, column=4, sticky="ew")
+            row_widgets.append(chg_lbl)
             cells["chg"] = chg_lbl
             ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            # NIBOR Contribution - Pill badge container
+            # NIBOR Contribution - Compact pill badge
             pill_container = tk.Frame(funding_frame, bg=row_bg)
             pill_container.grid(row=row_idx, column=6, sticky="ew", pady=8, padx=12)
+            row_widgets.append(pill_container)
 
-            # Create the pill badge (inner frame with styled label)
-            if CTK_AVAILABLE:
-                pill_badge = ctk.CTkFrame(pill_container, fg_color="transparent",
-                                          corner_radius=12, height=28)
-                pill_badge.pack(anchor="center")
-                pill_badge.pack_propagate(False)
-                pill_label = ctk.CTkLabel(pill_badge, text="-",
-                                          text_color=THEME["text_light"],
-                                          font=("Segoe UI", 10))
-                pill_label.pack(expand=True, padx=12, pady=4)
-            else:
-                pill_badge = tk.Frame(pill_container, bg=row_bg)
-                pill_badge.pack(anchor="center")
-                pill_label = tk.Label(pill_badge, text="-",
-                                      fg=THEME["text_light"], bg=row_bg,
-                                      font=("Segoe UI", 10), padx=12, pady=4)
-                pill_label.pack()
+            # Create compact pill badge (tk only for simplicity)
+            pill_badge = tk.Frame(pill_container, bg=THEME["chip"])
+            pill_badge.pack(anchor="center")
+            pill_label = tk.Label(pill_badge, text="—",
+                                  fg=THEME["text_muted"], bg=THEME["chip"],
+                                  font=("Segoe UI", 9), padx=10, pady=3)
+            pill_label.pack()
 
             cells["nibor_contrib"] = pill_label
             cells["nibor_contrib_badge"] = pill_badge
             cells["nibor_contrib_container"] = pill_container
-            cells["row_bg"] = row_bg  # Store for status updates
+            cells["row_bg"] = row_bg
+            cells["row_widgets"] = row_widgets  # Store for hover effect
 
-            # Row separator
+            # Bind row hover effect to all widgets
+            def make_hover_enter(widgets, hbg):
+                def handler(e):
+                    for w in widgets:
+                        if isinstance(w, tk.Label) or isinstance(w, tk.Frame):
+                            w.config(bg=hbg)
+                return handler
+
+            def make_hover_leave(widgets, rbg, pill_bg):
+                def handler(e):
+                    for w in widgets:
+                        if w == pill_container:
+                            w.config(bg=rbg)
+                        elif isinstance(w, tk.Label) or isinstance(w, tk.Frame):
+                            w.config(bg=rbg)
+                return handler
+
+            for w in row_widgets:
+                w.bind("<Enter>", make_hover_enter(row_widgets, hover_bg))
+                w.bind("<Leave>", make_hover_leave(row_widgets, row_bg, THEME["chip"]))
+
+            # Subtle row separator
             tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
 
             cells["excel_row"] = tenor["excel_row"]
@@ -336,13 +362,10 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # CONFIRM RATES BUTTON - Gradient style with rounded corners
+        # CONFIRM RATES BUTTON - Centered inside card, Nordic Light style
         # ====================================================================
-        if CTK_AVAILABLE:
-            confirm_btn_frame = ctk.CTkFrame(content, fg_color="transparent")
-        else:
-            confirm_btn_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        confirm_btn_frame.pack(anchor="center", pady=(20, 0))
+        confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
+        confirm_btn_frame.pack(anchor="center", pady=(24, 8))
 
         if CTK_AVAILABLE:
             self.confirm_rates_btn = ctk.CTkButton(
@@ -352,66 +375,57 @@ class DashboardPage(BaseFrame):
                 fg_color=THEME["accent"],
                 hover_color=THEME["accent_hover"],
                 text_color="white",
-                font=("Segoe UI Semibold", 13),
-                corner_radius=12,
-                width=200,
-                height=48,
+                font=("Segoe UI Semibold", 12),
+                corner_radius=RADII["button"],
+                width=260,
+                height=42,
                 state="disabled"  # Start disabled, enabled when all matched
             )
         else:
-            self.confirm_rates_btn = OnyxButtonTK(
+            self.confirm_rates_btn = tk.Button(
                 confirm_btn_frame,
-                "Confirm rates",
+                text="Confirm rates",
                 command=self._on_confirm_rates,
-                variant="primary"
+                fg="white",
+                bg=THEME["accent"],
+                activebackground=THEME["accent_hover"],
+                activeforeground="white",
+                font=("Segoe UI Semibold", 12),
+                relief="flat",
+                cursor="hand2",
+                width=22,
+                height=2,
+                state="disabled"  # Start disabled
             )
-            self.confirm_rates_btn.configure(state="disabled")  # Start disabled
         self.confirm_rates_btn.pack()
 
         # ====================================================================
-        # DATA SOURCES BAR - Pill badges style
+        # DATA SOURCES BAR - Inside card, subtle separator above
         # ====================================================================
-        if CTK_AVAILABLE:
-            status_bar = ctk.CTkFrame(content, fg_color=THEME["bg_card"],
-                                      corner_radius=CTK_CORNER_RADIUS["frame"],
-                                      border_width=1, border_color=THEME["border"])
-        else:
-            status_bar = tk.Frame(content, bg=THEME["bg_card_2"],
-                                 highlightthickness=1,
-                                 highlightbackground=THEME["border"])
-        status_bar.pack(fill="x", pady=(20, 0))
+        # Separator above data sources
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(16, 0))
+
+        status_bar = tk.Frame(card_content, bg=THEME["bg_card"])
+        status_bar.pack(fill="x", pady=(12, 0))
 
         # Data Sources label
-        if CTK_AVAILABLE:
-            ctk.CTkLabel(status_bar, text="Data Sources:",
-                        text_color=THEME["muted"],
-                        font=("Segoe UI", 11)).pack(side="left", padx=(20, 15), pady=14)
-        else:
-            tk.Label(status_bar, text="Data Sources:",
-                    fg=THEME["muted"],
-                    bg=THEME["bg_card_2"],
-                    font=FONTS["body"]).pack(side="left", padx=(20, 15), pady=12)
+        tk.Label(status_bar, text="Data Sources:",
+                fg=THEME["text_muted"],
+                bg=THEME["bg_card"],
+                font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
 
         # Pill badges container
-        if CTK_AVAILABLE:
-            self.status_badges_frame = ctk.CTkFrame(status_bar, fg_color="transparent")
-        else:
-            self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card_2"])
-        self.status_badges_frame.pack(side="left", fill="x", expand=True, pady=10)
+        self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card"])
+        self.status_badges_frame.pack(side="left", fill="x", expand=True)
 
         self.status_badges = {}
 
         # Summary label (right side)
-        if CTK_AVAILABLE:
-            self.status_summary_lbl = ctk.CTkLabel(status_bar, text="",
-                                                   text_color=THEME["muted"],
-                                                   font=("Segoe UI", 10))
-        else:
-            self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
-                                              fg=THEME["muted"],
-                                              bg=THEME["bg_card_2"],
-                                              font=FONTS["body"])
-        self.status_summary_lbl.pack(side="right", padx=20, pady=14)
+        self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
+                                          fg=THEME["text_muted"],
+                                          bg=THEME["bg_card"],
+                                          font=("Segoe UI", 10))
+        self.status_summary_lbl.pack(side="right")
 
         # ===================================================================
         # ACTIVE ALERTS - Card style with left border
@@ -668,6 +682,34 @@ class DashboardPage(BaseFrame):
                 self._mode_btn.configure(text=mode_text, fg_color=mode_color)
             else:
                 self._mode_btn.config(text=f"  {mode_text}  ", bg=mode_color)
+
+    def _create_mode_badge(self, parent):
+        """Create compact Dev/Prod pill badge in card header (Nordic Light style)."""
+        from settings import get_settings
+        settings = get_settings()
+        dev_mode = settings.get("development_mode", True)
+
+        # Pill badge colors
+        mode_text = "Dev" if dev_mode else "Prod"
+        mode_bg = THEME["warning"] if dev_mode else THEME["success"]
+
+        # Create compact pill badge
+        self._mode_btn = tk.Label(
+            parent,
+            text=mode_text,
+            fg="white",
+            bg=mode_bg,
+            font=("Segoe UI Semibold", 9),
+            padx=10,
+            pady=2,
+            cursor="hand2"
+        )
+        self._mode_btn.pack(side="left", padx=(12, 0))
+
+        # Click to toggle
+        self._mode_btn.bind("<Button-1>", lambda e: self._toggle_data_mode())
+        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg=THEME["bg_hover"], fg=THEME["text"]))
+        self._mode_btn.bind("<Leave>", lambda e: self._update_mode_button_color())
 
     def _show_trend_popup(self):
         """Show popup with NIBOR trend history chart."""
@@ -1298,6 +1340,7 @@ class DashboardPage(BaseFrame):
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
 
             # CHG (Change from previous sheet in Excel - AA30-AA33)
+            # Nordic Light: green positive, red negative, gray near-zero
             if "chg" in cells:
                 chg_lbl = cells["chg"]
                 prev_nibor = None
@@ -1306,18 +1349,19 @@ class DashboardPage(BaseFrame):
 
                 if final_rate is not None and prev_nibor is not None:
                     chg = final_rate - prev_nibor
-                    if chg > 0:
-                        chg_text = f"+{chg:.2f}"
-                        chg_color = THEME["good"]  # Green for increase
-                    elif chg < 0:
-                        chg_text = f"{chg:.2f}"
-                        chg_color = THEME["bad"]   # Red for decrease
-                    else:
+                    # Near-zero threshold (less than 0.005 rounds to 0.00)
+                    if abs(chg) < 0.005:
                         chg_text = "0.00"
-                        chg_color = THEME["muted"]
+                        chg_color = THEME["text_muted"]  # Gray for near-zero
+                    elif chg > 0:
+                        chg_text = f"+{chg:.2f}"
+                        chg_color = THEME["success"]  # Green for positive
+                    else:
+                        chg_text = f"{chg:.2f}"
+                        chg_color = THEME["danger"]   # Red for negative
                     chg_lbl.config(text=chg_text, fg=chg_color)
                 else:
-                    chg_lbl.config(text="-", fg=THEME["muted"])
+                    chg_lbl.config(text="—", fg=THEME["text_muted"])
 
             # ================================================================
             # RECON COL 1: NIBOR Contrib - 3 criteria matching
@@ -1459,39 +1503,45 @@ class DashboardPage(BaseFrame):
                 lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
 
                 if all_matched and match_details['criteria']:
-                    # Matched - Green pill badge
+                    # Matched - Compact green pill (Nordic Light)
+                    matched_bg = "#E8F5E9"  # Light green bg
+                    matched_fg = THEME["success"]  # #1E8E3E
                     if is_ctk_widget:
-                        badge.configure(fg_color="#DCFCE7")
-                        lbl.configure(text="✓ Matched", text_color=THEME["good"])
+                        badge.configure(fg_color=matched_bg)
+                        lbl.configure(text="Matched", text_color=matched_fg)
                     else:
-                        lbl.config(text="✓ Matched", fg=THEME["good"], bg="#DCFCE7",
-                                  font=("Segoe UI Semibold", 10))
+                        lbl.config(text="Matched", fg=matched_fg, bg=matched_bg,
+                                  font=("Segoe UI", 9), padx=10, pady=3)
                         if badge:
-                            badge.config(bg="#DCFCE7")
+                            badge.config(bg=matched_bg)
                     self._stop_blink(lbl)
                 elif errors:
-                    # Failed - Red pill badge
+                    # Failed - Compact red pill (Nordic Light)
+                    failed_bg = "#FFEBEE"  # Light red bg
+                    failed_fg = THEME["danger"]  # #D93025
                     if is_ctk_widget:
-                        badge.configure(fg_color="#FEE2E2")
-                        lbl.configure(text="✗ Failed", text_color=THEME["bad"])
+                        badge.configure(fg_color=failed_bg)
+                        lbl.configure(text="Failed", text_color=failed_fg)
                     else:
-                        lbl.config(text="✗ Failed", fg=THEME["bad"], bg="#FEE2E2",
-                                  font=("Segoe UI Semibold", 10))
+                        lbl.config(text="Failed", fg=failed_fg, bg=failed_bg,
+                                  font=("Segoe UI", 9), padx=10, pady=3)
                         if badge:
-                            badge.config(bg="#FEE2E2")
+                            badge.config(bg=failed_bg)
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    # Pending - neutral state
+                    # Pending - Compact neutral pill
+                    pending_bg = THEME["chip"]
+                    pending_fg = THEME["text_muted"]
                     if is_ctk_widget:
-                        badge.configure(fg_color="transparent")
-                        lbl.configure(text="-", text_color=THEME["muted"])
+                        badge.configure(fg_color=pending_bg)
+                        lbl.configure(text="—", text_color=pending_fg)
                     else:
-                        lbl.config(text="-", fg=THEME["muted"], bg=cells.get("row_bg", THEME["bg_panel"]),
-                                  font=("Consolas", 11))
+                        lbl.config(text="—", fg=pending_fg, bg=pending_bg,
+                                  font=("Segoe UI", 9), padx=10, pady=3)
                         if badge:
-                            badge.config(bg=cells.get("row_bg", THEME["bg_panel"]))
+                            badge.config(bg=pending_bg)
                     self._stop_blink(lbl)
             
             # Store for popup with model information

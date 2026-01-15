@@ -101,22 +101,31 @@ THEME = {
     "accent_secondary": "#E65100",   # Darker orange
     "accent_hover": "#FF9800",       # Lighter orange for hover
 
-    # Text - Dark on light
-    "text": "#1A1A2E",               # Primary text - dark navy
-    "muted": "#6B7280",              # Secondary text - gray
+    # Text - Dark on light (Nordic Light spec)
+    "text": "#0F172A",               # Primary text - slate 900
+    "text_muted": "#475569",         # Secondary text - slate 600
+    "muted": "#475569",              # Alias for text_muted
     "text_light": "#9CA3AF",         # Tertiary text - light gray
 
-    # Status Colors
-    "good": "#16A34A",               # Success green
+    # Status Colors (Nordic Light spec)
+    "good": "#1E8E3E",               # Success green
+    "success": "#1E8E3E",            # Alias for good
     "warning": "#F59E0B",            # Amber warning
-    "bad": "#DC2626",                # Error red
+    "bad": "#D93025",                # Error red
+    "danger": "#D93025",             # Alias for bad
     "pending": "#F59E0B",            # Pending amber
 
-    # UI Elements
-    "border": "#E5E7EB",             # Subtle light border
+    # UI Elements (Nordic Light spec)
+    "border": "#E6E8EE",             # Subtle light border
     "border_focus": "#F57C00",       # Focused border (Swedbank orange)
-    "chip": "#F3F4F6",               # Chip/badge background
+    "chip": "#EEF2F7",               # Chip/badge background
     "chip2": "#E5E7EB",              # Hover chip background
+
+    # Table specific (Nordic Light spec)
+    "table_header_bg": "#F8FAFC",    # Table header background
+    "row_hover": "#F1F5F9",          # Row hover state
+    "table_header": "#F8FAFC",       # Legacy alias
+    "table_border": "#E6E8EE",       # Table border
 
     # Shadows (CSS-style strings for reference)
     "shadow_sm": "0 1px 2px rgba(0,0,0,0.05)",
@@ -128,7 +137,7 @@ THEME = {
     "bg_nav": "#FFFFFF",
     "bg_nav_sel": "#FFF3E0",         # Light orange tint for selected nav
     "border_2": "#D1D5DB",
-    "text_secondary": "#6B7280",
+    "text_secondary": "#475569",
     "muted2": "#9CA3AF",
     "accent2": "#FF9800",
     "warn": "#F59E0B",
@@ -136,24 +145,28 @@ THEME = {
     "shadow": "#00000010",
     "row_even": "#FFFFFF",
     "row_odd": "#F9FAFB",
-    "row_hover": "#FFF7ED",          # Light orange tint on hover
     "tree_sel_bg": "#FFF3E0",        # Light orange selection
 
     # Badge colors for status indicators
-    "badge_ok": "#16A34A",
-    "badge_fail": "#DC2626",
+    "badge_ok": "#1E8E3E",
+    "badge_fail": "#D93025",
     "badge_warn": "#F59E0B",
     "badge_pend": "#9CA3AF",
-
-    # Table specific
-    "table_header": "#F9FAFB",
-    "table_border": "#E5E7EB",
 
     # CustomTkinter specific
     "ctk_button": "#F57C00",
     "ctk_button_hover": "#FF9800",
     "ctk_entry_bg": "#FFFFFF",
-    "ctk_entry_border": "#E5E7EB",
+    "ctk_entry_border": "#E6E8EE",
+}
+
+# ==============================================================================
+#  NORDIC LIGHT RADII (for consistent corner radius)
+# ==============================================================================
+RADII = {
+    "card": 12,
+    "button": 10,
+    "chip": 999,  # Fully rounded pills
 }
 
 # ==============================================================================
