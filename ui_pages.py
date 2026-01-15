@@ -117,7 +117,7 @@ class DashboardPage(BaseFrame):
 
         # Outer wrapper for accent border effect (left accent stripe)
         card_wrapper = tk.Frame(content, bg=THEME["accent"])
-        card_wrapper.pack(fill="both", expand=True, pady=(0, 0))
+        card_wrapper.pack(fill="x", pady=(0, 0))
 
         # Main card container with white surface
         if CTK_AVAILABLE:
@@ -133,11 +133,11 @@ class DashboardPage(BaseFrame):
                 bg=THEME["bg_card"]
             )
         # Left accent stripe (4px orange) + white card
-        nibor_card.pack(fill="both", expand=True, padx=(4, 0), pady=0)
+        nibor_card.pack(fill="x", padx=(4, 0), pady=0)
 
         # Card inner padding container
         card_content = tk.Frame(nibor_card, bg=THEME["bg_card"])
-        card_content.pack(fill="both", expand=True, padx=24, pady=16)
+        card_content.pack(fill="x", padx=24, pady=16)
 
         # ----------------------------------------------------------------
         # CARD HEADER ROW: Title | Dev Badge | View History link (right)
@@ -180,7 +180,7 @@ class DashboardPage(BaseFrame):
 
         # Table frame for grid layout - FULL WIDTH
         funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        funding_frame.pack(fill="both", expand=True)
+        funding_frame.pack(fill="x")
 
         # Configure columns to expand proportionally
         col_weights = [1, 2, 1, 2, 1, 0, 2]  # TENOR, FUNDING, SPREAD, NIBOR, CHG, sep, CONTRIB
