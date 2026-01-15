@@ -1358,6 +1358,7 @@ class DashboardPage(BaseFrame):
                                 errors.append(f"{z_cell}: parse error")
                         else:
                             all_matched = False
+                            errors.append(f"{z_cell}: Excel value missing")
                         match_details['criteria'].append(criterion_1)
 
                     # Criterion 2: GUI vs AA7-AA10 (2 decimals) - input row
@@ -1386,6 +1387,7 @@ class DashboardPage(BaseFrame):
                                 errors.append(f"{aa_input_cell}: parse error")
                         else:
                             all_matched = False
+                            errors.append(f"{aa_input_cell}: Excel value missing")
                         match_details['criteria'].append(criterion_2)
 
                     # Criterion 3: GUI vs AA30-AA33 (2 decimals) - output row
@@ -1414,6 +1416,7 @@ class DashboardPage(BaseFrame):
                                 errors.append(f"{aa_output_cell}: parse error")
                         else:
                             all_matched = False
+                            errors.append(f"{aa_output_cell}: Excel value missing")
                         match_details['criteria'].append(criterion_3)
 
                 # Store match data for popup
