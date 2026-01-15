@@ -1436,13 +1436,17 @@ class DashboardPage(BaseFrame):
                 lbl = cells["nibor_contrib"]
                 badge = cells.get("nibor_contrib_badge")
 
-                # Make label clickable for popup
-                lbl.config(cursor="hand2")
-                lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
+                # Make label clickable for popup - handle CTK vs TK
+                if CTK_AVAILABLE and hasattr(lbl, 'configure'):
+                    lbl.configure(cursor="hand2")
+                    lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
+                else:
+                    lbl.config(cursor="hand2")
+                    lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
 
                 if all_matched and match_details['criteria']:
                     # Matched - Green pill badge
-                    if CTK_AVAILABLE and badge:
+                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
                         badge.configure(fg_color="#1A3320")
                         lbl.configure(text="✓ Matched", text_color="#00C853")
                     else:
@@ -1453,7 +1457,7 @@ class DashboardPage(BaseFrame):
                     self._stop_blink(lbl)
                 elif errors:
                     # Failed - Red pill badge
-                    if CTK_AVAILABLE and badge:
+                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
                         badge.configure(fg_color="#3D1F1F")
                         lbl.configure(text="✗ Failed", text_color="#FF3B30")
                     else:
@@ -1466,7 +1470,7 @@ class DashboardPage(BaseFrame):
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
                     # Pending - neutral state
-                    if CTK_AVAILABLE and badge:
+                    if CTK_AVAILABLE and hasattr(lbl, 'configure'):
                         badge.configure(fg_color="transparent")
                         lbl.configure(text="-", text_color=THEME["muted"])
                     else:
