@@ -406,98 +406,99 @@ class DashboardPage(BaseFrame):
         self.confirm_rates_btn.pack()
 
         # ====================================================================
-        # DATA SOURCES BAR - Inside card, subtle separator above
+        # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
         # ====================================================================
-        # Separator above data sources
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(16, 0))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(20, 0))
 
-        status_bar = tk.Frame(card_content, bg=THEME["bg_card"])
-        status_bar.pack(fill="x", pady=(12, 0))
+        checks_bar = tk.Frame(card_content, bg=THEME["bg_card"])
+        checks_bar.pack(fill="x", pady=(16, 0))
 
-        # Data Sources label
-        tk.Label(status_bar, text="Data Sources:",
+        # Validation checks label
+        tk.Label(checks_bar, text="Validation:",
                 fg=THEME["text_muted"],
                 bg=THEME["bg_card"],
-                font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
+                font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
 
-        # Pill badges container
-        self.status_badges_frame = tk.Frame(status_bar, bg=THEME["bg_card"])
-        self.status_badges_frame.pack(side="left", fill="x", expand=True)
+        # Store check badges for updates
+        self.validation_checks = {}
 
-        self.status_badges = {}
+        # Define the 6 check categories
+        check_categories = [
+            ("bloomberg", "Bloomberg"),
+            ("excel_cells", "Excel Cells"),
+            ("weights", "Weights"),
+            ("days", "Days"),
+            ("nibor_contrib", "NIBOR Contrib"),
+            ("spreads", "Spreads"),
+        ]
 
-        # Summary label (right side)
-        self.status_summary_lbl = tk.Label(status_bar, text="(0/6 OK)",
-                                          fg=THEME["text_muted"],
-                                          bg=THEME["bg_card"],
-                                          font=("Segoe UI", 10))
-        self.status_summary_lbl.pack(side="right")
+        for check_id, check_label in check_categories:
+            # Create clickable badge
+            badge_frame = tk.Frame(checks_bar, bg=THEME["chip"], cursor="hand2")
+            badge_frame.pack(side="left", padx=(0, 8))
 
-        # ===================================================================
-        # ACTIVE ALERTS - Card style with left border
-        # ===================================================================
-        if CTK_AVAILABLE:
-            alerts_container = ctk.CTkFrame(content, fg_color="transparent")
-        else:
-            alerts_container = tk.Frame(content, bg=THEME["bg_panel"])
-        alerts_container.pack(fill="x", pady=(20, 10))
+            # Status icon (✓ or ✗)
+            status_icon = tk.Label(badge_frame, text="—",
+                                   fg=THEME["text_muted"],
+                                   bg=THEME["chip"],
+                                   font=("Segoe UI", 10))
+            status_icon.pack(side="left", padx=(8, 4), pady=6)
 
-        # Alert header
-        if CTK_AVAILABLE:
-            alerts_header = ctk.CTkFrame(alerts_container, fg_color="transparent")
-            alerts_header.pack(fill="x", pady=(0, 12))
-            ctk.CTkLabel(alerts_header, text="⚠", text_color=THEME["warning"],
-                        font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
-            ctk.CTkLabel(alerts_header, text="ACTIVE ALERTS", text_color=THEME["muted"],
-                        font=("Segoe UI Semibold", 10)).pack(side="left")
-        else:
-            alerts_header = tk.Frame(alerts_container, bg=THEME["bg_panel"])
-            alerts_header.pack(fill="x", pady=(0, 10))
-            tk.Label(alerts_header, text="⚠", fg=THEME["warning"],
-                    bg=THEME["bg_panel"],
-                    font=("Segoe UI", 16)).pack(side="left", padx=(0, 8))
-            tk.Label(alerts_header, text="ACTIVE ALERTS", fg=THEME["text"],
-                    bg=THEME["bg_panel"],
-                    font=FONTS["h3"]).pack(side="left")
+            # Label
+            label = tk.Label(badge_frame, text=check_label,
+                            fg=THEME["text_muted"],
+                            bg=THEME["chip"],
+                            font=("Segoe UI", 10))
+            label.pack(side="left", padx=(0, 10), pady=6)
 
-        # Fixed height scrollable box with rounded corners
-        if CTK_AVAILABLE:
-            self.alerts_box = ctk.CTkFrame(alerts_container, fg_color=THEME["bg_card"],
-                                          corner_radius=CTK_CORNER_RADIUS["frame"],
-                                          border_width=1, border_color=THEME["border"],
-                                          height=ALERTS_BOX_HEIGHT)
-        else:
-            self.alerts_box = tk.Frame(alerts_container, bg=THEME["bg_card"],
-                                      highlightthickness=1,
-                                      highlightbackground=THEME["border"],
-                                      height=ALERTS_BOX_HEIGHT)
-        self.alerts_box.pack(fill="x")
-        self.alerts_box.pack_propagate(False)
+            # Store references
+            self.validation_checks[check_id] = {
+                "frame": badge_frame,
+                "icon": status_icon,
+                "label": label,
+                "status": None,  # None=pending, True=OK, False=Failed
+                "alerts": []     # List of alert messages
+            }
 
-        # Scrollable content
-        self.alerts_canvas = tk.Canvas(self.alerts_box, bg=THEME["bg_card"],
-                                 highlightthickness=0, height=ALERTS_BOX_HEIGHT)
-        self.alerts_scrollbar = tk.Scrollbar(self.alerts_box, orient="vertical",
-                                       command=self.alerts_canvas.yview)
-        self.alerts_scroll_frame = tk.Frame(self.alerts_canvas, bg=THEME["bg_card"])
+            # Bind click to show popup
+            def make_click_handler(cid):
+                return lambda e: self._show_validation_popup(cid)
 
-        self.alerts_scroll_frame.bind("<Configure>", self._on_alerts_configure)
-        self.alerts_canvas.create_window((0, 0), window=self.alerts_scroll_frame, anchor="nw")
-        self.alerts_canvas.configure(yscrollcommand=self.alerts_scrollbar.set)
+            badge_frame.bind("<Button-1>", make_click_handler(check_id))
+            status_icon.bind("<Button-1>", make_click_handler(check_id))
+            label.bind("<Button-1>", make_click_handler(check_id))
 
-        self.alerts_canvas.pack(side="left", fill="both", expand=True)
+            # Hover effect
+            def make_hover_enter(frame):
+                return lambda e: frame.config(bg=THEME["chip2"]) or [w.config(bg=THEME["chip2"]) for w in frame.winfo_children()]
 
-        # ===================================================================
-        # FOOTER - EXPLANATION
-        # ===================================================================
-        footer_frame = tk.Frame(content, bg=THEME["bg_panel"])
-        footer_frame.pack(side="bottom", fill="x", pady=(15, 10))
+            def make_hover_leave(frame, check_id):
+                def handler(e):
+                    check = self.validation_checks[check_id]
+                    if check["status"] is True:
+                        bg = "#E8F5E9"
+                    elif check["status"] is False:
+                        bg = "#FFEBEE"
+                    else:
+                        bg = THEME["chip"]
+                    frame.config(bg=bg)
+                    for w in frame.winfo_children():
+                        w.config(bg=bg)
+                return handler
 
-        tk.Label(footer_frame,
-                text="OK = Excel NIBOR level matches Python calculated NIBOR level",
-                fg=THEME["text_light"], bg=THEME["bg_panel"],
-                font=FONTS["body_small"],
-                anchor="w").pack(padx=20)
+            badge_frame.bind("<Enter>", make_hover_enter(badge_frame))
+            badge_frame.bind("<Leave>", make_hover_leave(badge_frame, check_id))
+            for w in badge_frame.winfo_children():
+                w.bind("<Enter>", make_hover_enter(badge_frame))
+                w.bind("<Leave>", make_hover_leave(badge_frame, check_id))
+
+        # Summary on right side
+        self.validation_summary_lbl = tk.Label(checks_bar, text="",
+                                               fg=THEME["text_muted"],
+                                               bg=THEME["bg_card"],
+                                               font=("Segoe UI", 10))
+        self.validation_summary_lbl.pack(side="right")
+
 
     def _on_dashboard_model_change(self):
         """Handle calculation model change on Dashboard."""
@@ -724,9 +725,199 @@ class DashboardPage(BaseFrame):
 
         # ÄNDRING: Vi hämtar inte data här längre, och skickar inte med det.
         # Popupen hämtar sin egen data (både fixing och contribution).
-        
+
         popup = TrendPopup(self.winfo_toplevel())
         popup.grab_set()
+
+    def _show_validation_popup(self, check_id):
+        """Show popup with validation alerts for a specific check category."""
+        if check_id not in self.validation_checks:
+            return
+
+        check = self.validation_checks[check_id]
+        check_names = {
+            "bloomberg": "Bloomberg Data",
+            "excel_cells": "Excel Cells",
+            "weights": "Weights",
+            "days": "Days",
+            "nibor_contrib": "NIBOR Contribution",
+            "spreads": "Spreads"
+        }
+        check_name = check_names.get(check_id, check_id)
+
+        # Create popup
+        popup = tk.Toplevel(self.winfo_toplevel())
+        popup.title(f"Validation: {check_name}")
+        popup.configure(bg=THEME["bg_panel"])
+        popup.geometry("550x400")
+        popup.resizable(True, True)
+        popup.transient(self.winfo_toplevel())
+        popup.grab_set()
+
+        # Header with status
+        header_frame = tk.Frame(popup, bg=THEME["bg_card"])
+        header_frame.pack(fill="x")
+
+        status = check.get("status")
+        if status is True:
+            status_icon = "✓"
+            status_text = "ALL CHECKS PASSED"
+            status_color = THEME["success"]
+            header_bg = "#E8F5E9"
+        elif status is False:
+            status_icon = "✗"
+            status_text = "VALIDATION FAILED"
+            status_color = THEME["danger"]
+            header_bg = "#FFEBEE"
+        else:
+            status_icon = "—"
+            status_text = "PENDING"
+            status_color = THEME["text_muted"]
+            header_bg = THEME["chip"]
+
+        header_frame.configure(bg=header_bg)
+
+        tk.Label(header_frame,
+                text=f"{status_icon} {check_name}",
+                font=("Segoe UI Semibold", 16),
+                fg=status_color, bg=header_bg).pack(pady=(20, 5))
+
+        tk.Label(header_frame,
+                text=status_text,
+                font=("Segoe UI", 11),
+                fg=status_color, bg=header_bg).pack(pady=(0, 20))
+
+        # Alerts list
+        alerts = check.get("alerts", [])
+
+        if alerts:
+            # Scrollable alerts area
+            alerts_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+            alerts_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+            tk.Label(alerts_frame,
+                    text=f"Issues ({len(alerts)}):",
+                    font=("Segoe UI Semibold", 11),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+            # Canvas for scrolling
+            canvas = tk.Canvas(alerts_frame, bg=THEME["bg_panel"], highlightthickness=0)
+            scrollbar = tk.Scrollbar(alerts_frame, orient="vertical", command=canvas.yview)
+            scroll_frame = tk.Frame(canvas, bg=THEME["bg_panel"])
+
+            scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+            canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+
+            for i, alert in enumerate(alerts):
+                alert_card = tk.Frame(scroll_frame, bg=THEME["bg_card"],
+                                      highlightthickness=1, highlightbackground=THEME["border"])
+                alert_card.pack(fill="x", pady=4, padx=2)
+
+                tk.Label(alert_card,
+                        text=f"✗ {alert}",
+                        font=("Segoe UI", 10),
+                        fg=THEME["danger"], bg=THEME["bg_card"],
+                        anchor="w", wraplength=480, justify="left").pack(padx=12, pady=10, anchor="w")
+        else:
+            # No alerts - show success message
+            success_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+            success_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+            if status is True:
+                tk.Label(success_frame,
+                        text="✓ All validation checks passed",
+                        font=("Segoe UI", 12),
+                        fg=THEME["success"], bg=THEME["bg_panel"]).pack(expand=True)
+            else:
+                tk.Label(success_frame,
+                        text="No validation data yet",
+                        font=("Segoe UI", 12),
+                        fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(expand=True)
+
+        # Close button
+        btn_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+        btn_frame.pack(fill="x", padx=20, pady=15)
+
+        close_btn = tk.Button(btn_frame,
+                             text="Close",
+                             font=("Segoe UI", 11),
+                             fg="white", bg=THEME["accent"],
+                             activebackground=THEME["accent_hover"],
+                             activeforeground="white",
+                             relief="flat", cursor="hand2",
+                             padx=24, pady=8,
+                             command=popup.destroy)
+        close_btn.pack(side="right")
+
+        popup.focus_set()
+
+    def _update_validation_check(self, check_id, status, alerts=None):
+        """Update a validation check badge status.
+
+        Args:
+            check_id: One of 'bloomberg', 'excel_cells', 'weights', 'days', 'nibor_contrib', 'spreads'
+            status: True=OK, False=Failed, None=Pending
+            alerts: List of alert messages (for failed checks)
+        """
+        if check_id not in self.validation_checks:
+            return
+
+        check = self.validation_checks[check_id]
+        check["status"] = status
+        check["alerts"] = alerts or []
+
+        frame = check["frame"]
+        icon = check["icon"]
+        label = check["label"]
+
+        if status is True:
+            # Green success
+            icon.config(text="✓", fg=THEME["success"])
+            label.config(fg=THEME["success"])
+            bg = "#E8F5E9"
+        elif status is False:
+            # Red failure
+            icon.config(text="✗", fg=THEME["danger"])
+            label.config(fg=THEME["danger"])
+            bg = "#FFEBEE"
+        else:
+            # Pending
+            icon.config(text="—", fg=THEME["text_muted"])
+            label.config(fg=THEME["text_muted"])
+            bg = THEME["chip"]
+
+        frame.config(bg=bg)
+        icon.config(bg=bg)
+        label.config(bg=bg)
+
+        # Update summary
+        self._update_validation_summary()
+
+    def _update_validation_summary(self):
+        """Update the validation summary label."""
+        total = len(self.validation_checks)
+        ok_count = sum(1 for c in self.validation_checks.values() if c["status"] is True)
+        failed_count = sum(1 for c in self.validation_checks.values() if c["status"] is False)
+
+        if failed_count > 0:
+            self.validation_summary_lbl.config(
+                text=f"{failed_count} failed",
+                fg=THEME["danger"]
+            )
+        elif ok_count == total:
+            self.validation_summary_lbl.config(
+                text=f"All OK",
+                fg=THEME["success"]
+            )
+        else:
+            self.validation_summary_lbl.config(
+                text=f"{ok_count}/{total}",
+                fg=THEME["text_muted"]
+            )
 
     def _show_match_popup(self, tenor_key):
         """Show popup with detailed match criteria for NIBOR contribution."""
@@ -1572,14 +1763,8 @@ class DashboardPage(BaseFrame):
         self._update_confirm_button_state()
 
     def _on_alerts_configure(self, event=None):
-        """Update scrollbar visibility and scroll region based on content size."""
-        self.alerts_canvas.configure(scrollregion=self.alerts_canvas.bbox("all"))
-        # Show scrollbar only if content exceeds visible area
-        content_height = self.alerts_scroll_frame.winfo_reqheight()
-        if content_height > ALERTS_BOX_HEIGHT:
-            self.alerts_scrollbar.pack(side="right", fill="y")
-        else:
-            self.alerts_scrollbar.pack_forget()
+        """Legacy method - no longer used (alerts now in validation checks)."""
+        pass
 
     def _update_confirm_button_state(self):
         """Enable Confirm button only if all tenors are matched."""
@@ -1613,93 +1798,68 @@ class DashboardPage(BaseFrame):
             log.error(f"[Dashboard] Error updating confirm button state: {e}")
 
     def _update_alerts(self, messages):
-        """Update always-visible alert box with messages or show 'All OK'.
+        """Update validation checks based on alert messages.
 
+        Routes alerts to appropriate validation check categories based on message content.
         Messages can be either:
         - Simple strings (treated as critical)
         - Tuples of (message, priority) where priority is 'warning' or 'critical'
         """
-        # Clear previous alerts
-        for widget in self.alerts_scroll_frame.winfo_children():
-            widget.destroy()
+        if not hasattr(self, 'validation_checks'):
+            return
 
-        if not messages:
-            # All OK - show success card
-            if CTK_AVAILABLE:
-                success_card = ctk.CTkFrame(self.alerts_scroll_frame, fg_color="#DCFCE7",
-                                           corner_radius=6)
-                success_card.pack(fill="x", padx=10, pady=30)
-                ctk.CTkLabel(success_card, text="✓ All Controls OK",
-                            text_color=THEME["good"],
-                            font=("Segoe UI Semibold", 12)).pack(pady=20)
+        # Categorize alerts by check type
+        categorized_alerts = {
+            "bloomberg": [],
+            "excel_cells": [],
+            "weights": [],
+            "days": [],
+            "nibor_contrib": [],
+            "spreads": [],
+        }
+
+        for msg_item in messages:
+            if isinstance(msg_item, tuple):
+                msg, priority = msg_item
             else:
-                tk.Label(self.alerts_scroll_frame, text="✓ All Controls OK",
-                        fg=THEME["good"], bg=THEME["bg_card"],
-                        font=("Segoe UI Semibold", 12)).pack(expand=True, pady=50)
-        else:
-            # Get current timestamp
-            timestamp = datetime.now().strftime("%H:%M:%S")
+                msg = msg_item
 
-            # Show error messages
-            for i, msg_item in enumerate(messages):
-                # Support both simple strings and (message, priority) tuples
-                if isinstance(msg_item, tuple):
-                    msg, priority = msg_item
+            msg_lower = msg.lower()
+
+            # Route to appropriate category
+            if "contrib" in msg_lower or "z30" in msg_lower or "aa30" in msg_lower:
+                categorized_alerts["nibor_contrib"].append(msg)
+            elif "spread" in msg_lower:
+                categorized_alerts["spreads"].append(msg)
+            elif "weight" in msg_lower:
+                categorized_alerts["weights"].append(msg)
+            elif "day" in msg_lower:
+                categorized_alerts["days"].append(msg)
+            elif "bloomberg" in msg_lower or "ticker" in msg_lower:
+                categorized_alerts["bloomberg"].append(msg)
+            else:
+                # Default to excel_cells for cell mismatches
+                categorized_alerts["excel_cells"].append(msg)
+
+        # Update each validation check
+        for check_id, alerts in categorized_alerts.items():
+            if alerts:
+                self._update_validation_check(check_id, False, alerts)
+            else:
+                # If no alerts in this category, mark as OK
+                # (only if we have data - check nibor_contrib based on _match_data)
+                if check_id == "nibor_contrib":
+                    # Only mark OK if we have all tenors matched
+                    tenors_to_check = ["1m", "2m", "3m", "6m"]
+                    all_matched = all(
+                        self._match_data.get(t, {}).get('all_matched', False)
+                        for t in tenors_to_check
+                    ) if len(self._match_data) >= len(tenors_to_check) else None
+                    if all_matched is not None:
+                        self._update_validation_check(check_id, all_matched, [])
                 else:
-                    msg, priority = msg_item, "critical"
-
-                # Set colors based on priority
-                if priority == "warning":
-                    border_color = THEME["warning"]
-                    bg_color = "#FEF3C7"  # Light amber bg
-                    icon_text = "⚠"
-                else:  # critical
-                    border_color = THEME["bad"]
-                    bg_color = "#FEE2E2"  # Light red bg
-                    icon_text = "✗"
-
-                # Card container with left border effect
-                if CTK_AVAILABLE:
-                    card_outer = ctk.CTkFrame(self.alerts_scroll_frame, fg_color=border_color,
-                                             corner_radius=6, height=48)
-                    card_outer.pack(fill="x", pady=4, padx=10)
-                    card_outer.pack_propagate(False)
-
-                    card_inner = ctk.CTkFrame(card_outer, fg_color=bg_color, corner_radius=4)
-                    card_inner.pack(fill="both", expand=True, padx=(3, 0))  # 3px left border
-
-                    # Timestamp
-                    ctk.CTkLabel(card_inner, text=timestamp, text_color=THEME["muted"],
-                                font=("Consolas", 9)).pack(side="left", padx=(12, 8), pady=8)
-
-                    # Priority icon
-                    ctk.CTkLabel(card_inner, text=icon_text, text_color=border_color,
-                                font=("Segoe UI", 12)).pack(side="left", padx=(0, 8), pady=8)
-
-                    # Message
-                    ctk.CTkLabel(card_inner, text=msg, text_color=THEME["text"],
-                                font=("Segoe UI", 10), anchor="w",
-                                wraplength=540).pack(side="left", fill="x", expand=True, pady=8)
-                else:
-                    # Fallback for non-CTK
-                    card_outer = tk.Frame(self.alerts_scroll_frame, bg=border_color)
-                    card_outer.pack(fill="x", pady=4, padx=10)
-
-                    card_inner = tk.Frame(card_outer, bg=bg_color)
-                    card_inner.pack(fill="both", expand=True, padx=(3, 0), pady=0)
-
-                    # Timestamp
-                    tk.Label(card_inner, text=timestamp, fg=THEME["muted"],
-                            bg=bg_color, font=("Consolas", 9)).pack(side="left", padx=(12, 8), pady=8)
-
-                    # Priority icon
-                    tk.Label(card_inner, text=icon_text, fg=border_color,
-                            bg=bg_color, font=("Segoe UI", 12)).pack(side="left", padx=(0, 8), pady=8)
-
-                    # Message
-                    tk.Label(card_inner, text=msg, fg=THEME["text"],
-                            bg=bg_color, font=("Segoe UI", 10), anchor="w",
-                            wraplength=540).pack(side="left", fill="x", expand=True, pady=8)
+                    # For other categories, mark OK if no alerts
+                    self._update_validation_check(check_id, True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
