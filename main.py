@@ -23,7 +23,7 @@ from config import (
     RULES_DB, RECON_MAPPING, DAYS_MAPPING, MARKET_STRUCTURE,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, SWET_CM_RECON_MAPPING,
     ALL_REAL_TICKERS,
-    get_recon_mapping, get_market_structure,
+    get_recon_mapping, get_market_structure, get_all_real_tickers,
     setup_logging, get_logger
 )
 
@@ -909,8 +909,9 @@ class NiborTerminalCTK(ctk.CTk):
         self.after(0, self._apply_excel_result, excel_ok, excel_msg)
 
         if blpapi:
+            # Use dynamic tickers - F043 for Dev mode, F033 for Prod mode
             self.engine.fetch_snapshot(
-                ALL_REAL_TICKERS,
+                get_all_real_tickers(),
                 lambda d, meta: self.after(0, self._apply_bbg_result, d, meta, None),
                 lambda e: self.after(0, self._apply_bbg_result, {}, {}, str(e)),
                 fields=["PX_LAST", "CHG_NET_1D", "LAST_UPDATE"]

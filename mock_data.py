@@ -1,6 +1,6 @@
 """Mock data for development without Bloomberg/Excel."""
 
-MOCK_MARKET_DATA = {
+_BASE_MOCK_MARKET_DATA = {
     "NOK F033 Curncy": 10.0834,
     "NKEU F033 Curncy": 11.7724,
     "NK1M F033 Curncy": 8.93,
@@ -34,5 +34,11 @@ MOCK_MARKET_DATA = {
     "EURNOK3M TPSF Curncy": 90,
     "EURNOK6M TPSF Curncy": 181,
 }
+
+# Add F043 versions for Dev mode compatibility
+MOCK_MARKET_DATA = dict(_BASE_MOCK_MARKET_DATA)
+for ticker, value in list(_BASE_MOCK_MARKET_DATA.items()):
+    if "F033" in ticker:
+        MOCK_MARKET_DATA[ticker.replace("F033", "F043")] = value
 
 MOCK_WEIGHTS = {"USD": 0.445, "EUR": 0.055, "NOK": 0.500}

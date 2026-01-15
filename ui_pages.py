@@ -14,7 +14,7 @@ except ImportError:
     CTK_AVAILABLE = False
     ctk = None
 
-from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger, get_market_structure
+from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, get_logger, get_market_structure, get_ticker
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
@@ -2004,30 +2004,30 @@ class NokImpliedPage(tk.Frame):
         if not excel_cm:
             log.info(f"[NOK Implied Page] [WARNING] Excel CM rates are empty!")
 
-        # Spots
-        usd_spot = self._get_ticker_val("NOK F033 Curncy")
-        eur_spot = self._get_ticker_val("NKEU F033 Curncy")
+        # Spots - use dynamic tickers (F043 for Dev, F033 for Prod)
+        usd_spot = self._get_ticker_val(get_ticker("NOK F033 Curncy"))
+        eur_spot = self._get_ticker_val(get_ticker("NKEU F033 Curncy"))
 
         # Excel days from Nibor days file
         excel_days_data = self.app.current_days_data or {}
 
-        # Tenor configuration
+        # Tenor configuration - use dynamic tickers for forwards
         tenors = [
             {"tenor": "1M", "key": "1m",
-             "usd_fwd": "NK1M F033 Curncy", "usd_rate_bbg": "USCM1M SWET Curncy", "usd_days_bbg": "NK1M TPSF Curncy",
-             "eur_fwd": "NKEU1M F033 Curncy", "eur_rate_bbg": "EUCM1M SWET Curncy", "eur_days_bbg": "EURNOK1M TPSF Curncy",
+             "usd_fwd": get_ticker("NK1M F033 Curncy"), "usd_rate_bbg": "USCM1M SWET Curncy", "usd_days_bbg": "NK1M TPSF Curncy",
+             "eur_fwd": get_ticker("NKEU1M F033 Curncy"), "eur_rate_bbg": "EUCM1M SWET Curncy", "eur_days_bbg": "EURNOK1M TPSF Curncy",
              "nok_cm": "NKCM1M SWET Curncy", "usd_rate_exc": "USD_1M", "eur_rate_exc": "EUR_1M"},
             {"tenor": "2M", "key": "2m",
-             "usd_fwd": "NK2M F033 Curncy", "usd_rate_bbg": "USCM2M SWET Curncy", "usd_days_bbg": "NK2M TPSF Curncy",
-             "eur_fwd": "NKEU2M F033 Curncy", "eur_rate_bbg": "EUCM2M SWET Curncy", "eur_days_bbg": "EURNOK2M TPSF Curncy",
+             "usd_fwd": get_ticker("NK2M F033 Curncy"), "usd_rate_bbg": "USCM2M SWET Curncy", "usd_days_bbg": "NK2M TPSF Curncy",
+             "eur_fwd": get_ticker("NKEU2M F033 Curncy"), "eur_rate_bbg": "EUCM2M SWET Curncy", "eur_days_bbg": "EURNOK2M TPSF Curncy",
              "nok_cm": "NKCM2M SWET Curncy", "usd_rate_exc": "USD_2M", "eur_rate_exc": "EUR_2M"},
             {"tenor": "3M", "key": "3m",
-             "usd_fwd": "NK3M F033 Curncy", "usd_rate_bbg": "USCM3M SWET Curncy", "usd_days_bbg": "NK3M TPSF Curncy",
-             "eur_fwd": "NKEU3M F033 Curncy", "eur_rate_bbg": "EUCM3M SWET Curncy", "eur_days_bbg": "EURNOK3M TPSF Curncy",
+             "usd_fwd": get_ticker("NK3M F033 Curncy"), "usd_rate_bbg": "USCM3M SWET Curncy", "usd_days_bbg": "NK3M TPSF Curncy",
+             "eur_fwd": get_ticker("NKEU3M F033 Curncy"), "eur_rate_bbg": "EUCM3M SWET Curncy", "eur_days_bbg": "EURNOK3M TPSF Curncy",
              "nok_cm": "NKCM3M SWET Curncy", "usd_rate_exc": "USD_3M", "eur_rate_exc": "EUR_3M"},
             {"tenor": "6M", "key": "6m",
-             "usd_fwd": "NK6M F033 Curncy", "usd_rate_bbg": "USCM6M SWET Curncy", "usd_days_bbg": "NK6M TPSF Curncy",
-             "eur_fwd": "NKEU6M F033 Curncy", "eur_rate_bbg": "EUCM6M SWET Curncy", "eur_days_bbg": "EURNOK6M TPSF Curncy",
+             "usd_fwd": get_ticker("NK6M F033 Curncy"), "usd_rate_bbg": "USCM6M SWET Curncy", "usd_days_bbg": "NK6M TPSF Curncy",
+             "eur_fwd": get_ticker("NKEU6M F033 Curncy"), "eur_rate_bbg": "EUCM6M SWET Curncy", "eur_days_bbg": "EURNOK6M TPSF Curncy",
              "nok_cm": "NKCM6M SWET Curncy", "usd_rate_exc": "USD_6M", "eur_rate_exc": "EUR_6M"},
         ]
 
@@ -3203,10 +3203,10 @@ class HistoryPage(tk.Frame):
         market_data = snapshot.get('market_data', {})
         if market_data:
             lines.append("BLOOMBERG DATA:")
-            # Show key rates first
+            # Show key rates first - use dynamic tickers
             key_tickers = [
-                ('NOK F033 Curncy', 'USDNOK Spot'),
-                ('NKEU F033 Curncy', 'EURNOK Spot'),
+                (get_ticker('NOK F033 Curncy'), 'USDNOK Spot'),
+                (get_ticker('NKEU F033 Curncy'), 'EURNOK Spot'),
             ]
             for ticker, label in key_tickers:
                 val = market_data.get(ticker)
