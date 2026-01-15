@@ -639,7 +639,11 @@ class ExcelEngine:
             log.info(f"[ExcelEngine] Tenors to confirm: {tenors_to_confirm}")
             log.info(f"[ExcelEngine] Confirm text: {confirm_text}")
 
-            # Write confirmation to each tenor cell (text only, no formatting)
+            # Write confirmation to each tenor cell with green background
+            # RGB(198, 239, 206) light green -> BGR integer for win32com
+            GREEN_BG = 13561798  # RGB(198, 239, 206) as BGR
+            DARK_GREEN_TEXT = 5287936  # RGB(0, 128, 80) as BGR
+
             confirmed_tenors = []
             for tenor in tenors_to_confirm:
                 cell_addrs = confirm_cell_mapping.get(tenor, [])
@@ -647,8 +651,12 @@ class ExcelEngine:
                 if cell_addrs:
                     for cell_addr in cell_addrs:
                         try:
-                            ws.Range(cell_addr).Value = confirm_text
-                            log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text}")
+                            cell = ws.Range(cell_addr)
+                            cell.Value = confirm_text
+                            cell.Interior.Color = GREEN_BG
+                            cell.Font.Color = DARK_GREEN_TEXT
+                            cell.Font.Bold = True
+                            log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text} (green)")
                         except Exception as write_err:
                             log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
                     confirmed_tenors.append(tenor.upper())
