@@ -626,22 +626,16 @@ class ExcelEngine:
 
             log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
 
-            # Write confirmation to each tenor cell with green background
+            # Write confirmation to each tenor cell (text only, no formatting)
             confirmed_tenors = []
             for tenor in tenors_to_confirm:
                 cell_addr = confirm_cell_mapping.get(tenor)
                 if cell_addr:
-                    cell = ws.Range(cell_addr)
-                    cell.Value = confirm_text
-                    # Set green background (RGB: 198, 239, 206 - light green)
-                    cell.Interior.Color = 13561798  # RGB(198, 239, 206) as BGR integer
-                    # Set dark green font color
-                    cell.Font.Color = 5287936  # RGB(0, 128, 80) as BGR integer
-                    cell.Font.Bold = True
+                    ws.Range(cell_addr).Value = confirm_text
                     confirmed_tenors.append(tenor.upper())
-                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text} (green)")
+                    log.info(f"[ExcelEngine]   {cell_addr}: {confirm_text}")
 
-            # Save the workbook (don't close it)
+            # Save the workbook (DO NOT close it!)
             wb.Save()
             log.info(f"[ExcelEngine] Workbook saved (kept open)")
 

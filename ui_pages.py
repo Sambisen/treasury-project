@@ -2751,9 +2751,9 @@ class HistoryPage(tk.Frame):
             messagebox.showerror("Error", f"Failed to save snapshot: {e}")
             return
 
-        # Then write stamp to Excel
+        # Then write stamp to Excel (use win32com-only method to avoid corruption)
         if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
-            success, msg = self.app.excel_engine.write_confirmation_stamp()
+            success, msg = self.app.excel_engine.write_confirmation_to_excel()
             if success:
                 log.info(f"Confirmation stamp written: {msg}")
                 messagebox.showinfo("Nibor Confirmed", f"✓ NIBOR confirmed and logged!\n\n{msg}")
