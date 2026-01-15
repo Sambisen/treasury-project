@@ -121,6 +121,9 @@ class DashboardPage(BaseFrame):
                         text_color=THEME["text"],
                         font=FONTS["h2"]).pack(side="left")
 
+            # === DATA MODE TOGGLE (TEST/PROD) ===
+            self._create_mode_toggle_ctk(title_frame)
+
             # History link as button
             if MATPLOTLIB_AVAILABLE and TrendPopup:
                 history_btn = ctk.CTkButton(title_frame, text="View History →",
@@ -139,6 +142,9 @@ class DashboardPage(BaseFrame):
                     fg=THEME["text"],
                     bg=THEME["bg_panel"],
                     font=FONTS["h2"]).pack(side="left")
+
+            # === DATA MODE TOGGLE (TEST/PROD) ===
+            self._create_mode_toggle_tk(title_frame)
 
             if MATPLOTLIB_AVAILABLE and TrendPopup:
                 history_btn = tk.Label(title_frame, text="View History →",
@@ -555,6 +561,108 @@ class DashboardPage(BaseFrame):
         card._status = lbl_status
         card._sub = lbl_sub
         return card
+
+    # ================================================================
+    # DATA MODE TOGGLE (TEST/PROD)
+    # ================================================================
+    def _create_mode_toggle_ctk(self, parent):
+        """Create TEST/PROD toggle button using CustomTkinter."""
+        from settings import get_settings
+        settings = get_settings()
+        dev_mode = settings.get("development_mode", True)
+
+        # Container frame
+        mode_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        mode_frame.pack(side="left", padx=(30, 0))
+
+        # Mode indicator/button
+        mode_text = "TEST" if dev_mode else "PROD"
+        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+
+        self._mode_btn = ctk.CTkButton(
+            mode_frame,
+            text=f"MODE: {mode_text}",
+            fg_color=mode_color,
+            hover_color=THEME["bg_card_2"],
+            text_color="#FFFFFF",
+            font=("Segoe UI Semibold", 11),
+            width=110,
+            height=28,
+            corner_radius=6,
+            command=self._toggle_data_mode
+        )
+        self._mode_btn.pack(side="left")
+
+    def _create_mode_toggle_tk(self, parent):
+        """Create TEST/PROD toggle button using tkinter."""
+        from settings import get_settings
+        settings = get_settings()
+        dev_mode = settings.get("development_mode", True)
+
+        # Container frame
+        mode_frame = tk.Frame(parent, bg=THEME["bg_panel"])
+        mode_frame.pack(side="left", padx=(30, 0))
+
+        # Mode indicator/button
+        mode_text = "TEST" if dev_mode else "PROD"
+        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+
+        self._mode_btn = tk.Label(
+            mode_frame,
+            text=f"  MODE: {mode_text}  ",
+            fg="#FFFFFF",
+            bg=mode_color,
+            font=("Segoe UI Semibold", 10),
+            cursor="hand2",
+            padx=12,
+            pady=4
+        )
+        self._mode_btn.pack(side="left")
+        self._mode_btn.bind("<Button-1>", lambda e: self._toggle_data_mode())
+        self._mode_btn.bind("<Enter>", lambda e: self._mode_btn.config(bg=THEME["bg_card_2"]))
+        self._mode_btn.bind("<Leave>", lambda e: self._update_mode_button_color())
+
+    def _toggle_data_mode(self):
+        """Toggle between TEST and PROD mode and reload data."""
+        from settings import get_settings
+        settings = get_settings()
+
+        # Get current mode and flip it
+        current_mode = settings.get("development_mode", True)
+        new_mode = not current_mode
+
+        # Save new setting
+        settings.set("development_mode", new_mode, save=True)
+
+        # Update button appearance
+        self._update_mode_button_color()
+
+        # Show feedback
+        mode_text = "TEST" if new_mode else "PROD"
+        log.info(f"[Dashboard] Switched to {mode_text} mode")
+
+        # Trigger data reload
+        if hasattr(self.app, 'refresh_data'):
+            self.app.refresh_data()
+
+        # Show toast notification if available
+        if hasattr(self.app, 'toast'):
+            self.app.toast.show(f"Switched to {mode_text} mode - Reloading data...", "info")
+
+    def _update_mode_button_color(self):
+        """Update the mode button color based on current setting."""
+        from settings import get_settings
+        settings = get_settings()
+        dev_mode = settings.get("development_mode", True)
+
+        mode_text = "TEST" if dev_mode else "PROD"
+        mode_color = THEME["accent"] if dev_mode else THEME["good"]
+
+        if hasattr(self, '_mode_btn'):
+            if CTK_AVAILABLE and isinstance(self._mode_btn, ctk.CTkButton):
+                self._mode_btn.configure(text=f"MODE: {mode_text}", fg_color=mode_color)
+            else:
+                self._mode_btn.config(text=f"  MODE: {mode_text}  ", bg=mode_color)
 
     def _show_trend_popup(self):
         """Show popup with NIBOR trend history chart."""
