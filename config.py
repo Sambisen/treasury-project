@@ -45,15 +45,10 @@ DEVELOPMENT_MODE = True  # Default to TEST mode
 # BLOOMBERG TICKER SUFFIX (F033 for Prod, F043 for Dev)
 # ============================================================================
 def get_ticker_suffix():
-    """Get the Bloomberg ticker suffix based on current mode.
-    Dev mode: F043, Prod mode: F033
+    """Get the Bloomberg ticker suffix.
+    Always F043 for both Dev and Prod mode.
     """
-    try:
-        from settings import get_setting
-        dev_mode = get_setting("development_mode", True)
-    except ImportError:
-        dev_mode = DEVELOPMENT_MODE
-    return "F043" if dev_mode else "F033"
+    return "F043"
 
 def get_ticker(base_ticker):
     """Convert a base ticker to use the correct suffix for current mode.
