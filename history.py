@@ -661,7 +661,7 @@ def confirm_rates(app) -> tuple[bool, str]:
 
     try:
         engine = getattr(app, 'engine', None)
-        saved_count, saved_dates = backfill_fixings(engine, num_dates=3)
+        saved_count, saved_dates = backfill_fixings(engine, num_dates=5)
 
         date_key = save_snapshot(app)
 
