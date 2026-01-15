@@ -29,16 +29,12 @@ HISTORY_DIR = NIBOR_LOG_FILE_OVERRIDE.parent
 
 def get_history_file_path() -> Path:
     r"""
-    Get the history file path based on DEVELOPMENT_MODE.
+    Get the history file path - ALWAYS the same file regardless of mode.
 
-    PROD:
+    Returns:
       ...\Nibor logg\nibor_log.json
-
-    TEST:
-      ...\Nibor logg\nibor_log_test.json
     """
-    if DEVELOPMENT_MODE:
-        return NIBOR_LOG_FILE_OVERRIDE.with_name("nibor_log_test.json")
+    # Always use the same file for both PROD and DEV mode
     return NIBOR_LOG_FILE_OVERRIDE
 
 
