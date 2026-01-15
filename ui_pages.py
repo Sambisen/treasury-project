@@ -112,45 +112,50 @@ class DashboardPage(BaseFrame):
         self.calc_model_var = tk.StringVar(value="swedbank")
 
         # ====================================================================
-        # NIBOR RATES CARD - Nordic Light Enterprise Design
+        # NIBOR RATES CARD - Premium Hero Card (Main Feature)
         # ====================================================================
 
-        # Main card container with white surface, subtle border, 12px radius
+        # Outer wrapper for accent border effect (left accent stripe)
+        card_wrapper = tk.Frame(content, bg=THEME["accent"])
+        card_wrapper.pack(fill="both", expand=True, pady=(16, 0))
+
+        # Main card container with white surface
         if CTK_AVAILABLE:
             nibor_card = ctk.CTkFrame(
-                content,
+                card_wrapper,
                 fg_color=THEME["bg_card"],
-                corner_radius=RADII["card"],
-                border_width=1,
-                border_color=THEME["border"]
+                corner_radius=0,  # Wrapper handles the accent
+                border_width=0
             )
         else:
             nibor_card = tk.Frame(
-                content,
-                bg=THEME["bg_card"],
-                highlightthickness=1,
-                highlightbackground=THEME["border"]
+                card_wrapper,
+                bg=THEME["bg_card"]
             )
-        nibor_card.pack(fill="both", expand=True, pady=(16, 0))
+        # Left accent stripe (4px orange) + white card
+        nibor_card.pack(fill="both", expand=True, padx=(4, 0), pady=0)
 
         # Card inner padding container
         card_content = tk.Frame(nibor_card, bg=THEME["bg_card"])
-        card_content.pack(fill="both", expand=True, padx=24, pady=24)
+        card_content.pack(fill="both", expand=True, padx=32, pady=28)
 
         # ----------------------------------------------------------------
         # CARD HEADER ROW: Title | Dev Badge | View History link (right)
         # ----------------------------------------------------------------
         header_row = tk.Frame(card_content, bg=THEME["bg_card"])
-        header_row.pack(fill="x", pady=(0, 16))
+        header_row.pack(fill="x", pady=(0, 20))
 
-        # Left side: Title
+        # Left side: Title with accent underline effect
+        title_container = tk.Frame(header_row, bg=THEME["bg_card"])
+        title_container.pack(side="left")
+
         tk.Label(
-            header_row,
+            title_container,
             text="NIBOR RATES",
             fg=THEME["text"],
             bg=THEME["bg_card"],
-            font=("Segoe UI Semibold", 16)
-        ).pack(side="left")
+            font=("Segoe UI Semibold", 20)
+        ).pack(anchor="w")
 
         # Dev/Prod badge pill (next to title)
         self._create_mode_badge(header_row)
@@ -171,11 +176,16 @@ class DashboardPage(BaseFrame):
             history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 16))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 20))
 
-        # Table frame for grid layout
+        # Table frame for grid layout - FULL WIDTH
         funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        funding_frame.pack(fill="x")
+        funding_frame.pack(fill="both", expand=True)
+
+        # Configure columns to expand proportionally
+        col_weights = [1, 2, 1, 2, 1, 0, 2]  # TENOR, FUNDING, SPREAD, NIBOR, CHG, sep, CONTRIB
+        for i, w in enumerate(col_weights):
+            funding_frame.grid_columnconfigure(i, weight=w, uniform="cols" if w > 0 else None)
 
         # ================================================================
         # TABLE HEADER - Nordic Light premium styling
@@ -184,35 +194,31 @@ class DashboardPage(BaseFrame):
         header_bg = THEME["table_header_bg"]     # Subtle header background
         row_separator_color = THEME["border"]     # Subtle border
 
-        # Header row background
-        header_row_frame = tk.Frame(funding_frame, bg=header_bg)
-        header_row_frame.grid(row=0, column=0, columnspan=7, sticky="nsew")
-
-        # Main headers with premium styling
+        # Main headers with premium styling - wider columns
         headers = [
-            ("TENOR", 10, "center"),
-            ("FUNDING RATE", 14, "e"),
-            ("SPREAD", 10, "e"),
-            ("NIBOR", 14, "e"),
-            ("CHG", 10, "e"),
+            ("TENOR", 12, "center"),
+            ("FUNDING RATE", 18, "e"),
+            ("SPREAD", 12, "e"),
+            ("NIBOR", 18, "e"),
+            ("CHG", 12, "e"),
         ]
         for col, (text, width, anchor) in enumerate(headers):
             tk.Label(funding_frame, text=text,
                     fg=header_text_color,
                     bg=header_bg,
-                    font=("Segoe UI Semibold", 9),
-                    width=width, pady=12, padx=16,
+                    font=("Segoe UI Semibold", 10),
+                    width=width, pady=14, padx=20,
                     anchor=anchor).grid(row=0, column=col, sticky="nsew")
 
         # Vertical separator between main cols and contribution
-        tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=8)
+        tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=12)
 
-        # Contribution header
+        # Contribution header - wider
         tk.Label(funding_frame, text="NIBOR Contribution",
                 fg=header_text_color,
                 bg=header_bg,
-                font=("Segoe UI Semibold", 9),
-                width=16, pady=12, padx=16,
+                font=("Segoe UI Semibold", 10),
+                width=20, pady=14, padx=20,
                 anchor="center").grid(row=0, column=6, sticky="nsew")
 
         # Header bottom separator
@@ -240,19 +246,19 @@ class DashboardPage(BaseFrame):
             if tenor.get("disabled"):
                 tk.Label(funding_frame, text=tenor["label"],
                         fg=THEME["text_light"], bg=row_bg,
-                        font=("Segoe UI", 11), width=10, pady=14, padx=16,
-                        anchor="center").grid(row=row_idx, column=0, sticky="ew")
+                        font=("Segoe UI", 12), width=12, pady=16, padx=20,
+                        anchor="center").grid(row=row_idx, column=0, sticky="nsew")
 
                 for col in range(1, 5):
                     anchor = "e" if col > 0 else "center"
                     tk.Label(funding_frame, text="—", fg=THEME["text_light"],
-                            bg=row_bg, font=("Consolas", 11),
-                            anchor=anchor, pady=14, padx=16).grid(row=row_idx, column=col, sticky="ew")
+                            bg=row_bg, font=("Consolas", 12),
+                            anchor=anchor, pady=16, padx=20).grid(row=row_idx, column=col, sticky="nsew")
 
                 # Contribution column for disabled row
                 tk.Label(funding_frame, text="—", fg=THEME["text_light"],
-                        bg=row_bg, font=("Consolas", 10),
-                        anchor="center", pady=14, padx=16).grid(row=row_idx, column=6, sticky="ew")
+                        bg=row_bg, font=("Consolas", 11),
+                        anchor="center", pady=16, padx=20).grid(row=row_idx, column=6, sticky="nsew")
 
                 # Subtle row separator
                 tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
@@ -263,11 +269,11 @@ class DashboardPage(BaseFrame):
             # Collect all widgets in this row for hover effect
             row_widgets = []
 
-            # TENOR label - bold
+            # TENOR label - bold, larger
             tenor_lbl = tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
-                    bg=row_bg, font=("Segoe UI Semibold", 11),
-                    width=10, anchor="center", pady=14, padx=16)
-            tenor_lbl.grid(row=row_idx, column=0, sticky="ew")
+                    bg=row_bg, font=("Segoe UI Semibold", 13),
+                    width=12, anchor="center", pady=16, padx=20)
+            tenor_lbl.grid(row=row_idx, column=0, sticky="nsew")
             row_widgets.append(tenor_lbl)
 
             cells = {}
@@ -275,9 +281,9 @@ class DashboardPage(BaseFrame):
             # FUNDING RATE - monospace, right-aligned, clickable
             funding_lbl = tk.Label(funding_frame, text="—",
                                   fg=THEME["text"], bg=row_bg,
-                                  font=("Consolas", 11),
-                                  width=14, anchor="e", cursor="hand2", pady=14, padx=16)
-            funding_lbl.grid(row=row_idx, column=1, sticky="ew")
+                                  font=("Consolas", 12),
+                                  width=18, anchor="e", cursor="hand2", pady=16, padx=20)
+            funding_lbl.grid(row=row_idx, column=1, sticky="nsew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(funding_lbl)
             cells["funding"] = funding_lbl
@@ -286,18 +292,18 @@ class DashboardPage(BaseFrame):
             # SPREAD - monospace, right-aligned, muted
             spread_lbl = tk.Label(funding_frame, text="—",
                                  fg=THEME["text_muted"], bg=row_bg,
-                                 font=("Consolas", 11),
-                                 width=10, anchor="e", pady=14, padx=16)
-            spread_lbl.grid(row=row_idx, column=2, sticky="ew")
+                                 font=("Consolas", 12),
+                                 width=12, anchor="e", pady=16, padx=20)
+            spread_lbl.grid(row=row_idx, column=2, sticky="nsew")
             row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
 
-            # NIBOR - Large, bold, accent color, right-aligned
+            # NIBOR - HERO COLUMN - Extra large, bold, accent color
             final_lbl = tk.Label(funding_frame, text="—",
                                 fg=THEME["accent"], bg=row_bg,
-                                font=("Consolas", 13, "bold"),
-                                width=14, anchor="e", cursor="hand2", pady=14, padx=16)
-            final_lbl.grid(row=row_idx, column=3, sticky="ew")
+                                font=("Consolas", 16, "bold"),
+                                width=18, anchor="e", cursor="hand2", pady=16, padx=20)
+            final_lbl.grid(row=row_idx, column=3, sticky="nsew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(final_lbl)
             cells["final"] = final_lbl
@@ -306,24 +312,24 @@ class DashboardPage(BaseFrame):
             # CHG - monospace, right-aligned (color set dynamically)
             chg_lbl = tk.Label(funding_frame, text="—",
                               fg=THEME["text_muted"], bg=row_bg,
-                              font=("Consolas", 11),
-                              width=10, anchor="e", pady=14, padx=16)
-            chg_lbl.grid(row=row_idx, column=4, sticky="ew")
+                              font=("Consolas", 12),
+                              width=12, anchor="e", pady=16, padx=20)
+            chg_lbl.grid(row=row_idx, column=4, sticky="nsew")
             row_widgets.append(chg_lbl)
             cells["chg"] = chg_lbl
             ToolTip(chg_lbl, lambda t=tenor["key"]: self._get_chg_tooltip(t))
 
-            # NIBOR Contribution - Compact pill badge
+            # NIBOR Contribution - Larger pill badge
             pill_container = tk.Frame(funding_frame, bg=row_bg)
-            pill_container.grid(row=row_idx, column=6, sticky="ew", pady=8, padx=12)
+            pill_container.grid(row=row_idx, column=6, sticky="nsew", pady=10, padx=16)
             row_widgets.append(pill_container)
 
-            # Create compact pill badge (tk only for simplicity)
+            # Create pill badge - larger
             pill_badge = tk.Frame(pill_container, bg=THEME["chip"])
-            pill_badge.pack(anchor="center")
+            pill_badge.pack(anchor="center", expand=True)
             pill_label = tk.Label(pill_badge, text="—",
                                   fg=THEME["text_muted"], bg=THEME["chip"],
-                                  font=("Segoe UI", 9), padx=10, pady=3)
+                                  font=("Segoe UI", 10), padx=14, pady=5)
             pill_label.pack()
 
             cells["nibor_contrib"] = pill_label
@@ -362,10 +368,10 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # CONFIRM RATES BUTTON - Centered inside card, Nordic Light style
+        # CONFIRM RATES BUTTON - Prominent CTA inside card
         # ====================================================================
         confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        confirm_btn_frame.pack(anchor="center", pady=(24, 8))
+        confirm_btn_frame.pack(anchor="center", pady=(28, 12))
 
         if CTK_AVAILABLE:
             self.confirm_rates_btn = ctk.CTkButton(
@@ -375,10 +381,10 @@ class DashboardPage(BaseFrame):
                 fg_color=THEME["accent"],
                 hover_color=THEME["accent_hover"],
                 text_color="white",
-                font=("Segoe UI Semibold", 12),
+                font=("Segoe UI Semibold", 14),
                 corner_radius=RADII["button"],
-                width=260,
-                height=42,
+                width=280,
+                height=48,
                 state="disabled"  # Start disabled, enabled when all matched
             )
         else:
@@ -390,10 +396,10 @@ class DashboardPage(BaseFrame):
                 bg=THEME["accent"],
                 activebackground=THEME["accent_hover"],
                 activeforeground="white",
-                font=("Segoe UI Semibold", 12),
+                font=("Segoe UI Semibold", 13),
                 relief="flat",
                 cursor="hand2",
-                width=22,
+                width=24,
                 height=2,
                 state="disabled"  # Start disabled
             )
@@ -1503,7 +1509,7 @@ class DashboardPage(BaseFrame):
                 lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
 
                 if all_matched and match_details['criteria']:
-                    # Matched - Compact green pill (Nordic Light)
+                    # Matched - Green pill (Nordic Light)
                     matched_bg = "#E8F5E9"  # Light green bg
                     matched_fg = THEME["success"]  # #1E8E3E
                     if is_ctk_widget:
@@ -1511,12 +1517,12 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="Matched", text_color=matched_fg)
                     else:
                         lbl.config(text="Matched", fg=matched_fg, bg=matched_bg,
-                                  font=("Segoe UI", 9), padx=10, pady=3)
+                                  font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=matched_bg)
                     self._stop_blink(lbl)
                 elif errors:
-                    # Failed - Compact red pill (Nordic Light)
+                    # Failed - Red pill (Nordic Light)
                     failed_bg = "#FFEBEE"  # Light red bg
                     failed_fg = THEME["danger"]  # #D93025
                     if is_ctk_widget:
@@ -1524,14 +1530,14 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="Failed", text_color=failed_fg)
                     else:
                         lbl.config(text="Failed", fg=failed_fg, bg=failed_bg,
-                                  font=("Segoe UI", 9), padx=10, pady=3)
+                                  font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=failed_bg)
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    # Pending - Compact neutral pill
+                    # Pending - Neutral pill
                     pending_bg = THEME["chip"]
                     pending_fg = THEME["text_muted"]
                     if is_ctk_widget:
@@ -1539,7 +1545,7 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="—", text_color=pending_fg)
                     else:
                         lbl.config(text="—", fg=pending_fg, bg=pending_bg,
-                                  font=("Segoe UI", 9), padx=10, pady=3)
+                                  font=("Segoe UI", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=pending_bg)
                     self._stop_blink(lbl)
