@@ -59,8 +59,8 @@ class NiborTerminalCTK(ctk.CTk):
         set_mode("OFFICE")
 
         self.title(f"Nibor Calculation Terminal v{APP_VERSION}")
-        self.geometry("1400x1050")
-        self.minsize(1320, 950)
+        self.geometry("1400x750")
+        self.minsize(1320, 650)
         self.configure(fg_color=THEME["bg_main"])
 
         style_ttk(self)
