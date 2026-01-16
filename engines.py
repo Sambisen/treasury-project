@@ -597,36 +597,20 @@ class ExcelEngine:
         import re
 
         log.info("[ExcelEngine] Using xlwings for Excel write")
-
-        # Connect to Excel - xlwings handles open files gracefully
-        app = xw.apps.active
-        if app is None:
-            # No Excel running, open it
-            app = xw.App(visible=True)
-            log.info("[ExcelEngine] Started new Excel instance via xlwings")
-
-        wb = None
-        target_filename = nibor_file.name.lower()
         file_path_str = str(nibor_file.resolve())
 
-        # Check if workbook is already open
-        for book in app.books:
-            if book.name.lower() == target_filename:
-                wb = book
-                log.info(f"[ExcelEngine] Found open workbook: {wb.name}")
-                break
-
-        if wb is None:
-            # Open the workbook
-            wb = app.books.open(file_path_str)
-            log.info(f"[ExcelEngine] Opened workbook: {wb.name}")
+        # xw.Book() connects to open workbook or opens it
+        # This is the simplest and most reliable approach
+        wb = xw.Book(file_path_str)
+        log.info(f"[ExcelEngine] Connected to workbook: {wb.name}")
 
         # Find the latest date sheet
         date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-        date_sheets = [s.name for s in wb.sheets if date_pattern.match(s.name)]
+        sheet_names = [s.name for s in wb.sheets]
+        date_sheets = [name for name in sheet_names if date_pattern.match(name)]
 
         if not date_sheets:
-            return False, "No date sheets found in workbook"
+            return False, f"No date sheets found. Sheets: {sheet_names[:5]}"
 
         latest_sheet_name = sorted(date_sheets)[-1]
         ws = wb.sheets[latest_sheet_name]
@@ -645,8 +629,8 @@ class ExcelEngine:
                         # Green background RGB(198, 239, 206)
                         cell.color = (198, 239, 206)
                         # Dark green text RGB(0, 128, 80)
-                        cell.font.color = (0, 128, 80)
-                        cell.font.bold = True
+                        cell.api.Font.Color = 0x508000  # BGR format for win32
+                        cell.api.Font.Bold = True
                         log.info(f"[ExcelEngine]   WROTE {cell_addr}")
                     except Exception as e:
                         log.error(f"[ExcelEngine]   FAILED {cell_addr}: {e}")
