@@ -237,51 +237,51 @@ class NiborTerminalCTK(ctk.CTk):
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
-        # PREMIUM CLOCK - Sleek design with gradient-style border
+        # PREMIUM CLOCK - Subtle elegance
         # ====================================================================
         clock_frame = ctk.CTkFrame(header_right, fg_color=THEME["bg_card"],
-                                   corner_radius=12,
-                                   border_width=2, border_color=THEME["accent"])
+                                   corner_radius=10,
+                                   border_width=1, border_color=THEME["border"])
         clock_frame.pack(side="right")
 
         clock_inner = ctk.CTkFrame(clock_frame, fg_color="transparent")
-        clock_inner.pack(padx=16, pady=10)
+        clock_inner.pack(padx=14, pady=8)
 
-        # Time section - premium styling
+        # Time section
         time_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        time_section.pack(side="left", padx=(0, 12))
+        time_section.pack(side="left", padx=(0, 8))
 
         self._header_clock_time = ctk.CTkLabel(time_section, text="--:--:--",
                                                text_color=THEME["text"],
-                                               font=("Segoe UI", 22, "bold"))
+                                               font=("Segoe UI Semibold", 15))
         self._header_clock_time.pack(side="left")
 
         self._header_clock_date = ctk.CTkLabel(time_section, text="",
                                                text_color=THEME["text_muted"],
-                                               font=("Segoe UI", 10))
-        self._header_clock_date.pack(side="left", padx=(12, 0))
+                                               font=("Segoe UI", 9))
+        self._header_clock_date.pack(side="left", padx=(10, 0))
 
-        # Premium separator with accent color
-        ctk.CTkFrame(clock_inner, fg_color=THEME["accent"], width=2, height=28).pack(side="left", padx=14)
+        # Subtle separator
+        ctk.CTkFrame(clock_inner, fg_color=THEME["border"], width=1, height=22).pack(side="left", padx=12)
 
-        # NIBOR Fixing section - premium styling
+        # NIBOR Fixing section
         nibor_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        nibor_section.pack(side="left", padx=(12, 0))
+        nibor_section.pack(side="left", padx=(8, 0))
 
-        ctk.CTkLabel(nibor_section, text="NIBOR FIXING",
+        ctk.CTkLabel(nibor_section, text="FIXING",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 9)).pack(side="left", padx=(0, 10))
+                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
 
         self._nibor_fixing_status = ctk.CTkLabel(nibor_section, text="--:--:--",
                                                  text_color=THEME["accent"],
-                                                 font=("Segoe UI", 22, "bold"))
+                                                 font=("Segoe UI Semibold", 15))
         self._nibor_fixing_status.pack(side="left")
 
         # Fixing indicator (shown inline)
         self._nibor_fixing_indicator = ctk.CTkLabel(nibor_section, text="",
                                                     text_color=THEME["text_muted"],
-                                                    font=("Segoe UI", 10))
-        self._nibor_fixing_indicator.pack(side="left", padx=(10, 0))
+                                                    font=("Segoe UI", 9))
+        self._nibor_fixing_indicator.pack(side="left", padx=(8, 0))
 
         # Start the header clock update
         self._update_header_clock()
