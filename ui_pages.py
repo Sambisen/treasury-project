@@ -1863,6 +1863,27 @@ class DashboardPage(BaseFrame):
             self._drawer.close()
             return "break"  # Prevent event propagation
 
+    def _on_main_window_configure(self, event=None):
+        """Update drawer position when main window moves or resizes."""
+        if not self._drawer_window or not self._drawer_window.winfo_exists():
+            return
+        if not self._drawer_window.winfo_viewable():
+            return
+
+        # Get main window position and size
+        root = self.winfo_toplevel()
+        main_x = root.winfo_x()
+        main_y = root.winfo_y()
+        main_width = root.winfo_width()
+        main_height = root.winfo_height()
+
+        # Position drawer to the right of main window
+        drawer_x = main_x + main_width + 2
+        drawer_width = 400
+
+        # Update drawer position and height
+        self._drawer_window.geometry(f"{drawer_width}x{main_height}+{drawer_x}+{main_y}")
+
     def _open_drawer_for_tenor(self, tenor_key: str):
         """Open the calculation drawer for a specific tenor."""
         # Auto-update if data not available
@@ -1908,6 +1929,9 @@ class DashboardPage(BaseFrame):
                 on_rerun=self._on_drawer_rerun
             )
             self._drawer.pack(fill="both", expand=True)
+
+            # Bind main window move/resize to update drawer position
+            root.bind("<Configure>", self._on_main_window_configure, add="+")
 
         # Position and size the drawer window
         self._drawer_window.geometry(f"{drawer_width}x{drawer_height}+{drawer_x}+{main_y}")
