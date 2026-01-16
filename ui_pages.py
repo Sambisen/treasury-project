@@ -17,7 +17,7 @@ except ImportError:
 from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, RADII, get_logger, get_market_structure, get_ticker
 
 log = get_logger("ui_pages")
-from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
+from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection, RatesActionBar
 from ui.components.drawers import CalculationDrawer
 from ui.components.cards import MetricCard
 from utils import safe_float
@@ -378,26 +378,21 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # CONFIRM RATES BUTTON - Prominent CTA inside card
+        # ACTION BAR - Premium action bar with metadata and buttons
         # ====================================================================
-        confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-        confirm_btn_frame.pack(anchor="center", pady=(25, 20))
-
         if CTK_AVAILABLE:
-            self.confirm_rates_btn = ctk.CTkButton(
-                confirm_btn_frame,
-                text="Confirm rates",
-                command=self._on_confirm_rates,
-                fg_color=THEME["accent"],
-                hover_color=THEME["accent_hover"],
-                text_color="white",
-                font=("Segoe UI Semibold", 14),
-                corner_radius=RADII["button"],
-                width=280,
-                height=48,
-                state="disabled"  # Start disabled, enabled when all matched
+            self.action_bar = RatesActionBar(
+                card_content,
+                on_rerun_checks=self._on_rerun_checks,
+                on_confirm_rates=self._on_confirm_rates,
             )
+            self.action_bar.pack(fill="x", pady=(20, 15))
+            # Reference for backwards compatibility
+            self.confirm_rates_btn = self.action_bar.confirm_btn
         else:
+            # Fallback for non-CTK
+            confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
+            confirm_btn_frame.pack(anchor="center", pady=(25, 20))
             self.confirm_rates_btn = tk.Button(
                 confirm_btn_frame,
                 text="Confirm rates",
@@ -411,9 +406,10 @@ class DashboardPage(BaseFrame):
                 cursor="hand2",
                 width=24,
                 height=2,
-                state="disabled"  # Start disabled
+                state="disabled"
             )
-        self.confirm_rates_btn.pack()
+            self.confirm_rates_btn.pack()
+            self.action_bar = None
 
         # ====================================================================
         # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
@@ -519,6 +515,22 @@ class DashboardPage(BaseFrame):
         # Trigger re-update of funding rates table
         self._update_funding_rates_with_validation()
 
+    def _on_rerun_checks(self):
+        """Handle Re-run checks button click - runs all validations."""
+        log.info("[Dashboard] Re-run checks clicked")
+
+        # Update action bar timestamp
+        if self.action_bar:
+            from datetime import datetime
+            self.action_bar.set_last_updated(datetime.now())
+
+        # Re-run the validation update
+        self._update_funding_rates_with_validation()
+
+        # Show toast if available
+        if hasattr(self.app, 'toast'):
+            self.app.toast.info("Validation checks re-run")
+
     def _on_confirm_rates(self):
         """Handle Confirm rates button click."""
         from history import confirm_rates
@@ -526,8 +538,11 @@ class DashboardPage(BaseFrame):
 
         log.info("[Dashboard] Confirm rates button clicked")
 
-        # Disable button during operation
-        self.confirm_rates_btn.configure(state="disabled", text="Confirming...")
+        # Set loading state on action bar
+        if self.action_bar:
+            self.action_bar.set_loading(True)
+        else:
+            self.confirm_rates_btn.configure(state="disabled", text="Confirming...")
 
         def do_confirm():
             try:
@@ -535,7 +550,12 @@ class DashboardPage(BaseFrame):
 
                 # Update UI on main thread
                 def update_ui():
-                    self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
+                    if self.action_bar:
+                        self.action_bar.set_loading(False)
+                        if success:
+                            self.action_bar.flash_confirmed()
+                    else:
+                        self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
 
                     if success:
                         # Show success message
@@ -561,7 +581,10 @@ class DashboardPage(BaseFrame):
 
             except Exception as e:
                 def show_error():
-                    self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
+                    if self.action_bar:
+                        self.action_bar.set_loading(False)
+                    else:
+                        self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
                     error_msg = f"Error confirming rates: {e}"
                     messagebox.showerror("Error", error_msg)
                     log.error(f"[Dashboard] {error_msg}")
@@ -1684,13 +1707,26 @@ class DashboardPage(BaseFrame):
         # Enable/disable Confirm button based on matching status
         self._update_confirm_button_state()
 
+        # Update action bar timestamp and data source
+        if hasattr(self, 'action_bar') and self.action_bar:
+            from datetime import datetime
+            self.action_bar.set_last_updated(datetime.now())
+            # Set data source based on what's available
+            sources = []
+            if hasattr(self.app, 'bbg_data') and self.app.bbg_data:
+                sources.append("Bloomberg")
+            if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+                sources.append("Excel")
+            if sources:
+                self.action_bar.set_data_source(" / ".join(sources))
+
     def _on_alerts_configure(self, event=None):
         """Legacy method - no longer used (alerts now in validation checks)."""
         pass
 
     def _update_confirm_button_state(self):
         """Enable Confirm button only if all tenors are matched."""
-        if not hasattr(self, 'confirm_rates_btn'):
+        if not hasattr(self, 'confirm_rates_btn') and not hasattr(self, 'action_bar'):
             return
 
         # Check if all tenors (1m, 2m, 3m, 6m) are matched
@@ -1711,11 +1747,18 @@ class DashboardPage(BaseFrame):
 
         # Update button state
         try:
-            if all_matched:
-                self.confirm_rates_btn.configure(state="normal")
-                log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
-            else:
-                self.confirm_rates_btn.configure(state="disabled")
+            if self.action_bar:
+                # Use action bar's set_ready method
+                self.action_bar.set_ready(all_matched)
+                if all_matched:
+                    log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
+            elif hasattr(self, 'confirm_rates_btn'):
+                # Fallback for non-CTK
+                if all_matched:
+                    self.confirm_rates_btn.configure(state="normal")
+                    log.info("[Dashboard] Confirm button ENABLED - all tenors matched")
+                else:
+                    self.confirm_rates_btn.configure(state="disabled")
         except Exception as e:
             log.error(f"[Dashboard] Error updating confirm button state: {e}")
 

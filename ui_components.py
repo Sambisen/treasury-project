@@ -674,3 +674,558 @@ class ConnectionStatusPanel(tk.Frame):
             self._freshness_ago.config(text=ago_text, fg=color)
 
         self.after(5000, self._update_freshness_display)
+
+
+# =============================================================================
+# PREMIUM ACTION BAR COMPONENTS
+# =============================================================================
+
+# Color helpers for premium buttons
+def _hex_to_rgb(h: str) -> tuple:
+    h = h.lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _rgb_to_hex(rgb: tuple) -> str:
+    return "#{:02X}{:02X}{:02X}".format(*rgb)
+
+
+def _lerp(a: int, b: int, t: float) -> int:
+    return int(a + (b - a) * t)
+
+
+def _blend(c1: str, c2: str, t: float) -> str:
+    r1, g1, b1 = _hex_to_rgb(c1)
+    r2, g2, b2 = _hex_to_rgb(c2)
+    return _rgb_to_hex((_lerp(r1, r2, t), _lerp(g1, g2, t), _lerp(b1, b2, t)))
+
+
+def _lighten(c: str, amount: float) -> str:
+    return _blend(c, "#FFFFFF", amount)
+
+
+def _darken(c: str, amount: float) -> str:
+    return _blend(c, "#000000", amount)
+
+
+if CTK_AVAILABLE:
+    class PremiumCTAButton(ctk.CTkFrame):
+        """
+        A premium-looking CTA button with gradient, shadow, and states.
+        Supports: hover/pressed/disabled/loading/confirmed.
+        """
+
+        def __init__(
+            self,
+            master,
+            text: str = "Confirm rates",
+            command=None,
+            width: int = 190,
+            height: int = 46,
+            radius: int = 14,
+            fg_top: str = None,
+            fg_bottom: str = None,
+            border_color: str = None,
+            text_color: str = "#FFFFFF",
+            font: tuple = ("Segoe UI", 13, "bold"),
+            shadow: bool = True,
+            **kwargs,
+        ):
+            super().__init__(master, fg_color="transparent", **kwargs)
+
+            self._w = width
+            self._h = height
+            self._r = radius
+            self._text = text
+            self._command = command
+
+            self._enabled = True
+            self._hover = False
+            self._pressed = False
+            self._loading = False
+            self._confirmed = False
+            self._focus = False
+
+            accent = THEME.get("accent", "#FF6A00")
+            accent_hover = THEME.get("accent_hover", "#FF7A1A")
+
+            self._fg_top = fg_top or _lighten(accent, 0.06)
+            self._fg_bottom = fg_bottom or _darken(accent, 0.04)
+            self._border_color = border_color or _darken(accent, 0.12)
+            self._text_color = text_color
+            self._font = font
+            self._shadow_on = shadow
+
+            # Shadow layer
+            self._shadow_canvas = ctk.CTkCanvas(self, width=self._w, height=self._h, highlightthickness=0, bd=0)
+            self._shadow_canvas.grid(row=0, column=0, sticky="nsew")
+
+            # Main canvas layer
+            self._canvas = ctk.CTkCanvas(self, width=self._w, height=self._h, highlightthickness=0, bd=0)
+            self._canvas.grid(row=0, column=0, sticky="nsew")
+
+            # Content label
+            self._label = ctk.CTkLabel(
+                self,
+                text=self._text,
+                text_color=self._text_color,
+                font=self._font,
+                fg_color="transparent",
+            )
+            self._label.place(relx=0.5, rely=0.5, anchor="center")
+
+            # Progress bar for loading state
+            self._progress = ctk.CTkProgressBar(
+                self,
+                mode="indeterminate",
+                width=int(self._w * 0.55),
+                height=8,
+                fg_color=_lighten("#000000", 0.92),
+                progress_color=_lighten("#FFFFFF", 0.1),
+                corner_radius=999,
+            )
+            self._progress.place_forget()
+
+            # Bindings
+            for widget in (self, self._canvas, self._label):
+                widget.bind("<Enter>", self._on_enter)
+                widget.bind("<Leave>", self._on_leave)
+                widget.bind("<ButtonPress-1>", self._on_press)
+                widget.bind("<ButtonRelease-1>", self._on_release)
+
+            self.configure(width=self._w, height=self._h)
+            self.grid_propagate(False)
+            self._redraw()
+
+        def set_enabled(self, enabled: bool) -> None:
+            self._enabled = bool(enabled)
+            if not self._enabled:
+                self._hover = False
+                self._pressed = False
+            self._redraw()
+
+        def set_loading(self, loading: bool, loading_text: str = "Confirming...") -> None:
+            self._loading = bool(loading)
+            if self._loading:
+                self._label.configure(text=loading_text)
+                self._progress.place(relx=0.5, rely=0.78, anchor="center")
+                self._progress.start()
+            else:
+                self._progress.stop()
+                self._progress.place_forget()
+                self._label.configure(text=self._text)
+            self._redraw()
+
+        def flash_confirmed(self, confirmed_text: str = "Confirmed") -> None:
+            self._confirmed = True
+            self._label.configure(text=confirmed_text)
+            self._redraw()
+
+            def _restore():
+                self._confirmed = False
+                self._label.configure(text=self._text)
+                self._redraw()
+
+            self.after(1200, _restore)
+
+        def _on_enter(self, _evt=None) -> None:
+            if not self._enabled or self._loading:
+                return
+            self._hover = True
+            self._redraw()
+
+        def _on_leave(self, _evt=None) -> None:
+            self._hover = False
+            self._pressed = False
+            self._redraw()
+
+        def _on_press(self, _evt=None) -> None:
+            if not self._enabled or self._loading:
+                return
+            self._pressed = True
+            self._redraw()
+
+        def _on_release(self, _evt=None) -> None:
+            if not self._enabled or self._loading:
+                return
+            was_pressed = self._pressed
+            self._pressed = False
+            self._redraw()
+            if was_pressed and self._hover and callable(self._command):
+                self._command()
+
+        def _redraw(self) -> None:
+            self._shadow_canvas.delete("all")
+            self._canvas.delete("all")
+
+            accent = THEME.get("accent", "#FF6A00")
+            accent_hover = THEME.get("accent_hover", "#FF7A1A")
+            accent_pressed = _darken(accent, 0.1)
+            success = THEME.get("good", "#1E8E3E")
+            text_primary = THEME.get("text", "#1F2937")
+            bg_canvas = THEME.get("bg_panel", "#F7F7F6")
+            shadow_color = "#000000"
+
+            if not self._enabled:
+                top = _lighten("#9CA3AF", 0.20)
+                bottom = _darken("#9CA3AF", 0.08)
+                border = _darken("#9CA3AF", 0.15)
+                text_color = _lighten(text_primary, 0.45)
+                shadow_alpha = 0.00
+            elif self._confirmed:
+                top = _lighten(success, 0.08)
+                bottom = _darken(success, 0.05)
+                border = _darken(success, 0.18)
+                text_color = "#FFFFFF"
+                shadow_alpha = 0.14
+            elif self._pressed:
+                top = _lighten(accent_pressed, 0.04)
+                bottom = _darken(accent_pressed, 0.06)
+                border = _darken(accent_pressed, 0.20)
+                text_color = "#FFFFFF"
+                shadow_alpha = 0.10
+            elif self._hover:
+                top = _lighten(accent_hover, 0.06)
+                bottom = _darken(accent_hover, 0.05)
+                border = _darken(accent_hover, 0.18)
+                text_color = "#FFFFFF"
+                shadow_alpha = 0.16
+            else:
+                top = self._fg_top
+                bottom = self._fg_bottom
+                border = self._border_color
+                text_color = self._text_color
+                shadow_alpha = 0.14
+
+            if self._loading and self._enabled:
+                top = _blend(top, "#FFFFFF", 0.06)
+                bottom = _blend(bottom, "#FFFFFF", 0.06)
+
+            self._label.configure(text_color=text_color)
+
+            # Shadow
+            if self._shadow_on and shadow_alpha > 0:
+                self._draw_rounded_rect(
+                    self._shadow_canvas,
+                    x=2,
+                    y=3 if not self._pressed else 4,
+                    w=self._w - 2,
+                    h=self._h - 2,
+                    r=self._r,
+                    fill=_blend(shadow_color, bg_canvas, 0.93),
+                    outline="",
+                )
+
+            # Main button with gradient
+            y_offset = 0 if not self._pressed else 1
+            self._draw_vertical_gradient(
+                self._canvas, 0, y_offset, self._w, self._h - y_offset, self._r, top, bottom
+            )
+
+            # Border
+            self._draw_rounded_rect(
+                self._canvas, 0, y_offset, self._w - 1, self._h - 1 - y_offset, self._r, fill="", outline=border
+            )
+
+            # Top highlight
+            self._draw_rounded_rect(
+                self._canvas, 1, 1 + y_offset, self._w - 3, int((self._h - y_offset) * 0.42),
+                max(8, self._r - 3), fill="", outline=_blend("#FFFFFF", top, 0.35)
+            )
+
+        def _draw_vertical_gradient(self, canvas, x, y, w, h, r, top, bottom, steps=16):
+            for i in range(steps):
+                t = i / max(1, steps - 1)
+                color = _blend(top, bottom, t)
+                y0 = y + int((h * i) / steps)
+                y1 = y + int((h * (i + 1)) / steps)
+                self._draw_rounded_rect(canvas, x, y0, w, (y1 - y0) + 1, r, fill=color, outline=color)
+
+        def _draw_rounded_rect(self, canvas, x, y, w, h, r, fill, outline, width=1):
+            r = max(0, min(r, int(min(w, h) / 2)))
+            x2, y2 = x + w, y + h
+            points = [
+                (x + r, y), (x2 - r, y), (x2, y), (x2, y + r),
+                (x2, y2 - r), (x2, y2), (x2 - r, y2), (x + r, y2),
+                (x, y2), (x, y2 - r), (x, y + r), (x, y),
+            ]
+            flat = [p for xy in points for p in xy]
+            canvas.create_polygon(flat, smooth=True, splinesteps=36, fill=fill, outline=outline, width=width)
+
+
+    class SecondaryActionButton(ctk.CTkFrame):
+        """
+        Secondary button with outlined/soft style for action bars.
+        White/light gray background, 1px border, dark text.
+        """
+
+        def __init__(
+            self,
+            master,
+            text: str = "Re-run checks",
+            command=None,
+            width: int = 140,
+            height: int = 44,
+            radius: int = 12,
+            icon_text: str = None,
+            **kwargs,
+        ):
+            super().__init__(master, fg_color="transparent", **kwargs)
+
+            self._w = width
+            self._h = height
+            self._r = radius
+            self._text = text
+            self._command = command
+            self._icon_text = icon_text
+
+            self._enabled = True
+            self._hover = False
+            self._pressed = False
+
+            # Colors
+            self._bg_normal = THEME.get("bg_card", "#FFFFFF")
+            self._bg_hover = _darken(self._bg_normal, 0.04)
+            self._bg_pressed = _darken(self._bg_normal, 0.08)
+            self._border_color = THEME.get("border", "#E6E6E6")
+            self._text_color = THEME.get("text", "#1F2937")
+            self._text_disabled = THEME.get("muted", "#9CA3AF")
+
+            # Main frame with border
+            self._inner = ctk.CTkFrame(
+                self,
+                width=self._w,
+                height=self._h,
+                corner_radius=self._r,
+                fg_color=self._bg_normal,
+                border_color=self._border_color,
+                border_width=1,
+            )
+            self._inner.pack(fill="both", expand=True)
+            self._inner.pack_propagate(False)
+
+            # Content frame
+            content = ctk.CTkFrame(self._inner, fg_color="transparent")
+            content.place(relx=0.5, rely=0.5, anchor="center")
+
+            # Icon (if provided)
+            if self._icon_text:
+                self._icon_lbl = ctk.CTkLabel(
+                    content,
+                    text=self._icon_text,
+                    font=("Segoe UI", 14),
+                    text_color=self._text_color,
+                    fg_color="transparent",
+                )
+                self._icon_lbl.pack(side="left", padx=(0, 6))
+            else:
+                self._icon_lbl = None
+
+            # Text label
+            self._label = ctk.CTkLabel(
+                content,
+                text=self._text,
+                font=("Segoe UI Semibold", 12),
+                text_color=self._text_color,
+                fg_color="transparent",
+            )
+            self._label.pack(side="left")
+
+            # Bindings
+            for widget in (self, self._inner, self._label, content):
+                widget.bind("<Enter>", self._on_enter)
+                widget.bind("<Leave>", self._on_leave)
+                widget.bind("<ButtonPress-1>", self._on_press)
+                widget.bind("<ButtonRelease-1>", self._on_release)
+
+            if self._icon_lbl:
+                self._icon_lbl.bind("<Enter>", self._on_enter)
+                self._icon_lbl.bind("<Leave>", self._on_leave)
+                self._icon_lbl.bind("<ButtonPress-1>", self._on_press)
+                self._icon_lbl.bind("<ButtonRelease-1>", self._on_release)
+
+            self.configure(width=self._w, height=self._h)
+
+        def set_enabled(self, enabled: bool) -> None:
+            self._enabled = bool(enabled)
+            color = self._text_color if self._enabled else self._text_disabled
+            self._label.configure(text_color=color)
+            if self._icon_lbl:
+                self._icon_lbl.configure(text_color=color)
+            self._update_bg()
+
+        def _on_enter(self, _evt=None) -> None:
+            if not self._enabled:
+                return
+            self._hover = True
+            self._update_bg()
+
+        def _on_leave(self, _evt=None) -> None:
+            self._hover = False
+            self._pressed = False
+            self._update_bg()
+
+        def _on_press(self, _evt=None) -> None:
+            if not self._enabled:
+                return
+            self._pressed = True
+            self._update_bg()
+
+        def _on_release(self, _evt=None) -> None:
+            if not self._enabled:
+                return
+            was_pressed = self._pressed
+            self._pressed = False
+            self._update_bg()
+            if was_pressed and self._hover and callable(self._command):
+                self._command()
+
+        def _update_bg(self) -> None:
+            if not self._enabled:
+                bg = _lighten(self._bg_normal, 0.02)
+            elif self._pressed:
+                bg = self._bg_pressed
+            elif self._hover:
+                bg = self._bg_hover
+            else:
+                bg = self._bg_normal
+            self._inner.configure(fg_color=bg)
+
+
+    class RatesActionBar(ctk.CTkFrame):
+        """
+        Action bar for rates confirmation with metadata and buttons.
+        Left: metadata (last updated, data source)
+        Right: Re-run checks + Confirm rates buttons
+        """
+
+        def __init__(
+            self,
+            master,
+            on_rerun_checks=None,
+            on_confirm_rates=None,
+            **kwargs,
+        ):
+            # Off-white background with border
+            bg_color = _blend(THEME.get("bg_card", "#FFFFFF"), "#000000", 0.02)
+
+            super().__init__(
+                master,
+                fg_color=bg_color,
+                corner_radius=14,
+                border_color=THEME.get("border", "#E6E6E6"),
+                border_width=1,
+                **kwargs,
+            )
+
+            self._on_rerun = on_rerun_checks
+            self._on_confirm = on_confirm_rates
+            self._last_update_time = None
+            self._data_source = "Bloomberg / Excel"
+            self._is_ready = False
+
+            # Left side: metadata
+            left = ctk.CTkFrame(self, fg_color="transparent")
+            left.pack(side="left", padx=16, pady=14)
+
+            self._update_lbl = ctk.CTkLabel(
+                left,
+                text="Last updated: --:--:--",
+                font=("Segoe UI Semibold", 12),
+                text_color=THEME.get("text", "#1F2937"),
+            )
+            self._update_lbl.pack(anchor="w")
+
+            self._source_lbl = ctk.CTkLabel(
+                left,
+                text=f"Data source: {self._data_source}",
+                font=("Segoe UI", 11),
+                text_color=THEME.get("muted", "#6B7280"),
+            )
+            self._source_lbl.pack(anchor="w", pady=(2, 0))
+
+            # Right side: buttons
+            right = ctk.CTkFrame(self, fg_color="transparent")
+            right.pack(side="right", padx=16, pady=14)
+
+            # Re-run checks button (secondary)
+            self.rerun_btn = SecondaryActionButton(
+                right,
+                text="Re-run checks",
+                command=self._handle_rerun,
+                width=140,
+                height=44,
+                radius=12,
+                icon_text="\u21BB",  # ↻ refresh symbol
+            )
+            self.rerun_btn.pack(side="left", padx=(0, 10))
+
+            # Confirm rates button (premium)
+            self.confirm_btn = PremiumCTAButton(
+                right,
+                text="Confirm rates",
+                command=self._handle_confirm,
+                width=180,
+                height=44,
+                radius=12,
+            )
+            self.confirm_btn.pack(side="left")
+
+            # Start disabled until ready
+            self.confirm_btn.set_enabled(False)
+
+            # Start freshness timer
+            self._update_freshness()
+
+        def set_last_updated(self, timestamp: datetime = None):
+            """Set the last updated timestamp."""
+            self._last_update_time = timestamp or datetime.now()
+            self._update_freshness()
+
+        def set_data_source(self, source: str):
+            """Set the data source text."""
+            self._data_source = source
+            self._source_lbl.configure(text=f"Data source: {self._data_source}")
+
+        def set_ready(self, ready: bool):
+            """Enable/disable confirm button based on validation state."""
+            self._is_ready = ready
+            self.confirm_btn.set_enabled(ready)
+
+        def set_loading(self, loading: bool):
+            """Set loading state on confirm button."""
+            self.confirm_btn.set_loading(loading)
+
+        def flash_confirmed(self):
+            """Flash confirmed state on confirm button."""
+            self.confirm_btn.flash_confirmed()
+
+        def _handle_rerun(self):
+            """Handle re-run checks button click."""
+            if callable(self._on_rerun):
+                self._on_rerun()
+
+        def _handle_confirm(self):
+            """Handle confirm rates button click."""
+            if callable(self._on_confirm):
+                self._on_confirm()
+
+        def _update_freshness(self):
+            """Update the last updated display with relative time."""
+            if self._last_update_time:
+                time_str = self._last_update_time.strftime("%H:%M:%S")
+                ago = (datetime.now() - self._last_update_time).seconds
+
+                if ago < 60:
+                    ago_text = f"({ago}s ago)"
+                elif ago < 3600:
+                    ago_text = f"({ago // 60}m ago)"
+                else:
+                    ago_text = f"({ago // 3600}h ago)"
+
+                self._update_lbl.configure(text=f"Last updated: {time_str} {ago_text}")
+            else:
+                self._update_lbl.configure(text="Last updated: --:--:--")
+
+            # Schedule next update
+            self.after(5000, self._update_freshness)
