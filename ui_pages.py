@@ -18,6 +18,7 @@ from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERT
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection
+from ui.components.drawers import CalculationDrawer
 from utils import safe_float
 from calculations import calc_implied_yield
 from history import (
@@ -102,11 +103,31 @@ class DashboardPage(BaseFrame):
         # ====================================================================
         # DASHBOARD CONTENT (CTk if available) - Aligned with sidebar
         # ====================================================================
+        # Create horizontal container for main content + drawer
         if CTK_AVAILABLE:
-            content = ctk.CTkFrame(self, fg_color="transparent")
+            self._main_container = ctk.CTkFrame(self, fg_color="transparent")
         else:
-            content = tk.Frame(self, bg=THEME["bg_panel"])
-        content.pack(fill="both", expand=True, padx=12, pady=(0, 6))
+            self._main_container = tk.Frame(self, bg=THEME["bg_panel"])
+        self._main_container.pack(fill="both", expand=True)
+
+        # Main content area (left side)
+        if CTK_AVAILABLE:
+            content = ctk.CTkFrame(self._main_container, fg_color="transparent")
+        else:
+            content = tk.Frame(self._main_container, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, side="left", padx=12, pady=(0, 6))
+        self._content = content
+
+        # Calculation Drawer (right side) - initially hidden
+        self._drawer = CalculationDrawer(
+            self._main_container,
+            width=400,
+            on_close=self._on_drawer_close,
+            on_rerun=self._on_drawer_rerun
+        )
+
+        # Bind ESC to close drawer
+        self.bind_all("<Escape>", self._close_drawer_on_escape)
 
         # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
@@ -1052,195 +1073,13 @@ class DashboardPage(BaseFrame):
         popup.focus_set()
 
     def _show_funding_details(self, tenor_key):
-        """Show detailed breakdown popup for funding rate calculation - 3 COLUMN LAYOUT."""
-        # Auto-update if data not available
-        if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
-            self._update_funding_rates_with_validation()
+        """Show detailed calculation drawer for the selected tenor.
 
-        data = self.app.funding_calc_data.get(tenor_key)
-        if not data:
-            log.info(f"[Dashboard] No funding data found for {tenor_key}")
-            return
-        
-        popup = tk.Toplevel(self)
-        popup.title(f"NIBOR Calculation - {tenor_key.upper()}")
-        popup.geometry("1100x800")  # Större fönster: 1100x800 (från 950x700)
-        popup.configure(bg=THEME["bg_panel"])
-        popup.transient(self)
-        popup.grab_set()
-        
-        # Gör fönstret resizable så användaren kan justera om nödvändigt
-        popup.resizable(True, True)
-        
-        # Title - CHANGED to "NIBOR CALCULATION"
-        tk.Label(popup, text=f"{tenor_key.upper()} TENOR - NIBOR CALCULATION",
-                fg=THEME["accent"], bg=THEME["bg_panel"],
-                font=("Segoe UI", 20, "bold")).pack(pady=20)
-        
-        # Main content frame
-        content = tk.Frame(popup, bg=THEME["bg_card"], highlightthickness=1,
-                          highlightbackground=THEME["border"])
-        content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
-        
-        # 3-COLUMN LAYOUT - Side by side
-        columns_frame = tk.Frame(content, bg=THEME["bg_card"])
-        columns_frame.pack(fill="x", padx=15, pady=15)
-        
-        # Configure 3 equal columns
-        for i in range(3):
-            columns_frame.grid_columnconfigure(i, weight=1, uniform="col")
-        
-        # COLUMN 1: EUR IMPLIED
-        eur_col = tk.Frame(columns_frame, bg=THEME["bg_card_2"], 
-                          highlightthickness=1, highlightbackground=THEME["border"])
-        eur_col.grid(row=0, column=0, padx=5, sticky="nsew")
-        
-        tk.Label(eur_col, text="EUR IMPLIED", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 11, "bold")).pack(pady=(10, 2))
-        tk.Label(eur_col, text="NOK RATE", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 9)).pack(pady=(0, 10))
-        
-        # EUR IMPLIED VALUE - Large with 4 DECIMALS
-        tk.Label(eur_col, text=f"{data.get('eur_impl'):.4f}%" if data.get('eur_impl') else "N/A",
-                fg=THEME["accent"], bg=THEME["bg_card_2"],
-                font=("Consolas", 18, "bold")).pack(pady=5)
-        
-        # EUR details
-        tk.Frame(eur_col, bg=THEME["border"], height=1).pack(fill="x", padx=10, pady=8)
-        for lbl, val in [
-            ("Spot:", f"{data.get('eur_spot'):.4f}" if data.get('eur_spot') else "N/A"),
-            ("Pips:", f"{data.get('eur_pips'):.2f}" if data.get('eur_pips') else "N/A"),
-            ("Rate:", f"{data.get('eur_rate'):.4f}%" if data.get('eur_rate') else "N/A"),
-            ("Days:", f"{int(data.get('eur_days'))}" if data.get('eur_days') else "N/A"),
-        ]:
-            row_f = tk.Frame(eur_col, bg=THEME["bg_card_2"])
-            row_f.pack(fill="x", padx=15, pady=2)
-            tk.Label(row_f, text=lbl, fg=THEME["muted"], bg=THEME["bg_card_2"],
-                    font=("Segoe UI", 9), anchor="w").pack(side="left")
-            tk.Label(row_f, text=val, fg=THEME["text"], bg=THEME["bg_card_2"],
-                    font=("Consolas", 9), anchor="e").pack(side="right")
-        
-        tk.Label(eur_col, text="", bg=THEME["bg_card_2"]).pack(pady=5)
-        
-        # COLUMN 2: USD IMPLIED
-        usd_col = tk.Frame(columns_frame, bg=THEME["bg_card_2"],
-                          highlightthickness=1, highlightbackground=THEME["border"])
-        usd_col.grid(row=0, column=1, padx=5, sticky="nsew")
-        
-        tk.Label(usd_col, text="USD IMPLIED", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 11, "bold")).pack(pady=(10, 2))
-        tk.Label(usd_col, text="NOK RATE", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 9)).pack(pady=(0, 10))
-        
-        # USD IMPLIED VALUE - Large with 4 DECIMALS
-        tk.Label(usd_col, text=f"{data.get('usd_impl'):.4f}%" if data.get('usd_impl') else "N/A",
-                fg=THEME["accent"], bg=THEME["bg_card_2"],
-                font=("Consolas", 18, "bold")).pack(pady=5)
-        
-        # USD details
-        tk.Frame(usd_col, bg=THEME["border"], height=1).pack(fill="x", padx=10, pady=8)
-        for lbl, val in [
-            ("Spot:", f"{data.get('usd_spot'):.4f}" if data.get('usd_spot') else "N/A"),
-            ("Pips:", f"{data.get('usd_pips'):.2f}" if data.get('usd_pips') else "N/A"),
-            ("Rate:", f"{data.get('usd_rate'):.4f}%" if data.get('usd_rate') else "N/A"),
-            ("Days:", f"{int(data.get('usd_days'))}" if data.get('usd_days') else "N/A"),
-        ]:
-            row_f = tk.Frame(usd_col, bg=THEME["bg_card_2"])
-            row_f.pack(fill="x", padx=15, pady=2)
-            tk.Label(row_f, text=lbl, fg=THEME["muted"], bg=THEME["bg_card_2"],
-                    font=("Segoe UI", 9), anchor="w").pack(side="left")
-            tk.Label(row_f, text=val, fg=THEME["text"], bg=THEME["bg_card_2"],
-                    font=("Consolas", 9), anchor="e").pack(side="right")
-        
-        tk.Label(usd_col, text="", bg=THEME["bg_card_2"]).pack(pady=5)
-        
-        # COLUMN 3: NOK CM
-        nok_col = tk.Frame(columns_frame, bg=THEME["bg_card_2"],
-                          highlightthickness=1, highlightbackground=THEME["border"])
-        nok_col.grid(row=0, column=2, padx=5, sticky="nsew")
-        
-        tk.Label(nok_col, text="NOK CM RATE", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 11, "bold")).pack(pady=(10, 2))
-        tk.Label(nok_col, text="", fg=THEME["good"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 9)).pack(pady=(0, 10))
-        
-        # NOK CM VALUE - Large
-        tk.Label(nok_col, text=f"{data.get('nok_cm'):.2f}%" if data.get('nok_cm') else "N/A",
-                fg=THEME["accent"], bg=THEME["bg_card_2"],
-                font=("Consolas", 18, "bold")).pack(pady=5)
-        
-        tk.Frame(nok_col, bg=THEME["border"], height=1).pack(fill="x", padx=10, pady=8)
-        
-        tk.Label(nok_col, text="NIBOR Market Rate", fg=THEME["muted"], bg=THEME["bg_card_2"],
-                font=("Segoe UI", 9)).pack(pady=40)
-        
-        # FUNDING RATE CALCULATION SECTION
-        calc_section = tk.Frame(content, bg=THEME["bg_card"])
-        calc_section.pack(fill="x", padx=15, pady=(10, 15))
-        
-        tk.Label(calc_section, text="FUNDING RATE CALCULATION", fg=THEME["accent"],
-                bg=THEME["bg_card"], font=("Segoe UI", 13, "bold")).pack(anchor="center", pady=(0, 10))
-        
-        calc_frame = tk.Frame(calc_section, bg=THEME["bg_card_2"],
-                             highlightthickness=1, highlightbackground=THEME["border"])
-        calc_frame.pack(fill="x", padx=20)
-        
-        weights = data.get('weights', {})
-        
-        # Calculation steps with 2 DECIMAL WEIGHTS
-        calc_details = tk.Frame(calc_frame, bg=THEME["bg_card_2"])
-        calc_details.pack(fill="x", padx=20, pady=15)
-        
-        # EUR contribution
-        eur_w = weights.get('EUR', 0) * 100
-        eur_contrib = data.get('eur_impl', 0) * weights.get('EUR', 0) if data.get('eur_impl') else None
-        tk.Label(calc_details, 
-                text=f"{data.get('eur_impl', 0):.2f}%  ×  {eur_w:.2f}%  =  {eur_contrib:.4f}%  (EUR)",
-                fg=THEME["text"], bg=THEME["bg_card_2"],
-                font=("Consolas", 11)).pack(anchor="w", pady=3)
-        
-        # USD contribution
-        usd_w = weights.get('USD', 0) * 100
-        usd_contrib = data.get('usd_impl', 0) * weights.get('USD', 0) if data.get('usd_impl') else None
-        tk.Label(calc_details,
-                text=f"{data.get('usd_impl', 0):.2f}%  ×  {usd_w:.2f}%  =  {usd_contrib:.4f}%  (USD)",
-                fg=THEME["text"], bg=THEME["bg_card_2"],
-                font=("Consolas", 11)).pack(anchor="w", pady=3)
-        
-        # NOK contribution
-        nok_w = weights.get('NOK', 0) * 100
-        nok_contrib = data.get('nok_cm', 0) * weights.get('NOK', 0) if data.get('nok_cm') else None
-        tk.Label(calc_details,
-                text=f"{data.get('nok_cm', 0):.2f}%  ×  {nok_w:.2f}%  =  {nok_contrib:.4f}%  (NOK)",
-                fg=THEME["text"], bg=THEME["bg_card_2"],
-                font=("Consolas", 11)).pack(anchor="w", pady=3)
-        
-        # Separator
-        tk.Frame(calc_details, bg=THEME["border"], height=2).pack(fill="x", pady=8)
-        
-        # Funding Rate
-        tk.Label(calc_details,
-                text=f"=  FUNDING RATE:  {data.get('funding_rate'):.4f}%",
-                fg=THEME["accent"], bg=THEME["bg_card_2"],
-                font=("Consolas", 12, "bold")).pack(anchor="w", pady=5)
-        
-        # Spread
-        tk.Label(calc_details,
-                text=f"+  SPREAD:         {data.get('spread'):.2f}%",
-                fg=THEME["text"], bg=THEME["bg_card_2"],
-                font=("Consolas", 11)).pack(anchor="w", pady=3)
-        
-        # Separator
-        tk.Frame(calc_details, bg=THEME["border"], height=2).pack(fill="x", pady=8)
-        
-        # Final Rate
-        tk.Label(calc_details,
-                text=f"=  NIBOR:          {data.get('final_rate'):.4f}%",
-                fg=THEME["accent"], bg=THEME["bg_card_2"],
-                font=("Consolas", 14, "bold")).pack(anchor="w", pady=5)
-        
-        # Close button
-        OnyxButtonTK(popup, "Close", command=popup.destroy, variant="default").pack(pady=15)
+        Opens a right-side drawer panel instead of a popup window.
+        The drawer shows calculation details, inputs, steps, and validation checks.
+        """
+        # Open the calculation drawer for this tenor
+        self._open_drawer_for_tenor(tenor_key)
 
     def _apply_state(self, card, state: str, subtext: str = "—"):
         s = (state or "WAIT").upper()
@@ -2009,6 +1848,51 @@ class DashboardPage(BaseFrame):
                 'spread': spread, 'final_rate': final_rate,
                 'model': selected_model
             }
+
+    # ====================================================================
+    # CALCULATION DRAWER METHODS
+    # ====================================================================
+
+    def _on_drawer_close(self):
+        """Callback when drawer is closed."""
+        log.info("[Dashboard] Drawer closed")
+
+    def _on_drawer_rerun(self, tenor_key: str):
+        """Callback when re-run button is clicked in drawer."""
+        log.info(f"[Dashboard] Re-running checks for tenor: {tenor_key}")
+        # Refresh data and re-update the drawer
+        self._update_funding_rates_with_validation()
+        # Re-open drawer with updated data
+        if tenor_key and hasattr(self, '_drawer'):
+            self._open_drawer_for_tenor(tenor_key)
+
+    def _close_drawer_on_escape(self, event=None):
+        """Close drawer when ESC key is pressed."""
+        if hasattr(self, '_drawer') and self._drawer.is_visible():
+            self._drawer.close()
+            return "break"  # Prevent event propagation
+
+    def _open_drawer_for_tenor(self, tenor_key: str):
+        """Open the calculation drawer for a specific tenor."""
+        # Auto-update if data not available
+        if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
+            self._update_funding_rates_with_validation()
+
+        data = self.app.funding_calc_data.get(tenor_key)
+        if not data:
+            log.info(f"[Dashboard] No funding data found for {tenor_key}")
+            return
+
+        # Add match data to the data dict
+        match_data = self._match_data.get(tenor_key, {})
+        data_with_match = dict(data)
+        data_with_match['match_data'] = match_data
+
+        # Show the drawer
+        self._drawer.pack(side="right", fill="y", padx=(0, 0), pady=0)
+        self._drawer.show_for_tenor(tenor_key, data_with_match)
+
+        log.info(f"[Dashboard] Opened drawer for tenor: {tenor_key}")
 
 
 class ReconPage(tk.Frame):

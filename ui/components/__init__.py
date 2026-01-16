@@ -88,6 +88,10 @@ from .app_shell import (
     ScrollableFrame,
 )
 
+from .drawers import (
+    CalculationDrawer,
+)
+
 __all__ = [
     # Buttons
     "BaseButton",
@@ -154,4 +158,6 @@ __all__ = [
     "SplitPanel",
     "TabContainer",
     "ScrollableFrame",
+    # Drawers
+    "CalculationDrawer",
 ]
