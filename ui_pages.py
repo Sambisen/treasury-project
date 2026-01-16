@@ -518,11 +518,6 @@ class DashboardPage(BaseFrame):
         """Handle Re-run checks button click - runs all validations."""
         log.info("[Dashboard] Re-run checks clicked")
 
-        # Update action bar timestamp
-        if self.action_bar:
-            from datetime import datetime
-            self.action_bar.set_last_updated(datetime.now())
-
         # Re-run the validation update
         self._update_funding_rates_with_validation()
 
@@ -1707,18 +1702,6 @@ class DashboardPage(BaseFrame):
         self._update_confirm_button_state()
 
         # Update action bar timestamp and data source
-        if hasattr(self, 'action_bar') and self.action_bar:
-            from datetime import datetime
-            self.action_bar.set_last_updated(datetime.now())
-            # Set data source based on what's available
-            sources = []
-            if hasattr(self.app, 'bbg_data') and self.app.bbg_data:
-                sources.append("Bloomberg")
-            if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
-                sources.append("Excel")
-            if sources:
-                self.action_bar.set_data_source(" / ".join(sources))
-
     def _on_alerts_configure(self, event=None):
         """Legacy method - no longer used (alerts now in validation checks)."""
         pass

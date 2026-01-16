@@ -1113,31 +1113,9 @@ if CTK_AVAILABLE:
 
             self._on_rerun = on_rerun_checks
             self._on_confirm = on_confirm_rates
-            self._last_update_time = None
-            self._data_source = "Bloomberg / Excel"
             self._is_ready = False
 
-            # Left side: metadata
-            left = ctk.CTkFrame(self, fg_color="transparent")
-            left.pack(side="left", padx=16, pady=14)
-
-            self._update_lbl = ctk.CTkLabel(
-                left,
-                text="Last updated: --:--:--",
-                font=("Segoe UI Semibold", 12),
-                text_color=THEME.get("text", "#1F2937"),
-            )
-            self._update_lbl.pack(anchor="w")
-
-            self._source_lbl = ctk.CTkLabel(
-                left,
-                text=f"Data source: {self._data_source}",
-                font=("Segoe UI", 11),
-                text_color=THEME.get("muted", "#6B7280"),
-            )
-            self._source_lbl.pack(anchor="w", pady=(2, 0))
-
-            # Right side: buttons
+            # Buttons container (right-aligned)
             right = ctk.CTkFrame(self, fg_color="transparent")
             right.pack(side="right", padx=16, pady=14)
 
@@ -1170,16 +1148,6 @@ if CTK_AVAILABLE:
             # Start freshness timer
             self._update_freshness()
 
-        def set_last_updated(self, timestamp: datetime = None):
-            """Set the last updated timestamp."""
-            self._last_update_time = timestamp or datetime.now()
-            self._update_freshness()
-
-        def set_data_source(self, source: str):
-            """Set the data source text."""
-            self._data_source = source
-            self._source_lbl.configure(text=f"Data source: {self._data_source}")
-
         def set_ready(self, ready: bool):
             """Enable/disable confirm button based on validation state."""
             self._is_ready = ready
@@ -1202,23 +1170,3 @@ if CTK_AVAILABLE:
             """Handle confirm rates button click."""
             if callable(self._on_confirm):
                 self._on_confirm()
-
-        def _update_freshness(self):
-            """Update the last updated display with relative time."""
-            if self._last_update_time:
-                time_str = self._last_update_time.strftime("%H:%M:%S")
-                ago = (datetime.now() - self._last_update_time).seconds
-
-                if ago < 60:
-                    ago_text = f"({ago}s ago)"
-                elif ago < 3600:
-                    ago_text = f"({ago // 60}m ago)"
-                else:
-                    ago_text = f"({ago // 3600}h ago)"
-
-                self._update_lbl.configure(text=f"Last updated: {time_str} {ago_text}")
-            else:
-                self._update_lbl.configure(text="Last updated: --:--:--")
-
-            # Schedule next update
-            self.after(5000, self._update_freshness)
