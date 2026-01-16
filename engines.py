@@ -592,12 +592,13 @@ class ExcelEngine:
             return False, f"Failed to write to Excel: {e}"
 
     def _write_confirmation_xlwings(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
-        """Write confirmation using PowerShell (most reliable on Windows)."""
+        """Write confirmation using VBScript (works in corporate environments)."""
         import subprocess
-        import json
+        import tempfile
+        import os
 
-        log.info("[ExcelEngine] Using PowerShell for Excel write")
-        file_path_str = str(nibor_file.resolve())
+        log.info("[ExcelEngine] Using VBScript for Excel write")
+        file_path_str = str(nibor_file.resolve()).replace("\\", "\\\\")
 
         # Build list of cells to write
         cells_to_write = []
@@ -605,73 +606,109 @@ class ExcelEngine:
             cell_addrs = confirm_cell_mapping.get(tenor, [])
             cells_to_write.extend(cell_addrs)
 
-        # PowerShell script that writes to Excel
-        ps_script = f'''
-$ErrorActionPreference = "Stop"
-try {{
-    $excel = [Runtime.Interopservices.Marshal]::GetActiveObject("Excel.Application")
-    $filePath = "{file_path_str.replace(chr(92), chr(92)+chr(92))}"
-    $fileName = [System.IO.Path]::GetFileName($filePath)
+        cells_array = ",".join([f'"{c}"' for c in cells_to_write])
 
-    # Find the workbook
-    $wb = $null
-    foreach ($book in $excel.Workbooks) {{
-        if ($book.Name -eq $fileName) {{
-            $wb = $book
-            break
-        }}
-    }}
+        # VBScript that writes to Excel
+        vbs_script = f'''On Error Resume Next
 
-    if ($wb -eq $null) {{
-        $wb = $excel.Workbooks.Open($filePath)
-    }}
+Dim excel, wb, ws, cell, fso
+Dim filePath, fileName, latestSheet
+Dim i, sheetName, cells, confirmText
 
-    # Find latest date sheet
-    $dateSheets = @()
-    foreach ($sheet in $wb.Sheets) {{
-        if ($sheet.Name -match "^\\d{{4}}-\\d{{2}}-\\d{{2}}$") {{
-            $dateSheets += $sheet.Name
-        }}
-    }}
+filePath = "{file_path_str}"
+fileName = ""
+confirmText = "{confirm_text}"
 
-    if ($dateSheets.Count -eq 0) {{
-        Write-Output "ERROR: No date sheets found"
-        exit 1
-    }}
+' Extract filename from path
+For i = Len(filePath) To 1 Step -1
+    If Mid(filePath, i, 1) = "\\" Then
+        fileName = Mid(filePath, i + 1)
+        Exit For
+    End If
+Next
 
-    $latestSheet = ($dateSheets | Sort-Object)[-1]
-    $ws = $wb.Sheets($latestSheet)
+' Connect to running Excel
+Set excel = GetObject(, "Excel.Application")
+If Err.Number <> 0 Then
+    WScript.Echo "ERROR: Excel not running"
+    WScript.Quit 1
+End If
 
-    # Write to cells
-    $cells = @({','.join([f'"{c}"' for c in cells_to_write])})
-    $confirmText = "{confirm_text}"
+' Find or open workbook
+Set wb = Nothing
+For Each book In excel.Workbooks
+    If LCase(book.Name) = LCase(fileName) Then
+        Set wb = book
+        Exit For
+    End If
+Next
 
-    foreach ($cellAddr in $cells) {{
-        $cell = $ws.Range($cellAddr)
-        $cell.Value = $confirmText
-        $cell.Interior.Color = 13561798  # Light green BGR
-        $cell.Font.Color = 5287936       # Dark green BGR
-        $cell.Font.Bold = $true
-    }}
+If wb Is Nothing Then
+    Set wb = excel.Workbooks.Open(filePath)
+End If
 
-    $wb.Save()
-    Write-Output "OK: Confirmed in $latestSheet"
-}} catch {{
-    Write-Output "ERROR: $($_.Exception.Message)"
-    exit 1
-}}
+If Err.Number <> 0 Then
+    WScript.Echo "ERROR: Could not open workbook"
+    WScript.Quit 1
+End If
+
+' Find latest date sheet (YYYY-MM-DD format)
+latestSheet = ""
+For Each sheet In wb.Sheets
+    sheetName = sheet.Name
+    If Len(sheetName) = 10 Then
+        If Mid(sheetName, 5, 1) = "-" And Mid(sheetName, 8, 1) = "-" Then
+            If sheetName > latestSheet Then
+                latestSheet = sheetName
+            End If
+        End If
+    End If
+Next
+
+If latestSheet = "" Then
+    WScript.Echo "ERROR: No date sheets found"
+    WScript.Quit 1
+End If
+
+Set ws = wb.Sheets(latestSheet)
+
+' Write to cells
+cells = Array({cells_array})
+For Each cellAddr In cells
+    Set cell = ws.Range(cellAddr)
+    cell.Value = confirmText
+    cell.Interior.Color = 13561798
+    cell.Font.Color = 5287936
+    cell.Font.Bold = True
+Next
+
+If Err.Number <> 0 Then
+    WScript.Echo "ERROR: " & Err.Description
+    WScript.Quit 1
+End If
+
+' Save
+wb.Save
+
+WScript.Echo "OK: Confirmed in " & latestSheet
 '''
 
+        # Write VBScript to temp file and execute
+        vbs_file = None
         try:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, encoding='utf-8') as f:
+                f.write(vbs_script)
+                vbs_file = f.name
+
             result = subprocess.run(
-                ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+                ["cscript", "//NoLogo", vbs_file],
                 capture_output=True,
                 text=True,
                 timeout=30
             )
 
             output = result.stdout.strip()
-            log.info(f"[ExcelEngine] PowerShell output: {output}")
+            log.info(f"[ExcelEngine] VBScript output: {output}")
 
             if output.startswith("OK:"):
                 return True, output[4:].strip()
@@ -679,15 +716,21 @@ try {{
                 return False, output[7:].strip()
             else:
                 if result.returncode == 0:
-                    return True, f"Confirmed {', '.join(tenors_to_confirm)}"
+                    return True, f"Confirmed {', '.join([t.upper() for t in tenors_to_confirm])}"
                 else:
-                    return False, f"PowerShell failed: {result.stderr or output}"
+                    return False, f"VBScript failed: {result.stderr or output}"
 
         except subprocess.TimeoutExpired:
-            return False, "PowerShell timeout - Excel might be busy"
+            return False, "VBScript timeout - Excel might be busy"
         except Exception as e:
-            log.error(f"[ExcelEngine] PowerShell error: {e}")
+            log.error(f"[ExcelEngine] VBScript error: {e}")
             raise
+        finally:
+            if vbs_file and os.path.exists(vbs_file):
+                try:
+                    os.remove(vbs_file)
+                except:
+                    pass
 
     def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
         """Write confirmation using win32com (works with open Excel files)."""
