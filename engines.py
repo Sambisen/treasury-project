@@ -591,10 +591,14 @@ class ExcelEngine:
         # Initialize COM for this thread
         pythoncom.CoInitialize()
 
-        max_retries = 3
-        retry_delay = 1.0  # seconds
+        max_retries = 5
+        retry_delay = 0.5  # seconds
 
         excel = None
+        interactive_was = None
+        events_was = None
+        screen_updating_was = None
+
         for attempt in range(max_retries):
             try:
                 # Try to connect to running Excel
@@ -602,63 +606,65 @@ class ExcelEngine:
                 log.info("[ExcelEngine] Connected to running Excel instance")
                 break
             except pythoncom.com_error as e:
-                log.warning(f"[ExcelEngine] COM error connecting to Excel (attempt {attempt+1}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                else:
-                    # Last resort: try to start Excel
-                    try:
-                        excel = win32com.client.Dispatch("Excel.Application")
-                        log.info("[ExcelEngine] Started new Excel instance")
-                    except Exception as e2:
-                        log.error(f"[ExcelEngine] Failed to start Excel: {e2}")
-                        raise
+                log.warning(f"[ExcelEngine] COM error connecting (attempt {attempt+1}/{max_retries}): {e}")
+                time.sleep(retry_delay)
             except Exception as e:
-                log.warning(f"[ExcelEngine] Error connecting to Excel: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
-                else:
-                    excel = win32com.client.Dispatch("Excel.Application")
-                    log.info("[ExcelEngine] Started new Excel instance")
+                log.warning(f"[ExcelEngine] Error connecting (attempt {attempt+1}/{max_retries}): {e}")
+                time.sleep(retry_delay)
 
         if excel is None:
-            raise Exception("Could not connect to Excel")
+            # Last resort: start new Excel instance
+            try:
+                excel = win32com.client.Dispatch("Excel.Application")
+                log.info("[ExcelEngine] Started new Excel instance")
+            except Exception as e2:
+                log.error(f"[ExcelEngine] Failed to start Excel: {e2}")
+                raise Exception(f"Could not connect to Excel: {e2}")
 
         wb = None
         opened_by_us = False
 
         try:
+            # FORCE MODE: Disable Excel interactivity to prevent interference
+            try:
+                interactive_was = excel.Interactive
+                events_was = excel.EnableEvents
+                screen_updating_was = excel.ScreenUpdating
+
+                excel.Interactive = False
+                excel.EnableEvents = False
+                excel.ScreenUpdating = False
+                log.info("[ExcelEngine] Disabled Excel interactivity for write operation")
+            except Exception as e:
+                log.warning(f"[ExcelEngine] Could not disable interactivity: {e}")
+
             # Check if workbook is already open (match by filename, not full path)
             file_path_str = str(nibor_file.resolve())
             target_filename = nibor_file.name.lower()
 
             log.info(f"[ExcelEngine] Looking for workbook: {target_filename}")
-            log.info(f"[ExcelEngine] Full path: {file_path_str}")
 
-            # Wait for Excel to be ready (not busy)
-            for wait_attempt in range(5):
+            # Wait for Excel to be ready (not busy) with more attempts
+            for wait_attempt in range(10):
                 try:
-                    # Test if Excel is responsive
                     _ = excel.Workbooks.Count
                     break
                 except pythoncom.com_error:
-                    log.info(f"[ExcelEngine] Excel busy, waiting... (attempt {wait_attempt+1})")
-                    time.sleep(0.5)
+                    log.info(f"[ExcelEngine] Excel busy, waiting... ({wait_attempt+1}/10)")
+                    time.sleep(0.3)
 
-            # List all open workbooks for debugging
+            # Find workbook
             try:
-                for i, workbook in enumerate(excel.Workbooks):
-                    log.info(f"[ExcelEngine]   Open workbook {i+1}: {workbook.Name} ({workbook.FullName})")
+                for workbook in excel.Workbooks:
                     if workbook.Name.lower() == target_filename:
                         wb = workbook
-                        log.info(f"[ExcelEngine] Found matching workbook: {wb.Name}")
+                        log.info(f"[ExcelEngine] Found open workbook: {wb.Name}")
                         break
             except Exception as e:
                 log.info(f"[ExcelEngine] Error listing workbooks: {e}")
 
             if wb is None:
-                # Open the workbook
-                log.info(f"[ExcelEngine] Workbook not found open, opening: {file_path_str}")
+                log.info(f"[ExcelEngine] Opening workbook: {file_path_str}")
                 wb = excel.Workbooks.Open(file_path_str)
                 opened_by_us = True
                 log.info(f"[ExcelEngine] Opened workbook: {wb.Name}")
@@ -685,7 +691,7 @@ class ExcelEngine:
             GREEN_BG = 13561798  # RGB(198, 239, 206) as BGR
             DARK_GREEN_TEXT = 5287936  # RGB(0, 128, 80) as BGR
 
-            def write_cell_with_retry(cell_addr, text, max_attempts=3):
+            def write_cell_with_retry(cell_addr, text, max_attempts=5):
                 """Write to cell with retry on COM errors."""
                 for attempt in range(max_attempts):
                     try:
@@ -719,13 +725,14 @@ class ExcelEngine:
 
             # Save the workbook with retry
             log.info(f"[ExcelEngine] Saving workbook...")
-            for save_attempt in range(3):
+            for save_attempt in range(5):
                 try:
                     wb.Save()
+                    log.info("[ExcelEngine] Save successful")
                     break
                 except pythoncom.com_error as ce:
-                    log.warning(f"[ExcelEngine] COM error saving (attempt {save_attempt+1}): {ce}")
-                    if save_attempt < 2:
+                    log.warning(f"[ExcelEngine] COM error saving (attempt {save_attempt+1}/5): {ce}")
+                    if save_attempt < 4:
                         time.sleep(0.5)
             log.info(f"[ExcelEngine] Workbook saved (kept open)")
 
@@ -742,6 +749,18 @@ class ExcelEngine:
                     pass
             raise
         finally:
+            # ALWAYS restore Excel interactivity
+            try:
+                if excel is not None:
+                    if interactive_was is not None:
+                        excel.Interactive = interactive_was
+                    if events_was is not None:
+                        excel.EnableEvents = events_was
+                    if screen_updating_was is not None:
+                        excel.ScreenUpdating = screen_updating_was
+                    log.info("[ExcelEngine] Restored Excel interactivity")
+            except Exception as restore_err:
+                log.warning(f"[ExcelEngine] Could not restore interactivity: {restore_err}")
             pythoncom.CoUninitialize()
 
 
