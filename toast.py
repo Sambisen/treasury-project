@@ -144,7 +144,7 @@ class Toast:
         close_btn.bind("<Enter>", lambda e: close_btn.config(fg="#FFFFFF"))
         close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#64748B"))
 
-        # Calculate position (bottom-right)
+        # Calculate position (top-right)
         self.toast.update_idletasks()
         toast_width = max(self.toast.winfo_reqwidth(), 320)
         toast_height = self.toast.winfo_reqheight()
@@ -152,11 +152,10 @@ class Toast:
         parent_x = parent.winfo_x()
         parent_y = parent.winfo_y()
         parent_width = parent.winfo_width()
-        parent_height = parent.winfo_height()
 
-        # Final position
+        # Final position (top-right, below title bar)
         self.final_x = parent_x + parent_width - toast_width - 24
-        self.final_y = parent_y + parent_height - toast_height - 60
+        self.final_y = parent_y + 80  # Below title bar and nav
 
         # Start position (off-screen to the right)
         self.start_x = parent_x + parent_width + 10
