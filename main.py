@@ -46,7 +46,7 @@ from history import save_snapshot
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
     NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage,
-    AuditLogPage, SettingsPage
+    AuditLogPage, SettingsPage, NiborRoadmapPage
 )
 
 
@@ -314,7 +314,7 @@ class NiborTerminalCTK(ctk.CTk):
             ("rules_logic", "🧮", "Backup Nibor", RulesPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
-            ("settings", "⚙️", "Settings", SettingsPage),
+            ("nibor_roadmap", "🗺️", "Nibor Roadmap", NiborRoadmapPage),
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
