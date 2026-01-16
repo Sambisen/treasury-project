@@ -617,7 +617,7 @@ if CTK_AVAILABLE:
             self._bbg_status = ctk.CTkLabel(
                 content,
                 text="--",
-                font=("Segoe UI", 10),
+                font=("Segoe UI", 11),
                 text_color="#9CA3AF",
             )
             self._bbg_status.pack(side="left", padx=(5, 0))
@@ -647,7 +647,7 @@ if CTK_AVAILABLE:
             self._excel_status = ctk.CTkLabel(
                 content,
                 text="--",
-                font=("Segoe UI", 10),
+                font=("Segoe UI", 11),
                 text_color="#9CA3AF",
             )
             self._excel_status.pack(side="left", padx=(5, 0))
