@@ -378,46 +378,12 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # ACTION BAR - Premium action bar with metadata and buttons
-        # ====================================================================
-        if CTK_AVAILABLE:
-            self.action_bar = RatesActionBar(
-                card_content,
-                on_rerun_checks=self._on_rerun_checks,
-                on_confirm_rates=self._on_confirm_rates,
-            )
-            self.action_bar.pack(fill="x", pady=(20, 15))
-            # Reference for backwards compatibility
-            self.confirm_rates_btn = self.action_bar.confirm_btn
-        else:
-            # Fallback for non-CTK
-            confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
-            confirm_btn_frame.pack(anchor="center", pady=(25, 20))
-            self.confirm_rates_btn = tk.Button(
-                confirm_btn_frame,
-                text="Confirm rates",
-                command=self._on_confirm_rates,
-                fg="white",
-                bg=THEME["accent"],
-                activebackground=THEME["accent_hover"],
-                activeforeground="white",
-                font=("Segoe UI Semibold", 13),
-                relief="flat",
-                cursor="hand2",
-                width=24,
-                height=2,
-                state="disabled"
-            )
-            self.confirm_rates_btn.pack()
-            self.action_bar = None
-
-        # ====================================================================
         # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
         # ====================================================================
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(15, 0))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(20, 0))
 
         checks_bar = tk.Frame(card_content, bg=THEME["bg_card"])
-        checks_bar.pack(fill="x", pady=(15, 10))
+        checks_bar.pack(fill="x", pady=(12, 12))
 
         # Validation checks label
         tk.Label(checks_bar, text="Validation:",
@@ -505,6 +471,39 @@ class DashboardPage(BaseFrame):
                                                font=("Segoe UI", 10))
         self.validation_summary_lbl.pack(side="right")
 
+        # ====================================================================
+        # ACTION BAR - Premium action bar with metadata and buttons
+        # ====================================================================
+        if CTK_AVAILABLE:
+            self.action_bar = RatesActionBar(
+                card_content,
+                on_rerun_checks=self._on_rerun_checks,
+                on_confirm_rates=self._on_confirm_rates,
+            )
+            self.action_bar.pack(fill="x", pady=(10, 10))
+            # Reference for backwards compatibility
+            self.confirm_rates_btn = self.action_bar.confirm_btn
+        else:
+            # Fallback for non-CTK
+            confirm_btn_frame = tk.Frame(card_content, bg=THEME["bg_card"])
+            confirm_btn_frame.pack(anchor="center", pady=(15, 10))
+            self.confirm_rates_btn = tk.Button(
+                confirm_btn_frame,
+                text="Confirm rates",
+                command=self._on_confirm_rates,
+                fg="white",
+                bg=THEME["accent"],
+                activebackground=THEME["accent_hover"],
+                activeforeground="white",
+                font=("Segoe UI Semibold", 13),
+                relief="flat",
+                cursor="hand2",
+                width=24,
+                height=2,
+                state="disabled"
+            )
+            self.confirm_rates_btn.pack()
+            self.action_bar = None
 
     def _on_dashboard_model_change(self):
         """Handle calculation model change on Dashboard."""

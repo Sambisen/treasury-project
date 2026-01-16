@@ -756,12 +756,15 @@ if CTK_AVAILABLE:
             self._font = font
             self._shadow_on = shadow
 
+            # Get accent color for canvas background
+            accent = THEME.get("accent", "#FF6A00")
+
             # Shadow layer
-            self._shadow_canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0)
+            self._shadow_canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0, bg=accent)
             self._shadow_canvas.grid(row=0, column=0, sticky="nsew")
 
             # Main canvas layer
-            self._canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0)
+            self._canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0, bg=accent)
             self._canvas.grid(row=0, column=0, sticky="nsew")
 
             # Content label
