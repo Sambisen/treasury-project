@@ -316,27 +316,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         )
         self._result_delta.pack(side="right")
 
-        # Tolerance
-        tol_row = tk.Frame(card_content, bg=COLORS.SURFACE)
-        tol_row.pack(fill="x", pady=(SPACING.XS, 0))
-
-        tk.Label(
-            tol_row,
-            text="Tolerance",
-            font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
-        ).pack(side="left")
-
-        self._result_tolerance = tk.Label(
-            tol_row,
-            text="0.0001",
-            font=FONTS.NUMERIC,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
-        )
-        self._result_tolerance.pack(side="right")
-
     def _create_result_row(self, parent, label: str, value: str) -> Dict[str, tk.Label]:
         """Create a result row with label and value."""
         row = tk.Frame(parent, bg=COLORS.SURFACE)
@@ -587,9 +566,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         else:
             self._result_delta.config(text="—", fg=COLORS.TEXT_MUTED)
 
-        # Tolerance
-        self._result_tolerance.config(text="0.0001")
-
     def _update_inputs_section(self, tenor_key: str, data: Dict[str, Any]):
         """Update the inputs table with field values and sources."""
         # Clear existing
@@ -630,24 +606,24 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         # Add separator for rates used in calculation
         inputs.append(("─── Rates ───", "", ""))
 
-        # EUR CM rate (EURIBOR) used in implied calculation
+        # EUR rate
         inputs.append((
-            "EUR CM (EURIBOR)",
-            f"{data.get('eur_rate', 0):.4f}%" if data.get('eur_rate') else "—",
-            "Bloomberg"
+            "EUR",
+            f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—",
+            "Internal Rate Excel"
         ))
 
-        # USD CM rate (SOFR) used in implied calculation
+        # USD rate
         inputs.append((
-            "USD CM (SOFR)",
-            f"{data.get('usd_rate', 0):.4f}%" if data.get('usd_rate') else "—",
-            "Bloomberg"
+            "USD",
+            f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—",
+            "Internal Rate Excel"
         ))
 
         # NOK ECP rate
         inputs.append((
             "NOK ECP",
-            f"{data.get('nok_cm', 0):.4f}%" if data.get('nok_cm') else "—",
+            f"{data.get('nok_cm', 0):.2f}%" if data.get('nok_cm') else "—",
             "Bloomberg"
         ))
 
