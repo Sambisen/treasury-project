@@ -579,10 +579,10 @@ class ConnectionStatusIndicator(tk.Frame):
 # =============================================================================
 
 if CTK_AVAILABLE:
-    class PremiumConnectionCard(ctk.CTkFrame):
+    class PremiumConnectionPanel(ctk.CTkFrame):
         """
-        Premium connection status card for Bloomberg/Excel.
-        Shows icon, name, status with elegant styling.
+        Premium connection status panel with Bloomberg and Excel indicators.
+        Clean, visible design for the bottom status bar.
         """
 
         DISCONNECTED = "disconnected"
@@ -590,244 +590,133 @@ if CTK_AVAILABLE:
         CONNECTED = "connected"
         ERROR = "error"
 
-        def __init__(self, master, name: str, icon: str = "B", **kwargs):
-            super().__init__(master, fg_color="transparent", **kwargs)
-
-            self._name = name
-            self._icon = icon
-            self._status = self.DISCONNECTED
-            self._details = {}
-            self._pulse_job = None
-
-            # Colors
-            self._colors = {
-                self.DISCONNECTED: {"bg": "#F3F4F6", "fg": "#9CA3AF", "icon_bg": "#E5E7EB"},
-                self.CONNECTING: {"bg": "#FEF3C7", "fg": "#D97706", "icon_bg": "#FDE68A"},
-                self.CONNECTED: {"bg": "#D1FAE5", "fg": "#059669", "icon_bg": "#A7F3D0"},
-                self.ERROR: {"bg": "#FEE2E2", "fg": "#DC2626", "icon_bg": "#FECACA"},
-            }
-
-            # Main card container
-            self._card = ctk.CTkFrame(
-                self,
-                fg_color=self._colors[self.DISCONNECTED]["bg"],
-                corner_radius=10,
-                border_width=1,
-                border_color="#E5E7EB",
-            )
-            self._card.pack(fill="both", expand=True, padx=2, pady=2)
-
-            # Inner content
-            content = ctk.CTkFrame(self._card, fg_color="transparent")
-            content.pack(fill="both", expand=True, padx=12, pady=8)
-
-            # Icon circle
-            self._icon_frame = ctk.CTkFrame(
-                content,
-                width=32,
-                height=32,
-                corner_radius=16,
-                fg_color=self._colors[self.DISCONNECTED]["icon_bg"],
-            )
-            self._icon_frame.pack(side="left")
-            self._icon_frame.pack_propagate(False)
-
-            self._icon_lbl = ctk.CTkLabel(
-                self._icon_frame,
-                text=icon,
-                font=("Segoe UI Semibold", 13),
-                text_color=self._colors[self.DISCONNECTED]["fg"],
-            )
-            self._icon_lbl.place(relx=0.5, rely=0.5, anchor="center")
-
-            # Text container
-            text_frame = ctk.CTkFrame(content, fg_color="transparent")
-            text_frame.pack(side="left", fill="both", expand=True, padx=(10, 0))
-
-            # Name label
-            self._name_lbl = ctk.CTkLabel(
-                text_frame,
-                text=name,
-                font=("Segoe UI Semibold", 12),
-                text_color="#374151",
-                anchor="w",
-            )
-            self._name_lbl.pack(anchor="w")
-
-            # Status label
-            self._status_lbl = ctk.CTkLabel(
-                text_frame,
-                text="Disconnected",
-                font=("Segoe UI", 10),
-                text_color="#9CA3AF",
-                anchor="w",
-            )
-            self._status_lbl.pack(anchor="w")
-
-            # Bind click for details
-            for widget in [self._card, content, self._icon_frame, self._icon_lbl,
-                          text_frame, self._name_lbl, self._status_lbl]:
-                widget.bind("<Button-1>", self._on_click)
-                widget.configure(cursor="hand2")
-
-        def set_status(self, status: str, details: dict = None):
-            """Update connection status."""
-            self._status = status
-            self._details = details or {}
-
-            # Stop pulse animation
-            if self._pulse_job:
-                self.after_cancel(self._pulse_job)
-                self._pulse_job = None
-
-            colors = self._colors.get(status, self._colors[self.DISCONNECTED])
-
-            # Update card colors
-            self._card.configure(fg_color=colors["bg"])
-            self._icon_frame.configure(fg_color=colors["icon_bg"])
-            self._icon_lbl.configure(text_color=colors["fg"])
-
-            # Update status text
-            status_texts = {
-                self.DISCONNECTED: "Disconnected",
-                self.CONNECTING: "Connecting...",
-                self.CONNECTED: "Connected",
-                self.ERROR: "Error",
-            }
-            self._status_lbl.configure(
-                text=status_texts.get(status, "Unknown"),
-                text_color=colors["fg"]
-            )
-
-            # Start pulse for connecting
-            if status == self.CONNECTING:
-                self._start_pulse()
-
-        def _start_pulse(self):
-            """Pulse animation for connecting state."""
-            if self._status != self.CONNECTING:
-                return
-
-            # Toggle between colors
-            current_bg = self._icon_frame.cget("fg_color")
-            new_bg = "#FDE68A" if current_bg == "#FBBF24" else "#FBBF24"
-            self._icon_frame.configure(fg_color=new_bg)
-
-            self._pulse_job = self.after(600, self._start_pulse)
-
-        def _on_click(self, event=None):
-            """Show details popup."""
-            # Simple popup with details
-            popup = ctk.CTkToplevel(self)
-            popup.title(f"{self._name} Connection")
-            popup.geometry("320x200")
-            popup.transient(self.winfo_toplevel())
-            popup.grab_set()
-
-            # Center popup
-            popup.update_idletasks()
-            x = self.winfo_toplevel().winfo_x() + 150
-            y = self.winfo_toplevel().winfo_y() + 150
-            popup.geometry(f"+{x}+{y}")
-
-            # Content
-            content = ctk.CTkFrame(popup, fg_color="transparent")
-            content.pack(fill="both", expand=True, padx=20, pady=20)
-
-            # Header
-            ctk.CTkLabel(
-                content,
-                text=f"{self._icon}  {self._name}",
-                font=("Segoe UI Semibold", 16),
-            ).pack(anchor="w")
-
-            # Status
-            colors = self._colors.get(self._status, self._colors[self.DISCONNECTED])
-            ctk.CTkLabel(
-                content,
-                text=self._status.upper(),
-                font=("Segoe UI", 12),
-                text_color=colors["fg"],
-            ).pack(anchor="w", pady=(5, 15))
-
-            # Details
-            for key, value in self._details.items():
-                row = ctk.CTkFrame(content, fg_color="transparent")
-                row.pack(fill="x", pady=2)
-                ctk.CTkLabel(row, text=f"{key}:", font=("Segoe UI", 11),
-                            text_color="#6B7280", width=80, anchor="w").pack(side="left")
-                ctk.CTkLabel(row, text=str(value), font=("Consolas", 11),
-                            anchor="w").pack(side="left")
-
-            # Close button
-            ctk.CTkButton(
-                content,
-                text="Close",
-                width=80,
-                height=32,
-                command=popup.destroy,
-            ).pack(anchor="e", pady=(15, 0))
-
-            popup.bind("<Escape>", lambda e: popup.destroy())
-
-
-    class PremiumConnectionPanel(ctk.CTkFrame):
-        """
-        Premium connection status panel with Bloomberg and Excel cards.
-        Designed for the bottom status bar.
-        """
-
         def __init__(self, master, **kwargs):
             super().__init__(master, fg_color="transparent", **kwargs)
 
-            # Container with subtle background
-            self._container = ctk.CTkFrame(
-                self,
-                fg_color="#FAFAFA",
-                corner_radius=12,
-                border_width=1,
-                border_color="#E5E7EB",
-            )
-            self._container.pack(fill="both", expand=True, padx=4, pady=4)
+            # Compact horizontal layout - fits in 36px status bar
+            content = ctk.CTkFrame(self, fg_color="transparent")
+            content.pack(fill="both", expand=True)
 
-            # Inner padding
-            inner = ctk.CTkFrame(self._container, fg_color="transparent")
-            inner.pack(fill="both", expand=True, padx=8, pady=6)
-
-            # Bloomberg card
-            self.bbg = PremiumConnectionCard(inner, "Bloomberg", "B")
-            self.bbg.pack(side="left", padx=(0, 6))
-
-            # Excel card
-            self.excel = PremiumConnectionCard(inner, "Excel", "X")
-            self.excel.pack(side="left", padx=(0, 6))
-
-            # Timestamp
-            self._time_frame = ctk.CTkFrame(inner, fg_color="transparent")
-            self._time_frame.pack(side="left", padx=(10, 0))
-
-            ctk.CTkLabel(
-                self._time_frame,
-                text="Last sync:",
-                font=("Segoe UI", 10),
+            # === BLOOMBERG SECTION ===
+            self._bbg_dot = ctk.CTkLabel(
+                content,
+                text="●",
+                font=("Segoe UI", 12),
                 text_color="#9CA3AF",
-            ).pack(anchor="w")
+            )
+            self._bbg_dot.pack(side="left")
+
+            self._bbg_label = ctk.CTkLabel(
+                content,
+                text="Bloomberg",
+                font=("Segoe UI Semibold", 10),
+                text_color="#6B7280",
+            )
+            self._bbg_label.pack(side="left", padx=(2, 0))
+
+            self._bbg_status = ctk.CTkLabel(
+                content,
+                text="--",
+                font=("Segoe UI", 9),
+                text_color="#9CA3AF",
+            )
+            self._bbg_status.pack(side="left", padx=(4, 0))
+
+            # Separator
+            ctk.CTkLabel(content, text="│", text_color="#D1D5DB", font=("Segoe UI", 10)).pack(
+                side="left", padx=10
+            )
+
+            # === EXCEL SECTION ===
+            self._excel_dot = ctk.CTkLabel(
+                content,
+                text="●",
+                font=("Segoe UI", 12),
+                text_color="#9CA3AF",
+            )
+            self._excel_dot.pack(side="left")
+
+            self._excel_label = ctk.CTkLabel(
+                content,
+                text="Excel",
+                font=("Segoe UI Semibold", 10),
+                text_color="#6B7280",
+            )
+            self._excel_label.pack(side="left", padx=(2, 0))
+
+            self._excel_status = ctk.CTkLabel(
+                content,
+                text="--",
+                font=("Segoe UI", 9),
+                text_color="#9CA3AF",
+            )
+            self._excel_status.pack(side="left", padx=(4, 0))
+
+            # Separator
+            ctk.CTkLabel(content, text="│", text_color="#D1D5DB", font=("Segoe UI", 10)).pack(
+                side="left", padx=10
+            )
+
+            # === TIMESTAMP SECTION ===
+            ctk.CTkLabel(
+                content,
+                text="Sync:",
+                font=("Segoe UI", 9),
+                text_color="#9CA3AF",
+            ).pack(side="left")
 
             self._time_lbl = ctk.CTkLabel(
-                self._time_frame,
+                content,
                 text="--:--:--",
-                font=("Consolas", 11),
+                font=("Consolas", 10),
                 text_color="#374151",
             )
-            self._time_lbl.pack(anchor="w")
+            self._time_lbl.pack(side="left", padx=(4, 0))
+
+            # Store status for reference
+            self._bbg_state = self.DISCONNECTED
+            self._excel_state = self.DISCONNECTED
+            self._pulse_job = None
+
+            # Create proxy objects for compatibility
+            self.bbg = self._BbgProxy(self)
+            self.excel = self._ExcelProxy(self)
+
+        class _BbgProxy:
+            """Proxy to maintain API compatibility."""
+            def __init__(self, parent):
+                self._parent = parent
+            def set_status(self, status, details=None):
+                self._parent.set_bloomberg_status(status, details)
+
+        class _ExcelProxy:
+            """Proxy to maintain API compatibility."""
+            def __init__(self, parent):
+                self._parent = parent
+            def set_status(self, status, details=None):
+                self._parent.set_excel_status(status, details)
 
         def set_bloomberg_status(self, status: str, details: dict = None):
             """Update Bloomberg connection status."""
-            self.bbg.set_status(status, details)
+            self._bbg_state = status
+            self._update_indicator(self._bbg_dot, self._bbg_status, status)
 
         def set_excel_status(self, status: str, details: dict = None):
             """Update Excel connection status."""
-            self.excel.set_status(status, details)
+            self._excel_state = status
+            self._update_indicator(self._excel_dot, self._excel_status, status)
+
+        def _update_indicator(self, dot_label, status_label, status):
+            """Update a single indicator's appearance."""
+            colors = {
+                self.DISCONNECTED: {"dot": "#9CA3AF", "text": "--"},
+                self.CONNECTING: {"dot": "#F59E0B", "text": "Connecting..."},
+                self.CONNECTED: {"dot": "#10B981", "text": "Connected"},
+                self.ERROR: {"dot": "#EF4444", "text": "Error"},
+            }
+            style = colors.get(status, colors[self.DISCONNECTED])
+            dot_label.configure(text_color=style["dot"])
+            status_label.configure(text=style["text"], text_color=style["dot"])
 
         def set_data_time(self, timestamp=None):
             """Update last sync timestamp."""
