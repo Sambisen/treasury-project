@@ -570,350 +570,102 @@ class ExcelEngine:
         if not nibor_file.exists():
             return False, f"Nibor workbook not found: {nibor_file}"
 
-        # Try xlwings first (most reliable)
-        try:
-            return self._write_confirmation_xlwings(
-                nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
-            )
-        except ImportError:
-            log.info("[ExcelEngine] xlwings not available, trying win32com...")
-        except Exception as e:
-            log.warning(f"[ExcelEngine] xlwings failed: {e}, trying win32com...")
-
-        # Fallback to win32com
+        # Use win32com with aggressive retry
         try:
             return self._write_confirmation_win32com(
                 nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
             )
         except ImportError:
-            return False, "Neither xlwings nor win32com installed. Run: pip install xlwings"
+            return False, "win32com not installed. Run: pip install pywin32"
         except Exception as e:
             log.error(f"[ExcelEngine] win32com failed: {e}")
             return False, f"Failed to write to Excel: {e}"
 
-    def _write_confirmation_xlwings(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
-        """Write confirmation using VBScript (works in corporate environments)."""
-        import subprocess
-        import tempfile
-        import os
-
-        log.info("[ExcelEngine] Using VBScript for Excel write")
-        file_path_str = str(nibor_file.resolve()).replace("\\", "\\\\")
-
-        # Build list of cells to write
-        cells_to_write = []
-        for tenor in tenors_to_confirm:
-            cell_addrs = confirm_cell_mapping.get(tenor, [])
-            cells_to_write.extend(cell_addrs)
-
-        cells_array = ",".join([f'"{c}"' for c in cells_to_write])
-
-        # VBScript that writes to Excel
-        vbs_script = f'''On Error Resume Next
-
-Dim excel, wb, ws, cell, fso
-Dim filePath, fileName, latestSheet
-Dim i, sheetName, cells, confirmText
-
-filePath = "{file_path_str}"
-fileName = ""
-confirmText = "{confirm_text}"
-
-' Extract filename from path
-For i = Len(filePath) To 1 Step -1
-    If Mid(filePath, i, 1) = "\\" Then
-        fileName = Mid(filePath, i + 1)
-        Exit For
-    End If
-Next
-
-' Connect to running Excel
-Set excel = GetObject(, "Excel.Application")
-If Err.Number <> 0 Then
-    WScript.Echo "ERROR: Excel not running"
-    WScript.Quit 1
-End If
-
-' Find or open workbook
-Set wb = Nothing
-For Each book In excel.Workbooks
-    If LCase(book.Name) = LCase(fileName) Then
-        Set wb = book
-        Exit For
-    End If
-Next
-
-If wb Is Nothing Then
-    Set wb = excel.Workbooks.Open(filePath)
-End If
-
-If Err.Number <> 0 Then
-    WScript.Echo "ERROR: Could not open workbook"
-    WScript.Quit 1
-End If
-
-' Find latest date sheet (YYYY-MM-DD format)
-latestSheet = ""
-For Each sheet In wb.Sheets
-    sheetName = sheet.Name
-    If Len(sheetName) = 10 Then
-        If Mid(sheetName, 5, 1) = "-" And Mid(sheetName, 8, 1) = "-" Then
-            If sheetName > latestSheet Then
-                latestSheet = sheetName
-            End If
-        End If
-    End If
-Next
-
-If latestSheet = "" Then
-    WScript.Echo "ERROR: No date sheets found"
-    WScript.Quit 1
-End If
-
-Set ws = wb.Sheets(latestSheet)
-
-' Write to cells
-cells = Array({cells_array})
-For Each cellAddr In cells
-    Set cell = ws.Range(cellAddr)
-    cell.Value = confirmText
-    cell.Interior.Color = 13561798
-    cell.Font.Color = 5287936
-    cell.Font.Bold = True
-Next
-
-If Err.Number <> 0 Then
-    WScript.Echo "ERROR: " & Err.Description
-    WScript.Quit 1
-End If
-
-' Save
-wb.Save
-
-WScript.Echo "OK: Confirmed in " & latestSheet
-'''
-
-        # Write VBScript to temp file and execute
-        vbs_file = None
-        try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, encoding='utf-8') as f:
-                f.write(vbs_script)
-                vbs_file = f.name
-
-            result = subprocess.run(
-                ["cscript", "//NoLogo", vbs_file],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            output = result.stdout.strip()
-            log.info(f"[ExcelEngine] VBScript output: {output}")
-
-            if output.startswith("OK:"):
-                return True, output[4:].strip()
-            elif output.startswith("ERROR:"):
-                return False, output[7:].strip()
-            else:
-                if result.returncode == 0:
-                    return True, f"Confirmed {', '.join([t.upper() for t in tenors_to_confirm])}"
-                else:
-                    return False, f"VBScript failed: {result.stderr or output}"
-
-        except subprocess.TimeoutExpired:
-            return False, "VBScript timeout - Excel might be busy"
-        except Exception as e:
-            log.error(f"[ExcelEngine] VBScript error: {e}")
-            raise
-        finally:
-            if vbs_file and os.path.exists(vbs_file):
-                try:
-                    os.remove(vbs_file)
-                except:
-                    pass
-
     def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
-        """Write confirmation using win32com (works with open Excel files)."""
+        """Write confirmation using win32com with aggressive retry."""
         import win32com.client
         import re
         import pythoncom
         import time
 
+        MAX_TOTAL_RETRIES = 15
+        RETRY_DELAY = 1.0
+
+        log.info(f"[ExcelEngine] Starting Excel write (max {MAX_TOTAL_RETRIES} attempts)")
+
         # Initialize COM for this thread
         pythoncom.CoInitialize()
 
-        max_retries = 5
-        retry_delay = 0.5  # seconds
+        file_path_str = str(nibor_file.resolve())
+        target_filename = nibor_file.name.lower()
 
-        excel = None
-        interactive_was = None
-        events_was = None
-        screen_updating_was = None
+        for total_attempt in range(MAX_TOTAL_RETRIES):
+            excel = None
+            wb = None
 
-        for attempt in range(max_retries):
             try:
-                # Try to connect to running Excel
-                excel = win32com.client.GetObject(Class="Excel.Application")
-                log.info("[ExcelEngine] Connected to running Excel instance")
-                break
-            except pythoncom.com_error as e:
-                log.warning(f"[ExcelEngine] COM error connecting (attempt {attempt+1}/{max_retries}): {e}")
-                time.sleep(retry_delay)
-            except Exception as e:
-                log.warning(f"[ExcelEngine] Error connecting (attempt {attempt+1}/{max_retries}): {e}")
-                time.sleep(retry_delay)
+                log.info(f"[ExcelEngine] Attempt {total_attempt + 1}/{MAX_TOTAL_RETRIES}")
 
-        if excel is None:
-            # Last resort: start new Excel instance
-            try:
-                excel = win32com.client.Dispatch("Excel.Application")
-                log.info("[ExcelEngine] Started new Excel instance")
-            except Exception as e2:
-                log.error(f"[ExcelEngine] Failed to start Excel: {e2}")
-                raise Exception(f"Could not connect to Excel: {e2}")
-
-        wb = None
-        opened_by_us = False
-
-        try:
-            # FORCE MODE: Disable Excel interactivity to prevent interference
-            try:
-                interactive_was = excel.Interactive
-                events_was = excel.EnableEvents
-                screen_updating_was = excel.ScreenUpdating
-
-                excel.Interactive = False
-                excel.EnableEvents = False
-                excel.ScreenUpdating = False
-                log.info("[ExcelEngine] Disabled Excel interactivity for write operation")
-            except Exception as e:
-                log.warning(f"[ExcelEngine] Could not disable interactivity: {e}")
-
-            # Check if workbook is already open (match by filename, not full path)
-            file_path_str = str(nibor_file.resolve())
-            target_filename = nibor_file.name.lower()
-
-            log.info(f"[ExcelEngine] Looking for workbook: {target_filename}")
-
-            # Wait for Excel to be ready (not busy) with more attempts
-            for wait_attempt in range(10):
+                # Connect to Excel
                 try:
-                    _ = excel.Workbooks.Count
-                    break
-                except pythoncom.com_error:
-                    log.info(f"[ExcelEngine] Excel busy, waiting... ({wait_attempt+1}/10)")
-                    time.sleep(0.3)
+                    excel = win32com.client.GetObject(Class="Excel.Application")
+                except:
+                    excel = win32com.client.Dispatch("Excel.Application")
 
-            # Find workbook
-            try:
-                for workbook in excel.Workbooks:
-                    if workbook.Name.lower() == target_filename:
-                        wb = workbook
-                        log.info(f"[ExcelEngine] Found open workbook: {wb.Name}")
+                # Small pause to let COM stabilize
+                time.sleep(0.2)
+
+                # Find workbook
+                for book in excel.Workbooks:
+                    if book.Name.lower() == target_filename:
+                        wb = book
                         break
-            except Exception as e:
-                log.info(f"[ExcelEngine] Error listing workbooks: {e}")
 
-            if wb is None:
-                log.info(f"[ExcelEngine] Opening workbook: {file_path_str}")
-                wb = excel.Workbooks.Open(file_path_str)
-                opened_by_us = True
-                log.info(f"[ExcelEngine] Opened workbook: {wb.Name}")
+                if wb is None:
+                    wb = excel.Workbooks.Open(file_path_str)
 
-            # Find the latest date sheet
-            date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-            date_sheets = [s.Name for s in wb.Sheets if date_pattern.match(s.Name)]
+                # Find latest date sheet
+                date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+                date_sheets = [s.Name for s in wb.Sheets if date_pattern.match(s.Name)]
 
-            if not date_sheets:
-                if opened_by_us:
-                    wb.Close(SaveChanges=False)
-                return False, "No date sheets found in workbook"
+                if not date_sheets:
+                    pythoncom.CoUninitialize()
+                    return False, "No date sheets found"
 
-            # Get the latest sheet
-            latest_sheet_name = sorted(date_sheets)[-1]
-            ws = wb.Sheets(latest_sheet_name)
+                latest_sheet_name = sorted(date_sheets)[-1]
+                ws = wb.Sheets(latest_sheet_name)
 
-            log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
-            log.info(f"[ExcelEngine] Tenors to confirm: {tenors_to_confirm}")
-            log.info(f"[ExcelEngine] Confirm text: {confirm_text}")
+                # Write to cells
+                GREEN_BG = 13561798
+                DARK_GREEN_TEXT = 5287936
 
-            # Write confirmation to each tenor cell with green background
-            # RGB(198, 239, 206) light green -> BGR integer for win32com
-            GREEN_BG = 13561798  # RGB(198, 239, 206) as BGR
-            DARK_GREEN_TEXT = 5287936  # RGB(0, 128, 80) as BGR
-
-            def write_cell_with_retry(cell_addr, text, max_attempts=5):
-                """Write to cell with retry on COM errors."""
-                for attempt in range(max_attempts):
-                    try:
+                confirmed = []
+                for tenor in tenors_to_confirm:
+                    for cell_addr in confirm_cell_mapping.get(tenor, []):
                         cell = ws.Range(cell_addr)
-                        cell.Value = text
+                        cell.Value = confirm_text
                         cell.Interior.Color = GREEN_BG
                         cell.Font.Color = DARK_GREEN_TEXT
                         cell.Font.Bold = True
-                        log.info(f"[ExcelEngine]   WROTE {cell_addr}: {text} (green)")
-                        return True
-                    except pythoncom.com_error as ce:
-                        log.warning(f"[ExcelEngine]   COM error writing {cell_addr} (attempt {attempt+1}): {ce}")
-                        if attempt < max_attempts - 1:
-                            time.sleep(0.5)
-                    except Exception as write_err:
-                        log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
-                        return False
-                return False
+                    confirmed.append(tenor.upper())
 
-            confirmed_tenors = []
-            for tenor in tenors_to_confirm:
-                cell_addrs = confirm_cell_mapping.get(tenor, [])
-                log.info(f"[ExcelEngine] Tenor {tenor} -> cells {cell_addrs}")
-                if cell_addrs:
-                    all_written = True
-                    for cell_addr in cell_addrs:
-                        if not write_cell_with_retry(cell_addr, confirm_text):
-                            all_written = False
-                    if all_written:
-                        confirmed_tenors.append(tenor.upper())
+                # Save
+                wb.Save()
 
-            # Save the workbook with retry
-            log.info(f"[ExcelEngine] Saving workbook...")
-            for save_attempt in range(5):
-                try:
-                    wb.Save()
-                    log.info("[ExcelEngine] Save successful")
-                    break
-                except pythoncom.com_error as ce:
-                    log.warning(f"[ExcelEngine] COM error saving (attempt {save_attempt+1}/5): {ce}")
-                    if save_attempt < 4:
-                        time.sleep(0.5)
-            log.info(f"[ExcelEngine] Workbook saved (kept open)")
+                pythoncom.CoUninitialize()
+                msg = f"Confirmed {', '.join(confirmed)} in {latest_sheet_name}"
+                log.info(f"[ExcelEngine] SUCCESS: {msg}")
+                return True, msg
 
-            msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
-            log.info(f"[ExcelEngine] {msg}")
-            return True, msg
+            except pythoncom.com_error as e:
+                log.warning(f"[ExcelEngine] COM error (attempt {total_attempt + 1}): {e}")
+                time.sleep(RETRY_DELAY)
+            except Exception as e:
+                log.warning(f"[ExcelEngine] Error (attempt {total_attempt + 1}): {e}")
+                time.sleep(RETRY_DELAY)
 
-        except Exception as e:
-            log.error(f"[ExcelEngine] win32com ERROR: {e}")
-            if wb and opened_by_us:
-                try:
-                    wb.Close(SaveChanges=False)
-                except:
-                    pass
-            raise
-        finally:
-            # ALWAYS restore Excel interactivity
-            try:
-                if excel is not None:
-                    if interactive_was is not None:
-                        excel.Interactive = interactive_was
-                    if events_was is not None:
-                        excel.EnableEvents = events_was
-                    if screen_updating_was is not None:
-                        excel.ScreenUpdating = screen_updating_was
-                    log.info("[ExcelEngine] Restored Excel interactivity")
-            except Exception as restore_err:
-                log.warning(f"[ExcelEngine] Could not restore interactivity: {restore_err}")
-            pythoncom.CoUninitialize()
-
+        pythoncom.CoUninitialize()
+        return False, f"Failed after {MAX_TOTAL_RETRIES} attempts - Excel may be busy"
 
     def get_latest_weights(self, weights_path):
         """
