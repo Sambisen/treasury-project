@@ -1893,18 +1893,14 @@ class DashboardPage(BaseFrame):
         drawer_x = main_x + main_width + 2  # 2px gap
 
         # Create or reuse drawer window
-        if not hasattr(self, '_drawer_window') or not self._drawer_window.winfo_exists():
+        if not self._drawer_window or not self._drawer_window.winfo_exists():
             self._drawer_window = tk.Toplevel(root)
             self._drawer_window.title("")
             self._drawer_window.configure(bg=THEME["bg_card"])
             self._drawer_window.resizable(False, True)
-            self._drawer_window.protocol("WM_DELETE_WINDOW", self._drawer.close)
-            # Remove window decorations for cleaner look (optional)
-            # self._drawer_window.overrideredirect(True)
+            self._drawer_window.protocol("WM_DELETE_WINDOW", self._on_drawer_close)
 
-            # Reparent the drawer widget to this window
-            self._drawer.pack_forget()
-            self._drawer.grid_forget()
+            # Create the drawer widget in this window
             self._drawer = CalculationDrawer(
                 self._drawer_window,
                 width=drawer_width,
