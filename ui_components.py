@@ -601,7 +601,7 @@ if CTK_AVAILABLE:
             self._bbg_dot = ctk.CTkLabel(
                 content,
                 text="●",
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 14),
                 text_color="#9CA3AF",
             )
             self._bbg_dot.pack(side="left")
@@ -609,29 +609,29 @@ if CTK_AVAILABLE:
             self._bbg_label = ctk.CTkLabel(
                 content,
                 text="Bloomberg",
-                font=("Segoe UI Semibold", 10),
-                text_color="#6B7280",
+                font=("Segoe UI Semibold", 11),
+                text_color="#4B5563",
             )
-            self._bbg_label.pack(side="left", padx=(2, 0))
+            self._bbg_label.pack(side="left", padx=(3, 0))
 
             self._bbg_status = ctk.CTkLabel(
                 content,
                 text="--",
-                font=("Segoe UI", 9),
+                font=("Segoe UI", 10),
                 text_color="#9CA3AF",
             )
-            self._bbg_status.pack(side="left", padx=(4, 0))
+            self._bbg_status.pack(side="left", padx=(5, 0))
 
             # Separator
-            ctk.CTkLabel(content, text="│", text_color="#D1D5DB", font=("Segoe UI", 10)).pack(
-                side="left", padx=10
+            ctk.CTkLabel(content, text="│", text_color="#D1D5DB", font=("Segoe UI", 12)).pack(
+                side="left", padx=12
             )
 
             # === EXCEL SECTION ===
             self._excel_dot = ctk.CTkLabel(
                 content,
                 text="●",
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 14),
                 text_color="#9CA3AF",
             )
             self._excel_dot.pack(side="left")
@@ -639,18 +639,18 @@ if CTK_AVAILABLE:
             self._excel_label = ctk.CTkLabel(
                 content,
                 text="Excel",
-                font=("Segoe UI Semibold", 10),
-                text_color="#6B7280",
+                font=("Segoe UI Semibold", 11),
+                text_color="#4B5563",
             )
-            self._excel_label.pack(side="left", padx=(2, 0))
+            self._excel_label.pack(side="left", padx=(3, 0))
 
             self._excel_status = ctk.CTkLabel(
                 content,
                 text="--",
-                font=("Segoe UI", 9),
+                font=("Segoe UI", 10),
                 text_color="#9CA3AF",
             )
-            self._excel_status.pack(side="left", padx=(4, 0))
+            self._excel_status.pack(side="left", padx=(5, 0))
 
             # Separator
             ctk.CTkLabel(content, text="│", text_color="#D1D5DB", font=("Segoe UI", 10)).pack(
@@ -1144,9 +1144,6 @@ if CTK_AVAILABLE:
 
             # Start disabled until ready
             self.confirm_btn.set_enabled(False)
-
-            # Start freshness timer
-            self._update_freshness()
 
         def set_ready(self, ready: bool):
             """Enable/disable confirm button based on validation state."""
