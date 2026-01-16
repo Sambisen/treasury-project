@@ -1864,9 +1864,21 @@ class DashboardPage(BaseFrame):
         # Restore original window width
         if hasattr(self, '_original_window_width'):
             root = self.winfo_toplevel()
-            current_height = root.winfo_height()
-            current_x = root.winfo_x()
-            current_y = root.winfo_y()
+            root.update_idletasks()
+
+            # Parse current geometry to keep position
+            import re
+            geom = root.geometry()
+            match = re.match(r'(\d+)x(\d+)([+-]\d+)([+-]\d+)', geom)
+            if match:
+                current_height = int(match.group(2))
+                current_x = int(match.group(3))
+                current_y = int(match.group(4))
+            else:
+                current_height = root.winfo_height()
+                current_x = root.winfo_x()
+                current_y = root.winfo_y()
+
             root.geometry(f"{self._original_window_width}x{current_height}+{current_x}+{current_y}")
             # Reset column minsize
             self._main_container.grid_columnconfigure(1, weight=0, minsize=0)
@@ -1907,15 +1919,30 @@ class DashboardPage(BaseFrame):
         # Expand window width to accommodate drawer without compressing content
         if not self._drawer.winfo_ismapped():
             root = self.winfo_toplevel()
-            current_width = root.winfo_width()
-            current_height = root.winfo_height()
-            current_x = root.winfo_x()
-            current_y = root.winfo_y()
+            root.update_idletasks()  # Ensure geometry is current
+
+            # Parse geometry string "WxH+X+Y" to get exact position
+            geom = root.geometry()
+            # Format: "1400x750+100+100" or "1400x750+-100+100" (negative allowed)
+            import re
+            match = re.match(r'(\d+)x(\d+)([+-]\d+)([+-]\d+)', geom)
+            if match:
+                current_width = int(match.group(1))
+                current_height = int(match.group(2))
+                current_x = int(match.group(3))
+                current_y = int(match.group(4))
+            else:
+                current_width = root.winfo_width()
+                current_height = root.winfo_height()
+                current_x = root.winfo_x()
+                current_y = root.winfo_y()
+
             drawer_width = 420  # 400 + padding
 
             # Store original width for restoration
             if not hasattr(self, '_original_window_width'):
                 self._original_window_width = current_width
+                self._original_window_geom = geom
 
             # Expand window - keep same position
             new_width = self._original_window_width + drawer_width
