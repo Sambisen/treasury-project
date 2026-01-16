@@ -206,8 +206,58 @@ class SplashScreenManager:
         return self._root
 
 
+def run_with_splash(app_factory, total_duration=6.0):
+    """
+    Run an application with a splash screen.
+
+    Args:
+        app_factory: A callable that creates and returns the main app window
+        total_duration: Total time to show splash screen in seconds (default 6)
+
+    Returns:
+        The created app instance
+    """
+    # Loading steps with progress percentages
+    LOADING_STEPS = [
+        (0, "Initializing..."),
+        (15, "Loading Configuration..."),
+        (30, "Loading Bloomberg..."),
+        (50, "Loading Excel..."),
+        (70, "Loading History..."),
+        (85, "Building Interface..."),
+        (95, "Finalizing..."),
+        (100, "Ready!"),
+    ]
+
+    # Calculate delay between steps
+    step_delay = total_duration / len(LOADING_STEPS)
+
+    # Create hidden root for splash
+    root = tk.Tk()
+    root.withdraw()
+
+    splash = SplashScreen(root)
+    splash.update()
+
+    # Show loading steps with timing
+    for progress, status in LOADING_STEPS:
+        splash.set_progress(progress, status)
+        splash.update()
+        time.sleep(step_delay)
+
+    # Brief pause on "Ready!"
+    time.sleep(0.3)
+
+    # Destroy splash
+    splash.destroy()
+    root.destroy()
+
+    # Now create and return the main app
+    return app_factory()
+
+
 def demo_splash():
-    """Demo the splash screen."""
+    """Demo the splash screen standalone."""
     root = tk.Tk()
     root.withdraw()
 
@@ -215,25 +265,26 @@ def demo_splash():
 
     def update_progress():
         steps = [
-            (10, "Loading configuration..."),
-            (25, "Initializing Excel engine..."),
-            (40, "Loading workbook data..."),
-            (55, "Connecting to Bloomberg..."),
-            (70, "Fetching market data..."),
-            (85, "Building interface..."),
+            (0, "Initializing..."),
+            (15, "Loading Configuration..."),
+            (30, "Loading Bloomberg..."),
+            (50, "Loading Excel..."),
+            (70, "Loading History..."),
+            (85, "Building Interface..."),
             (95, "Finalizing..."),
             (100, "Ready!"),
         ]
 
+        # 6 seconds total / 8 steps = 0.75 seconds per step
         for progress, status in steps:
             splash.set_progress(progress, status)
             splash.update()
-            time.sleep(0.5)
+            time.sleep(0.75)
 
-        splash.after(500, splash.destroy)
-        splash.after(600, root.destroy)
+        splash.after(300, splash.destroy)
+        splash.after(400, root.destroy)
 
-    splash.after(500, update_progress)
+    splash.after(100, update_progress)
     root.mainloop()
 
 
