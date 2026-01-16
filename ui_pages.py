@@ -1692,7 +1692,7 @@ class DashboardPage(BaseFrame):
                     self._update_validation_check(check_id, True, [])
 
     def _update_recon_validation(self):
-        """Run recon checks for all tenors and update validation icons."""
+        """Run recon checks for all tenors and update NIBOR Contrib validation icon."""
         from config import RECON_CELL_MAPPING
 
         if not hasattr(self, 'validation_checks'):
@@ -1707,10 +1707,10 @@ class DashboardPage(BaseFrame):
                 pass
             return None
 
-        # Collect all diffs across all tenors
+        # Collect all diffs across all tenors (same checks as drawer)
         all_diffs = set()
 
-        # Input fields to check - maps to component names shown in validation
+        # Input fields to check - same as drawer recon
         input_fields = [
             ("NOK ECP", "NOK_ECP", "nok_cm", 2),
             ("EUR ECP", "EUR_RATE", "eur_rate", 2),
@@ -1744,32 +1744,14 @@ class DashboardPage(BaseFrame):
                     except (ValueError, TypeError):
                         pass
 
-        # Update validation icons based on diffs
-        # Map diff labels to validation categories
-        bloomberg_diffs = []
-        excel_diffs = []
-
-        for diff_label in all_diffs:
-            if diff_label in ["EURNOK", "USDNOK", "NOK ECP"]:
-                bloomberg_diffs.append(diff_label)
-            elif diff_label in ["EUR ECP", "USD ECP"]:
-                excel_diffs.append(diff_label)
-
-        # Update bloomberg validation icon
-        if bloomberg_diffs:
-            self._update_validation_check("bloomberg", False, [f"Diff: {', '.join(bloomberg_diffs)}"])
+        # Update NIBOR Contrib validation icon based on diffs
+        if all_diffs:
+            diff_list = sorted(all_diffs)
+            self._update_validation_check("nibor_contrib", False, [f"Diff: {', '.join(diff_list)}"])
         else:
             # Only mark OK if we have data
             if getattr(self.app, 'funding_calc_data', {}):
-                self._update_validation_check("bloomberg", True, [])
-
-        # Update excel_cells validation icon
-        if excel_diffs:
-            self._update_validation_check("excel_cells", False, [f"Diff: {', '.join(excel_diffs)}"])
-        else:
-            # Only mark OK if we have data
-            if getattr(self.app, 'funding_calc_data', {}):
-                self._update_validation_check("excel_cells", True, [])
+                self._update_validation_check("nibor_contrib", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
