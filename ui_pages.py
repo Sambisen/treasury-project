@@ -1861,6 +1861,13 @@ class DashboardPage(BaseFrame):
 
     def _on_drawer_close(self):
         """Callback when drawer is closed."""
+        # Restore original window width
+        if hasattr(self, '_original_window_width'):
+            root = self.winfo_toplevel()
+            current_height = root.winfo_height()
+            root.geometry(f"{self._original_window_width}x{current_height}")
+            # Reset column minsize
+            self._main_container.grid_columnconfigure(1, weight=0, minsize=0)
         log.info("[Dashboard] Drawer closed")
 
     def _on_drawer_rerun(self, tenor_key: str):
@@ -1895,11 +1902,26 @@ class DashboardPage(BaseFrame):
         data_with_match['match_data'] = match_data
 
         # Show the drawer using grid layout (column 1)
+        # Expand window width to accommodate drawer without compressing content
         if not self._drawer.winfo_ismapped():
+            root = self.winfo_toplevel()
+            current_width = root.winfo_width()
+            current_height = root.winfo_height()
+            drawer_width = 420  # 400 + padding
+
+            # Store original width for restoration
+            if not hasattr(self, '_original_window_width'):
+                self._original_window_width = current_width
+
+            # Expand window
+            new_width = self._original_window_width + drawer_width
+            root.geometry(f"{new_width}x{current_height}")
+
+            # Show drawer
             self._drawer.grid(row=0, column=1, sticky="nsew", padx=(8, 12), pady=(0, 6))
             self._main_container.grid_columnconfigure(1, weight=0, minsize=400)
-        self._drawer.show_for_tenor(tenor_key, data_with_match)
 
+        self._drawer.show_for_tenor(tenor_key, data_with_match)
         log.info(f"[Dashboard] Opened drawer for tenor: {tenor_key}")
 
 
