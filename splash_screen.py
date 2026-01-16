@@ -17,16 +17,16 @@ class SplashScreen(tk.Toplevel):
         self.overrideredirect(True)
         self.configure(bg="#1a1a2e")
 
-        # Size
-        width = 500
-        height = 320
+        # Size - store as instance variable for use in _build_ui
+        self._width = 500
+        self._height = 320
 
         # Center on screen
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
-        x = (screen_w - width) // 2
-        y = (screen_h - height) // 2
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        x = (screen_w - self._width) // 2
+        y = (screen_h - self._height) // 2
+        self.geometry(f"{self._width}x{self._height}+{x}+{y}")
 
         # Make it stay on top
         self.attributes("-topmost", True)
@@ -128,7 +128,7 @@ class SplashScreen(tk.Toplevel):
         version_label.pack()
 
         # Store reference to progress bar width
-        self._progress_max_width = width - 86  # Account for padding
+        self._progress_max_width = self._width - 86  # Account for padding
 
     def set_progress(self, value: int, status: str = None):
         """
