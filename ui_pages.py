@@ -126,8 +126,8 @@ class DashboardPage(BaseFrame):
             on_rerun=self._on_drawer_rerun
         )
 
-        # Bind ESC to close drawer
-        self.bind_all("<Escape>", self._close_drawer_on_escape)
+        # Bind ESC to close drawer (use toplevel window, not bind_all which CTk disallows)
+        self.winfo_toplevel().bind("<Escape>", self._close_drawer_on_escape, add="+")
 
         # Default calculation model (Swedbank Calc)
         self.calc_model_var = tk.StringVar(value="swedbank")
