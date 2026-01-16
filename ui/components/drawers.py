@@ -773,18 +773,20 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         header = tk.Frame(table, bg=COLORS.TABLE_HEADER_BG)
         header.pack(fill="x")
 
-        for col, (text, width) in enumerate([("Field", 100), ("Value", 80), ("Source", 120)]):
+        # Column widths (in characters)
+        col_widths = [("Field", 12, "w"), ("Value", 10, "center"), ("Source", 12, "center")]
+        for text, width, anchor in col_widths:
             tk.Label(
                 header,
                 text=text,
                 font=FONTS.TABLE_HEADER,
                 fg=COLORS.TEXT_MUTED,
                 bg=COLORS.TABLE_HEADER_BG,
-                width=width // 8,
-                anchor="w",
+                width=width,
+                anchor=anchor,
                 padx=SPACING.SM,
                 pady=SPACING.SM
-            ).pack(side="left", fill="x", expand=(col == 2))
+            ).pack(side="left")
 
         # Data rows
         weights = data.get("weights", {})
@@ -803,14 +805,14 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         inputs.append((
             "EUR",
             f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—",
-            "Internal Rate Excel"
+            "Internal Rate"
         ))
 
         # USD rate
         inputs.append((
             "USD",
             f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—",
-            "Internal Rate Excel"
+            "Internal Rate"
         ))
 
         # NOK ECP rate
@@ -875,7 +877,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     font=FONTS.BODY_SM,
                     fg=COLORS.TEXT,
                     bg=row_bg,
-                    width=14,
+                    width=12,
                     anchor="w",
                     padx=SPACING.SM,
                     pady=SPACING.XS
@@ -888,7 +890,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     fg=COLORS.TEXT,
                     bg=row_bg,
                     width=10,
-                    anchor="e",
+                    anchor="center",
                     padx=SPACING.SM,
                     pady=SPACING.XS
                 ).pack(side="left")
@@ -899,10 +901,11 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     font=FONTS.BODY_SM,
                     fg=COLORS.TEXT_MUTED,
                     bg=row_bg,
-                    anchor="w",
+                    width=12,
+                    anchor="center",
                     padx=SPACING.SM,
                     pady=SPACING.XS
-                ).pack(side="left", fill="x", expand=True)
+                ).pack(side="left")
 
     def _update_steps_section(self, data: Dict[str, Any]):
         """Update the calculation steps."""
