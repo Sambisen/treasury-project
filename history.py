@@ -665,10 +665,7 @@ def confirm_rates(app) -> tuple[bool, str]:
 
         date_key = save_snapshot(app)
 
-        if saved_count > 0:
-            msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates."
-        else:
-            msg = f"Rates confirmed and saved for {date_key}. Fixings already up to date."
+        msg = f"Rates confirmed and saved for {date_key}"
 
         log.info(f"[{mode_str}] {msg}")
         return True, msg
