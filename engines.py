@@ -526,7 +526,7 @@ class ExcelEngine:
     def write_confirmation_to_excel(self, tenors_to_confirm: list[str] = None):
         """
         Write confirmation stamp to Excel cells AE30-AE33.
-        Works even if Excel file is open (uses win32com if available).
+        Uses xlwings (preferred) or falls back to win32com.
 
         Format: ✓ CONFIRMED 2026-01-15 11:45 by username
 
@@ -570,16 +570,94 @@ class ExcelEngine:
         if not nibor_file.exists():
             return False, f"Nibor workbook not found: {nibor_file}"
 
-        # Use win32com only (openpyxl corrupts Excel files with drawings)
+        # Try xlwings first (most reliable)
+        try:
+            return self._write_confirmation_xlwings(
+                nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
+            )
+        except ImportError:
+            log.info("[ExcelEngine] xlwings not available, trying win32com...")
+        except Exception as e:
+            log.warning(f"[ExcelEngine] xlwings failed: {e}, trying win32com...")
+
+        # Fallback to win32com
         try:
             return self._write_confirmation_win32com(
                 nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text
             )
         except ImportError:
-            return False, "win32com not installed. Run: pip install pywin32"
+            return False, "Neither xlwings nor win32com installed. Run: pip install xlwings"
         except Exception as e:
             log.error(f"[ExcelEngine] win32com failed: {e}")
             return False, f"Failed to write to Excel: {e}"
+
+    def _write_confirmation_xlwings(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
+        """Write confirmation using xlwings (most reliable for open Excel files)."""
+        import xlwings as xw
+        import re
+
+        log.info("[ExcelEngine] Using xlwings for Excel write")
+
+        # Connect to Excel - xlwings handles open files gracefully
+        app = xw.apps.active
+        if app is None:
+            # No Excel running, open it
+            app = xw.App(visible=True)
+            log.info("[ExcelEngine] Started new Excel instance via xlwings")
+
+        wb = None
+        target_filename = nibor_file.name.lower()
+        file_path_str = str(nibor_file.resolve())
+
+        # Check if workbook is already open
+        for book in app.books:
+            if book.name.lower() == target_filename:
+                wb = book
+                log.info(f"[ExcelEngine] Found open workbook: {wb.name}")
+                break
+
+        if wb is None:
+            # Open the workbook
+            wb = app.books.open(file_path_str)
+            log.info(f"[ExcelEngine] Opened workbook: {wb.name}")
+
+        # Find the latest date sheet
+        date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+        date_sheets = [s.name for s in wb.sheets if date_pattern.match(s.name)]
+
+        if not date_sheets:
+            return False, "No date sheets found in workbook"
+
+        latest_sheet_name = sorted(date_sheets)[-1]
+        ws = wb.sheets[latest_sheet_name]
+
+        log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
+
+        # Write confirmation to each tenor cell
+        confirmed_tenors = []
+        for tenor in tenors_to_confirm:
+            cell_addrs = confirm_cell_mapping.get(tenor, [])
+            if cell_addrs:
+                for cell_addr in cell_addrs:
+                    try:
+                        cell = ws.range(cell_addr)
+                        cell.value = confirm_text
+                        # Green background RGB(198, 239, 206)
+                        cell.color = (198, 239, 206)
+                        # Dark green text RGB(0, 128, 80)
+                        cell.font.color = (0, 128, 80)
+                        cell.font.bold = True
+                        log.info(f"[ExcelEngine]   WROTE {cell_addr}")
+                    except Exception as e:
+                        log.error(f"[ExcelEngine]   FAILED {cell_addr}: {e}")
+                confirmed_tenors.append(tenor.upper())
+
+        # Save
+        wb.save()
+        log.info("[ExcelEngine] Workbook saved")
+
+        msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
+        return True, msg
 
     def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
         """Write confirmation using win32com (works with open Excel files)."""
