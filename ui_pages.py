@@ -1916,14 +1916,15 @@ class DashboardPage(BaseFrame):
             return None
 
         # Input fields to check (must all match before checking outputs)
+        # Format: (display_label, mapping_key, data_key, decimals)
         input_fields = [
             ("NOK ECP", "NOK_ECP", "nok_cm", 2),
-            ("EUR Rate", "EUR_RATE", "eur_rate", 2),
-            ("USD Rate", "USD_RATE", "usd_rate", 2),
-            ("EUR Spot", "EUR_SPOT", "eur_spot", 4),
-            ("USD Spot", "USD_SPOT", "usd_spot", 4),
-            ("EUR Pips", "EUR_PIPS", "eur_pips", 2),
-            ("USD Pips", "USD_PIPS", "usd_pips", 2),
+            ("EUR ECP", "EUR_RATE", "eur_rate", 2),
+            ("USD ECP", "USD_RATE", "usd_rate", 2),
+            ("EURNOK", "EUR_SPOT", "eur_spot", 4),
+            ("EURNOK", "EUR_PIPS", "eur_pips", 2),
+            ("USDNOK", "USD_SPOT", "usd_spot", 4),
+            ("USDNOK", "USD_PIPS", "usd_pips", 2),
         ]
 
         for label, mapping_key, data_key, decimals in input_fields:

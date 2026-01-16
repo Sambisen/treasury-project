@@ -631,17 +631,23 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 ).pack(anchor="w")
             return
 
-        # Show diffs - build list of all diff items
+        # Collect unique component names that differ
         all_diffs = input_diffs + output_diffs
-        diff_count = len(all_diffs)
+        unique_labels = []
+        seen = set()
+        for item in all_diffs:
+            label = item.get("label", "Unknown")
+            if label not in seen:
+                seen.add(label)
+                unique_labels.append(label)
 
         # Header showing what differs
         header_frame = tk.Frame(self._recon_container, bg="#FFEBEE")
-        header_frame.pack(fill="x")
+        header_frame.pack(fill="x", pady=SPACING.SM)
 
         tk.Label(
             header_frame,
-            text=f"{ICONS.CROSS} {diff_count} difference(s) found",
+            text=f"{ICONS.CROSS} Diff: {', '.join(unique_labels)}",
             font=FONTS.TABLE_HEADER,
             fg=COLORS.DANGER,
             bg="#FFEBEE",
@@ -649,48 +655,10 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             pady=SPACING.SM
         ).pack(anchor="w")
 
-        # Show each diff as a clear row
-        for item in all_diffs:
-            diff_frame = tk.Frame(self._recon_container, bg="#FFEBEE")
-            diff_frame.pack(fill="x", pady=(1, 0))
-
-            label = item.get("label", "Unknown")
-            cell = item.get("cell", "?")
-            gui_value = item.get("gui_value")
-            excel_value = item.get("excel_value")
-            decimals = item.get("decimals", 4)
-
-            # Format values
-            gui_str = f"{gui_value:.{decimals}f}" if gui_value is not None else "N/A"
-            excel_str = f"{excel_value:.{decimals}f}" if excel_value is not None else "N/A"
-
-            # Calculate diff
-            diff_str = ""
-            if gui_value is not None and excel_value is not None:
-                try:
-                    diff = float(gui_value) - float(excel_value)
-                    diff_str = f" (diff: {diff:+.{decimals}f})"
-                except (ValueError, TypeError):
-                    pass
-
-            # Show: "EUR Spot (N30): GUI=11.7234 vs Excel=11.7200 (diff: +0.0034)"
-            diff_text = f"  {label} ({cell}): GUI={gui_str} vs Excel={excel_str}{diff_str}"
-
-            tk.Label(
-                diff_frame,
-                text=diff_text,
-                font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.DANGER,
-                bg="#FFEBEE",
-                anchor="w",
-                padx=SPACING.SM,
-                pady=SPACING.XS
-            ).pack(anchor="w", fill="x")
-
         # Show warning if inputs don't match
         if not all_inputs_match and input_diffs:
             warn_frame = tk.Frame(self._recon_container, bg=COLORS.WARNING_BG)
-            warn_frame.pack(fill="x", pady=(SPACING.SM, 0))
+            warn_frame.pack(fill="x", pady=(0, SPACING.SM))
             tk.Label(
                 warn_frame,
                 text="⚠ Formula outputs not checked - fix inputs first",
