@@ -1,45 +1,57 @@
 """
-Toast notification system for Nibor Calculation Terminal.
+Toast notification system - Premium Design
 """
 import tkinter as tk
 from typing import Literal
 
 
 class Toast:
-    """A toast notification that appears and fades out."""
+    """A professional toast notification with slide-in animation."""
 
     def __init__(self, parent: tk.Tk, message: str,
                  duration: int = 3000,
                  toast_type: Literal["info", "success", "warning", "error"] = "info"):
-        """
-        Create a toast notification.
-
-        Args:
-            parent: Parent window
-            message: Message to display
-            duration: Duration in milliseconds (default 3000)
-            toast_type: Type of toast (info, success, warning, error)
-        """
         self.parent = parent
         self.duration = duration
+        self._closed = False
 
-        # Colors based on type
+        # Modern color schemes
         colors = {
-            "info": {"bg": "#1e3a5f", "fg": "#ffffff", "accent": "#3b82f6"},
-            "success": {"bg": "#14532d", "fg": "#ffffff", "accent": "#22c55e"},
-            "warning": {"bg": "#713f12", "fg": "#ffffff", "accent": "#eab308"},
-            "error": {"bg": "#7f1d1d", "fg": "#ffffff", "accent": "#ef4444"},
+            "info": {
+                "bg": "#1E293B",
+                "fg": "#F1F5F9",
+                "accent": "#3B82F6",
+                "icon_bg": "#1E40AF",
+            },
+            "success": {
+                "bg": "#14532D",
+                "fg": "#F0FDF4",
+                "accent": "#22C55E",
+                "icon_bg": "#166534",
+            },
+            "warning": {
+                "bg": "#451A03",
+                "fg": "#FFFBEB",
+                "accent": "#F59E0B",
+                "icon_bg": "#92400E",
+            },
+            "error": {
+                "bg": "#450A0A",
+                "fg": "#FEF2F2",
+                "accent": "#EF4444",
+                "icon_bg": "#991B1B",
+            },
         }
         style = colors.get(toast_type, colors["info"])
 
-        # Icons
+        # Icons (simple, clean)
         icons = {
-            "info": "ℹ️",
+            "info": "i",
             "success": "✓",
-            "warning": "⚠️",
+            "warning": "!",
             "error": "✕",
         }
-        icon = icons.get(toast_type, "ℹ️")
+        icon = icons.get(toast_type, "i")
 
         # Create toplevel window
         self.toast = tk.Toplevel(parent)
@@ -47,40 +59,94 @@ class Toast:
         self.toast.configure(bg=style["bg"])
         self.toast.attributes("-topmost", True)
 
-        # Try to make it slightly transparent (Windows)
+        # Transparency
         try:
-            self.toast.attributes("-alpha", 0.95)
+            self.toast.attributes("-alpha", 0.97)
         except:
             pass
 
-        # Content frame with accent border
-        border = tk.Frame(self.toast, bg=style["accent"])
-        border.pack(fill="both", expand=True, padx=0, pady=0)
+        # Main container with padding for shadow effect
+        container = tk.Frame(self.toast, bg=style["bg"])
+        container.pack(fill="both", expand=True)
 
-        content = tk.Frame(border, bg=style["bg"])
-        content.pack(fill="both", expand=True, padx=(3, 0), pady=0)
+        # Left accent bar
+        accent_bar = tk.Frame(container, bg=style["accent"], width=4)
+        accent_bar.pack(side="left", fill="y")
 
-        # Icon
-        icon_label = tk.Label(content, text=icon, font=("Segoe UI", 14),
-                             fg=style["accent"], bg=style["bg"])
-        icon_label.pack(side="left", padx=(12, 8), pady=12)
+        # Content area
+        content = tk.Frame(container, bg=style["bg"])
+        content.pack(side="left", fill="both", expand=True, padx=12, pady=12)
+
+        # Icon circle
+        icon_frame = tk.Frame(content, bg=style["icon_bg"], width=28, height=28)
+        icon_frame.pack(side="left", padx=(0, 12))
+        icon_frame.pack_propagate(False)
+
+        icon_label = tk.Label(
+            icon_frame,
+            text=icon,
+            font=("Segoe UI Semibold", 11),
+            fg="#FFFFFF",
+            bg=style["icon_bg"]
+        )
+        icon_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Text area
+        text_frame = tk.Frame(content, bg=style["bg"])
+        text_frame.pack(side="left", fill="both", expand=True)
+
+        # Title based on type
+        titles = {
+            "info": "Information",
+            "success": "Success",
+            "warning": "Warning",
+            "error": "Error",
+        }
+        title = titles.get(toast_type, "Notice")
+
+        title_label = tk.Label(
+            text_frame,
+            text=title,
+            font=("Segoe UI Semibold", 10),
+            fg=style["accent"],
+            bg=style["bg"],
+            anchor="w"
+        )
+        title_label.pack(anchor="w")
 
         # Message
-        msg_label = tk.Label(content, text=message, font=("Segoe UI", 10),
-                            fg=style["fg"], bg=style["bg"], wraplength=300)
-        msg_label.pack(side="left", padx=(0, 15), pady=12)
+        msg_label = tk.Label(
+            text_frame,
+            text=message,
+            font=("Segoe UI", 9),
+            fg=style["fg"],
+            bg=style["bg"],
+            wraplength=280,
+            justify="left",
+            anchor="w"
+        )
+        msg_label.pack(anchor="w", pady=(2, 0))
 
         # Close button
-        close_btn = tk.Label(content, text="×", font=("Segoe UI", 14),
-                            fg="#888888", bg=style["bg"], cursor="hand2")
-        close_btn.pack(side="right", padx=10)
-        close_btn.bind("<Button-1>", lambda e: self.close())
-        close_btn.bind("<Enter>", lambda e: close_btn.config(fg="#ffffff"))
-        close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#888888"))
+        close_frame = tk.Frame(content, bg=style["bg"])
+        close_frame.pack(side="right", padx=(12, 0))
 
-        # Position at bottom-right of parent
+        close_btn = tk.Label(
+            close_frame,
+            text="×",
+            font=("Segoe UI", 16),
+            fg="#64748B",
+            bg=style["bg"],
+            cursor="hand2"
+        )
+        close_btn.pack()
+        close_btn.bind("<Button-1>", lambda e: self.close())
+        close_btn.bind("<Enter>", lambda e: close_btn.config(fg="#FFFFFF"))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#64748B"))
+
+        # Calculate position (bottom-right)
         self.toast.update_idletasks()
-        toast_width = self.toast.winfo_reqwidth()
+        toast_width = max(self.toast.winfo_reqwidth(), 320)
         toast_height = self.toast.winfo_reqheight()
 
         parent_x = parent.winfo_x()
@@ -88,16 +154,62 @@ class Toast:
         parent_width = parent.winfo_width()
         parent_height = parent.winfo_height()
 
-        x = parent_x + parent_width - toast_width - 20
-        y = parent_y + parent_height - toast_height - 50  # Above status bar
+        # Final position
+        self.final_x = parent_x + parent_width - toast_width - 24
+        self.final_y = parent_y + parent_height - toast_height - 60
 
-        self.toast.geometry(f"+{x}+{y}")
+        # Start position (off-screen to the right)
+        self.start_x = parent_x + parent_width + 10
+        self.current_x = self.start_x
+
+        self.toast.geometry(f"{toast_width}x{toast_height}+{self.start_x}+{self.final_y}")
+
+        # Slide-in animation
+        self._animate_in()
 
         # Auto-close after duration
         self.toast.after(duration, self.close)
 
+    def _animate_in(self):
+        """Slide in from right."""
+        if self._closed:
+            return
+
+        step = 20
+        if self.current_x > self.final_x:
+            self.current_x = max(self.final_x, self.current_x - step)
+            try:
+                self.toast.geometry(f"+{self.current_x}+{self.final_y}")
+                self.toast.after(10, self._animate_in)
+            except:
+                pass
+        else:
+            self.current_x = self.final_x
+            try:
+                self.toast.geometry(f"+{self.final_x}+{self.final_y}")
+            except:
+                pass
+
     def close(self):
-        """Close the toast."""
+        """Close the toast with fade out."""
+        if self._closed:
+            return
+        self._closed = True
+        self._fade_out()
+
+    def _fade_out(self, alpha=0.97):
+        """Fade out animation."""
+        if alpha > 0:
+            try:
+                self.toast.attributes("-alpha", alpha)
+                self.toast.after(20, lambda: self._fade_out(alpha - 0.1))
+            except:
+                self._destroy()
+        else:
+            self._destroy()
+
+    def _destroy(self):
+        """Destroy the toast window."""
         try:
             self.toast.destroy()
         except:
@@ -116,22 +228,23 @@ class ToastManager:
         """Show a toast notification."""
         toast = Toast(self.parent, message, duration, toast_type)
         self._toasts.append(toast)
+        return toast
 
     def info(self, message: str, duration: int = 3000):
         """Show an info toast."""
-        self.show(message, "info", duration)
+        return self.show(message, "info", duration)
 
     def success(self, message: str, duration: int = 3000):
         """Show a success toast."""
-        self.show(message, "success", duration)
+        return self.show(message, "success", duration)
 
     def warning(self, message: str, duration: int = 3000):
         """Show a warning toast."""
-        self.show(message, "warning", duration)
+        return self.show(message, "warning", duration)
 
-    def error(self, message: str, duration: int = 3000):
-        """Show an error toast."""
-        self.show(message, "error", duration)
+    def error(self, message: str, duration: int = 5000):
+        """Show an error toast (longer duration by default)."""
+        return self.show(message, "error", duration)
 
 
 # Demo
@@ -139,16 +252,20 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("800x600")
     root.title("Toast Demo")
+    root.configure(bg="#1a1a2e")
 
     manager = ToastManager(root)
 
-    tk.Button(root, text="Info Toast",
-              command=lambda: manager.info("This is an info message")).pack(pady=10)
-    tk.Button(root, text="Success Toast",
-              command=lambda: manager.success("Operation completed successfully!")).pack(pady=10)
-    tk.Button(root, text="Warning Toast",
-              command=lambda: manager.warning("Please check your input")).pack(pady=10)
-    tk.Button(root, text="Error Toast",
-              command=lambda: manager.error("An error occurred!")).pack(pady=10)
+    frame = tk.Frame(root, bg="#1a1a2e")
+    frame.pack(expand=True)
+
+    tk.Button(frame, text="Info Toast",
+              command=lambda: manager.info("Data has been refreshed from Bloomberg")).pack(pady=10)
+    tk.Button(frame, text="Success Toast",
+              command=lambda: manager.success("Rates confirmed and saved for 2026-01-16")).pack(pady=10)
+    tk.Button(frame, text="Warning Toast",
+              command=lambda: manager.warning("Some values may be stale")).pack(pady=10)
+    tk.Button(frame, text="Error Toast",
+              command=lambda: manager.error("Failed to connect to Bloomberg API")).pack(pady=10)
 
     root.mainloop()

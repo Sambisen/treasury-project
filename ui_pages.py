@@ -528,7 +528,6 @@ class DashboardPage(BaseFrame):
     def _on_confirm_rates(self):
         """Handle Confirm rates button click."""
         from history import confirm_rates
-        from tkinter import messagebox
 
         log.info("[Dashboard] Confirm rates button clicked")
 
@@ -552,23 +551,14 @@ class DashboardPage(BaseFrame):
                         self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
 
                     if success:
-                        # Show success message
-                        messagebox.showinfo(
-                            "Rates Confirmed",
-                            message
-                        )
-                        # Show toast notification if available
+                        # Show toast notification
                         if hasattr(self.app, 'toast'):
-                            self.app.toast.success(message)
+                            self.app.toast.success(message, duration=4000)
                         log.info(f"[Dashboard] {message}")
                     else:
-                        # Show error message
-                        messagebox.showerror(
-                            "Confirmation Failed",
-                            message
-                        )
+                        # Show error toast
                         if hasattr(self.app, 'toast'):
-                            self.app.toast.error(message)
+                            self.app.toast.error(message, duration=5000)
                         log.error(f"[Dashboard] {message}")
 
                 self.after(0, update_ui)
@@ -580,7 +570,8 @@ class DashboardPage(BaseFrame):
                     else:
                         self.confirm_rates_btn.configure(state="normal", text="Confirm rates")
                     error_msg = f"Error confirming rates: {e}"
-                    messagebox.showerror("Error", error_msg)
+                    if hasattr(self.app, 'toast'):
+                        self.app.toast.error(error_msg, duration=5000)
                     log.error(f"[Dashboard] {error_msg}")
 
                 self.after(0, show_error)
