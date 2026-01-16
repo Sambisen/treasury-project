@@ -765,29 +765,68 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         for widget in self._inputs_container.winfo_children():
             widget.destroy()
 
-        # Create table using grid for perfect alignment
-        table = tk.Frame(self._inputs_container, bg=COLORS.SURFACE)
-        table.pack(fill="x")
+        # Column widths for alignment
+        col_widths = (14, 12, 14)  # Field, Value, Source
 
-        # Configure grid columns with fixed widths
-        table.columnconfigure(0, weight=0, minsize=120)  # Field
-        table.columnconfigure(1, weight=0, minsize=100)  # Value
-        table.columnconfigure(2, weight=1, minsize=100)  # Source
+        # Helper to create a row with 3 columns
+        def add_row(parent, field, value, source, is_header=False, is_separator=False, row_bg=COLORS.SURFACE):
+            row = tk.Frame(parent, bg=row_bg)
+            row.pack(fill="x")
+
+            if is_separator:
+                # Separator label spans full width
+                tk.Label(
+                    row,
+                    text=field,
+                    font=FONTS.TABLE_HEADER,
+                    fg=COLORS.TEXT_MUTED,
+                    bg=COLORS.TABLE_HEADER_BG,
+                    anchor="w",
+                    padx=SPACING.SM,
+                    pady=SPACING.XS
+                ).pack(fill="x", pady=(SPACING.SM, 0))
+            else:
+                # Field column
+                tk.Label(
+                    row,
+                    text=field,
+                    font=FONTS.TABLE_HEADER if is_header else FONTS.BODY_SM,
+                    fg=COLORS.TEXT_MUTED if is_header else COLORS.TEXT,
+                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
+                    width=col_widths[0],
+                    anchor="w",
+                    padx=SPACING.SM,
+                    pady=SPACING.SM if is_header else SPACING.XS
+                ).pack(side="left")
+
+                # Value column (right-aligned)
+                tk.Label(
+                    row,
+                    text=value,
+                    font=FONTS.TABLE_HEADER if is_header else FONTS.TABLE_CELL_MONO,
+                    fg=COLORS.TEXT_MUTED if is_header else COLORS.TEXT,
+                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
+                    width=col_widths[1],
+                    anchor="e" if not is_header else "center",
+                    padx=SPACING.SM,
+                    pady=SPACING.SM if is_header else SPACING.XS
+                ).pack(side="left")
+
+                # Source column
+                tk.Label(
+                    row,
+                    text=source,
+                    font=FONTS.TABLE_HEADER if is_header else FONTS.BODY_SM,
+                    fg=COLORS.TEXT_MUTED,
+                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
+                    width=col_widths[2],
+                    anchor="w" if not is_header else "center",
+                    padx=SPACING.SM,
+                    pady=SPACING.SM if is_header else SPACING.XS
+                ).pack(side="left")
 
         # Header row
-        row_idx = 0
-        for col, (text, anchor) in enumerate([("Field", "w"), ("Value", "e"), ("Source", "w")]):
-            tk.Label(
-                table,
-                text=text,
-                font=FONTS.TABLE_HEADER,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.TABLE_HEADER_BG,
-                anchor=anchor,
-                padx=SPACING.MD,
-                pady=SPACING.SM
-            ).grid(row=row_idx, column=col, sticky="ew")
-        row_idx += 1
+        add_row(self._inputs_container, "Field", "Value", "Source", is_header=True)
 
         # Data rows
         weights = data.get("weights", {})
@@ -820,56 +859,11 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             is_separator = field.startswith("───")
 
             if is_separator:
-                # Separator spans all columns
-                tk.Label(
-                    table,
-                    text=field,
-                    font=FONTS.TABLE_HEADER,
-                    fg=COLORS.TEXT_MUTED,
-                    bg=COLORS.TABLE_HEADER_BG,
-                    anchor="w",
-                    padx=SPACING.MD,
-                    pady=SPACING.XS
-                ).grid(row=row_idx, column=0, columnspan=3, sticky="ew", pady=(SPACING.SM, 0))
+                add_row(self._inputs_container, field, "", "", is_separator=True)
             else:
                 row_bg = COLORS.SURFACE if data_row_idx % 2 == 0 else COLORS.ROW_ZEBRA
-
-                tk.Label(
-                    table,
-                    text=field,
-                    font=FONTS.BODY_SM,
-                    fg=COLORS.TEXT,
-                    bg=row_bg,
-                    anchor="w",
-                    padx=SPACING.MD,
-                    pady=SPACING.XS
-                ).grid(row=row_idx, column=0, sticky="ew")
-
-                tk.Label(
-                    table,
-                    text=value,
-                    font=FONTS.TABLE_CELL_MONO,
-                    fg=COLORS.TEXT,
-                    bg=row_bg,
-                    anchor="e",
-                    padx=SPACING.MD,
-                    pady=SPACING.XS
-                ).grid(row=row_idx, column=1, sticky="ew")
-
-                tk.Label(
-                    table,
-                    text=source,
-                    font=FONTS.BODY_SM,
-                    fg=COLORS.TEXT_MUTED,
-                    bg=row_bg,
-                    anchor="w",
-                    padx=SPACING.MD,
-                    pady=SPACING.XS
-                ).grid(row=row_idx, column=2, sticky="ew")
-
+                add_row(self._inputs_container, field, value, source, row_bg=row_bg)
                 data_row_idx += 1
-
-            row_idx += 1
 
     def _update_steps_section(self, data: Dict[str, Any]):
         """Update the calculation steps."""
