@@ -578,7 +578,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             self._result_delta.config(text="—", fg=COLORS.TEXT_MUTED)
 
     def _update_recon_section(self, data: Dict[str, Any]):
-        """Update the reconciliation section with Excel comparison data."""
+        """Update the reconciliation section - ONLY show diffs, not matches."""
         # Clear existing
         for widget in self._recon_container.winfo_children():
             widget.destroy()
@@ -596,15 +596,79 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             ).pack(anchor="w", pady=SPACING.SM)
             return
 
-        # Create table
+        # Separate diffs from matches
+        input_diffs = [item for item in recon_data if item.get("is_input") and not item.get("matched")]
+        output_diffs = [item for item in recon_data if not item.get("is_input") and not item.get("matched") and not item.get("skipped")]
+
+        # Count matches for summary
+        input_matches = len([item for item in recon_data if item.get("is_input") and item.get("matched")])
+        total_inputs = len([item for item in recon_data if item.get("is_input")])
+
+        # If everything matches, show success message
+        if not input_diffs and not output_diffs:
+            success_frame = tk.Frame(self._recon_container, bg="#E8F5E9")
+            success_frame.pack(fill="x", pady=SPACING.SM)
+
+            tk.Label(
+                success_frame,
+                text=f"{ICONS.CHECK} All {total_inputs} inputs match Excel",
+                font=FONTS.BODY_SM,
+                fg=COLORS.SUCCESS,
+                bg="#E8F5E9",
+                padx=SPACING.MD,
+                pady=SPACING.SM
+            ).pack(anchor="w")
+
+            if all_inputs_match:
+                tk.Label(
+                    success_frame,
+                    text=f"{ICONS.CHECK} Formula outputs verified",
+                    font=FONTS.BODY_SM,
+                    fg=COLORS.SUCCESS,
+                    bg="#E8F5E9",
+                    padx=SPACING.MD,
+                    pady=(0, SPACING.SM)
+                ).pack(anchor="w")
+            return
+
+        # Show diffs header with count
+        diff_count = len(input_diffs) + len(output_diffs)
+        diff_labels = [item.get("label", "") for item in input_diffs + output_diffs]
+
+        # Header showing what differs
+        header_frame = tk.Frame(self._recon_container, bg="#FFEBEE")
+        header_frame.pack(fill="x", pady=(0, SPACING.SM))
+
+        tk.Label(
+            header_frame,
+            text=f"{ICONS.CROSS} {diff_count} difference(s) found:",
+            font=FONTS.TABLE_HEADER,
+            fg=COLORS.DANGER,
+            bg="#FFEBEE",
+            padx=SPACING.MD,
+            pady=SPACING.SM
+        ).pack(anchor="w")
+
+        # List which components differ
+        tk.Label(
+            header_frame,
+            text=", ".join(diff_labels),
+            font=FONTS.BODY_SM,
+            fg=COLORS.DANGER,
+            bg="#FFEBEE",
+            padx=SPACING.MD,
+            pady=(0, SPACING.SM)
+        ).pack(anchor="w")
+
+        # Create table for diffs only
         table = tk.Frame(self._recon_container, bg=COLORS.SURFACE)
         table.pack(fill="x")
 
-        # Header
+        # Table header
         header = tk.Frame(table, bg=COLORS.TABLE_HEADER_BG)
         header.pack(fill="x")
 
-        headers = [("Field", 70), ("Cell", 35), ("GUI", 55), ("Excel", 55), ("Status", 45)]
+        headers = [("Field", 70), ("Cell", 35), ("GUI", 60), ("Excel", 60), ("Diff", 50)]
         for text, width in headers:
             tk.Label(
                 header,
@@ -618,136 +682,118 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 pady=SPACING.SM
             ).pack(side="left")
 
-        # Separator between inputs and outputs
-        inputs_section_added = False
-        outputs_section_added = False
+        # Show input diffs
+        if input_diffs:
+            self._add_recon_section_header(table, "─── Input Diffs ───")
+            for i, item in enumerate(input_diffs):
+                self._add_recon_diff_row(table, item, i)
 
-        for i, item in enumerate(recon_data):
-            is_input = item.get("is_input", True)
-            skipped = item.get("skipped", False)
-
-            # Add section headers
-            if is_input and not inputs_section_added:
-                self._add_recon_section_header(table, "─── Inputs ───")
-                inputs_section_added = True
-            elif not is_input and not outputs_section_added:
-                self._add_recon_section_header(table, "─── Formula Outputs ───")
-                if not all_inputs_match:
-                    # Show warning that outputs are skipped
-                    warn_frame = tk.Frame(table, bg=COLORS.WARNING_BG)
-                    warn_frame.pack(fill="x", pady=(0, SPACING.XS))
-                    tk.Label(
-                        warn_frame,
-                        text="⚠ Skipped - inputs do not match",
-                        font=FONTS.BODY_SM,
-                        fg=COLORS.WARNING,
-                        bg=COLORS.WARNING_BG,
-                        padx=SPACING.SM,
-                        pady=SPACING.XS
-                    ).pack(anchor="w")
-                outputs_section_added = True
-
-            # Data row
-            label = item.get("label", "")
-            cell = item.get("cell", "")
-            gui_value = item.get("gui_value")
-            excel_value = item.get("excel_value")
-            decimals = item.get("decimals", 4)
-            matched = item.get("matched", False)
-
-            row_bg = COLORS.SURFACE if i % 2 == 0 else COLORS.ROW_ZEBRA
-            row = tk.Frame(table, bg=row_bg)
-            row.pack(fill="x")
-
-            # Field name
+        # Show output diffs (or skipped message)
+        if not all_inputs_match:
+            self._add_recon_section_header(table, "─── Formula Outputs ───")
+            warn_frame = tk.Frame(table, bg=COLORS.WARNING_BG)
+            warn_frame.pack(fill="x", pady=SPACING.XS)
             tk.Label(
-                row,
-                text=label,
+                warn_frame,
+                text="⚠ Skipped - fix input diffs first",
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT,
-                bg=row_bg,
-                width=9,
-                anchor="w",
-                padx=SPACING.XS,
+                fg=COLORS.WARNING,
+                bg=COLORS.WARNING_BG,
+                padx=SPACING.SM,
                 pady=SPACING.XS
-            ).pack(side="left")
+            ).pack(anchor="w")
+        elif output_diffs:
+            self._add_recon_section_header(table, "─── Formula Diffs ───")
+            for i, item in enumerate(output_diffs):
+                self._add_recon_diff_row(table, item, i)
 
-            # Cell reference
-            tk.Label(
-                row,
-                text=cell,
-                font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT_MUTED,
-                bg=row_bg,
-                width=4,
-                anchor="w",
-                padx=SPACING.XS,
-                pady=SPACING.XS
-            ).pack(side="left")
+    def _add_recon_diff_row(self, parent, item: Dict[str, Any], index: int):
+        """Add a single diff row to the recon table."""
+        label = item.get("label", "")
+        cell = item.get("cell", "")
+        gui_value = item.get("gui_value")
+        excel_value = item.get("excel_value")
+        decimals = item.get("decimals", 4)
 
-            # GUI value
-            gui_str = f"{gui_value:.{decimals}f}" if gui_value is not None else "—"
-            tk.Label(
-                row,
-                text=gui_str,
-                font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT,
-                bg=row_bg,
-                width=7,
-                anchor="e",
-                padx=SPACING.XS,
-                pady=SPACING.XS
-            ).pack(side="left")
+        row_bg = "#FFEBEE"  # Light red for diff rows
+        row = tk.Frame(parent, bg=row_bg)
+        row.pack(fill="x")
 
-            # Excel value
-            if skipped:
-                excel_str = "—"
-                excel_color = COLORS.TEXT_MUTED
-            elif excel_value is not None:
-                excel_str = f"{excel_value:.{decimals}f}"
-                excel_color = COLORS.TEXT
-            else:
-                excel_str = "N/A"
-                excel_color = COLORS.TEXT_MUTED
+        # Field name
+        tk.Label(
+            row,
+            text=label,
+            font=FONTS.BODY_SM,
+            fg=COLORS.DANGER,
+            bg=row_bg,
+            width=9,
+            anchor="w",
+            padx=SPACING.XS,
+            pady=SPACING.XS
+        ).pack(side="left")
 
-            tk.Label(
-                row,
-                text=excel_str,
-                font=FONTS.TABLE_CELL_MONO,
-                fg=excel_color,
-                bg=row_bg,
-                width=7,
-                anchor="e",
-                padx=SPACING.XS,
-                pady=SPACING.XS
-            ).pack(side="left")
+        # Cell reference
+        tk.Label(
+            row,
+            text=cell,
+            font=FONTS.TABLE_CELL_MONO,
+            fg=COLORS.TEXT_MUTED,
+            bg=row_bg,
+            width=4,
+            anchor="w",
+            padx=SPACING.XS,
+            pady=SPACING.XS
+        ).pack(side="left")
 
-            # Status
-            if skipped:
-                status_text = "SKIP"
-                status_color = COLORS.TEXT_MUTED
-                status_bg = COLORS.CHIP_BG
-            elif matched:
-                status_text = ICONS.CHECK
-                status_color = COLORS.SUCCESS
-                status_bg = "#E8F5E9"
-            else:
-                status_text = ICONS.CROSS
-                status_color = COLORS.DANGER
-                status_bg = "#FFEBEE"
+        # GUI value
+        gui_str = f"{gui_value:.{decimals}f}" if gui_value is not None else "N/A"
+        tk.Label(
+            row,
+            text=gui_str,
+            font=FONTS.TABLE_CELL_MONO,
+            fg=COLORS.TEXT,
+            bg=row_bg,
+            width=8,
+            anchor="e",
+            padx=SPACING.XS,
+            pady=SPACING.XS
+        ).pack(side="left")
 
-            status_label = tk.Label(
-                row,
-                text=status_text,
-                font=FONTS.BODY_SM,
-                fg=status_color,
-                bg=status_bg,
-                width=5,
-                anchor="center",
-                padx=SPACING.XS,
-                pady=SPACING.XS
-            )
-            status_label.pack(side="left", padx=(SPACING.XS, 0))
+        # Excel value
+        excel_str = f"{excel_value:.{decimals}f}" if excel_value is not None else "N/A"
+        tk.Label(
+            row,
+            text=excel_str,
+            font=FONTS.TABLE_CELL_MONO,
+            fg=COLORS.TEXT,
+            bg=row_bg,
+            width=8,
+            anchor="e",
+            padx=SPACING.XS,
+            pady=SPACING.XS
+        ).pack(side="left")
+
+        # Diff value
+        if gui_value is not None and excel_value is not None:
+            try:
+                diff = float(gui_value) - float(excel_value)
+                diff_str = f"{diff:+.{decimals}f}"
+            except (ValueError, TypeError):
+                diff_str = "—"
+        else:
+            diff_str = "—"
+
+        tk.Label(
+            row,
+            text=diff_str,
+            font=FONTS.TABLE_CELL_MONO,
+            fg=COLORS.DANGER,
+            bg=row_bg,
+            width=7,
+            anchor="e",
+            padx=SPACING.XS,
+            pady=SPACING.XS
+        ).pack(side="left")
 
     def _add_recon_section_header(self, parent, text: str):
         """Add a section header in the recon table."""

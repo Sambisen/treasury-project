@@ -16,7 +16,7 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING, get_logger
+    EXCEL_CM_RATES_MAPPING, RECON_CELL_MAPPING, get_logger
 )
 from nibor_file_manager import get_nibor_file_path, NiborFileManager
 
@@ -51,6 +51,11 @@ def build_required_cell_set() -> set[tuple[int, int]]:
 
     for c in WEIGHTS_MODEL_CELLS.values():
         needed.add(coordinate_to_tuple(c))
+
+    # Add reconciliation cells for drawer (K30-K33, M30-M33, etc.)
+    for field_cells in RECON_CELL_MAPPING.values():
+        for cell in field_cells.values():
+            needed.add(coordinate_to_tuple(cell))
 
     return needed
 
