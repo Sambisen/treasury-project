@@ -474,13 +474,14 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
     def _hide(self):
         """Hide the drawer."""
         self._is_visible = False
-        self.pack_forget()
-        self.grid_forget()
+        # Don't pack_forget - just set flag. Window visibility is handled by parent.
 
     def _show(self):
         """Show the drawer."""
         self._is_visible = True
-        # Will be packed/gridded by parent
+        # Ensure drawer is packed (in case it was removed)
+        if not self.winfo_ismapped():
+            self.pack(fill="both", expand=True)
 
     def show_for_tenor(self, tenor_key: str, data: Dict[str, Any]):
         """
