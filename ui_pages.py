@@ -207,10 +207,10 @@ class DashboardPage(BaseFrame):
         # Main headers with premium styling - wider columns with better hierarchy
         headers = [
             ("TENOR", 12, "center"),
-            ("FUNDING RATE", 20, "e"),  # Bredare kolumn
-            ("SPREAD", 12, "e"),
-            ("NIBOR", 20, "e"),  # Bredare kolumn för hero data
-            ("CHG", 14, "e"),  # Något bredare för pilar
+            ("FUNDING RATE", 20, "center"),
+            ("SPREAD", 12, "center"),
+            ("NIBOR", 20, "center"),
+            ("CHG", 14, "center"),
         ]
         for col, (text, width, anchor) in enumerate(headers):
             tk.Label(funding_frame, text=text,
@@ -259,11 +259,12 @@ class DashboardPage(BaseFrame):
                         font=("Segoe UI", 12), width=12, pady=10, padx=16,
                         anchor="center").grid(row=row_idx, column=0, sticky="nsew")
 
-                for col in range(1, 5):
-                    anchor = "e" if col > 0 else "center"
-                    tk.Label(funding_frame, text="—", fg=THEME["text_light"],
+                # Funding Rate = N/A, Spread = —, Nibor = N/A, Chg = —
+                disabled_values = ["N/A", "—", "N/A", "—"]
+                for col, val in enumerate(disabled_values, start=1):
+                    tk.Label(funding_frame, text=val, fg=THEME["text_light"],
                             bg=row_bg, font=("Consolas", 12),
-                            anchor=anchor, pady=10, padx=16).grid(row=row_idx, column=col, sticky="nsew")
+                            anchor="center", pady=10, padx=16).grid(row=row_idx, column=col, sticky="nsew")
 
                 # Contribution column for disabled row
                 tk.Label(funding_frame, text="—", fg=THEME["text_light"],
@@ -288,42 +289,42 @@ class DashboardPage(BaseFrame):
 
             cells = {}
 
-            # FUNDING RATE - monospace, right-aligned, clickable, more padding
+            # FUNDING RATE - monospace, centered, clickable, more padding
             funding_lbl = tk.Label(funding_frame, text="—",
                                   fg=THEME["text"], bg=row_bg,
                                   font=("Consolas", 12),
-                                  width=20, anchor="e", cursor="hand2", pady=14, padx=18)
+                                  width=20, anchor="center", cursor="hand2", pady=14, padx=18)
             funding_lbl.grid(row=row_idx, column=1, sticky="nsew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(funding_lbl)
             cells["funding"] = funding_lbl
             ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
 
-            # SPREAD - monospace, right-aligned, muted, more padding
+            # SPREAD - monospace, centered, muted, more padding
             spread_lbl = tk.Label(funding_frame, text="—",
                                  fg=THEME["text_muted"], bg=row_bg,
                                  font=("Consolas", 12),
-                                 width=12, anchor="e", pady=14, padx=18)
+                                 width=12, anchor="center", pady=14, padx=18)
             spread_lbl.grid(row=row_idx, column=2, sticky="nsew")
             row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
 
-            # NIBOR - HERO COLUMN - EXTRA LARGE, bold, accent color, MORE PADDING
+            # NIBOR - HERO COLUMN - EXTRA LARGE, bold, accent color, centered
             final_lbl = tk.Label(funding_frame, text="—",
                                 fg=THEME["accent"], bg=row_bg,
-                                font=("Consolas", 18, "bold"),  # Ökat från 16 till 18
-                                width=20, anchor="e", cursor="hand2", pady=14, padx=20)
+                                font=("Consolas", 18, "bold"),
+                                width=20, anchor="center", cursor="hand2", pady=14, padx=20)
             final_lbl.grid(row=row_idx, column=3, sticky="nsew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(final_lbl)
             cells["final"] = final_lbl
             ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
 
-            # CHG - monospace, right-aligned (color set dynamically), more padding
+            # CHG - monospace, centered (color set dynamically), more padding
             chg_lbl = tk.Label(funding_frame, text="—",
                               fg=THEME["text_muted"], bg=row_bg,
                               font=("Consolas", 12),
-                              width=14, anchor="e", pady=14, padx=18)
+                              width=14, anchor="center", pady=14, padx=18)
             chg_lbl.grid(row=row_idx, column=4, sticky="nsew")
             row_widgets.append(chg_lbl)
             cells["chg"] = chg_lbl
