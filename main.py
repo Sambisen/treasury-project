@@ -311,7 +311,7 @@ class NiborTerminalCTK(ctk.CTk):
             ("weights", "⚖️", "Weights", WeightsPage),
             ("audit_log", "📋", "Audit Log", AuditLogPage),
             ("nibor_meta", "ℹ️", "Meta Data", NiborMetaDataPage),
-            ("rules_logic", "📐", "Rules & Logic", RulesPage),
+            ("rules_logic", "🧮", "Backup Nibor", RulesPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
             ("settings", "⚙️", "Settings", SettingsPage),

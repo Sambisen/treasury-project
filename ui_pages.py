@@ -2275,51 +2275,351 @@ class ReconPage(tk.Frame):
             self.table.add_row(r["values"], style=s)
 
 
-class RulesPage(tk.Frame):
-    """Validation rules database page."""
+class BackupNiborPage(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
+    """Manual NIBOR calculation page for backup/verification purposes."""
+
+    TENORS = ["1W", "1M", "2M", "3M", "6M"]
+    DEFAULT_DAYS = {"1W": 7, "1M": 30, "2M": 60, "3M": 90, "6M": 180}
 
     def __init__(self, master, app):
-        super().__init__(master, bg=THEME["bg_panel"])
+        if CTK_AVAILABLE:
+            super().__init__(master, fg_color=THEME["bg_panel"], corner_radius=0)
+        else:
+            super().__init__(master, bg=THEME["bg_panel"])
         self.app = app
         pad = CURRENT_MODE["pad"]
 
-        top = tk.Frame(self, bg=THEME["bg_panel"])
-        top.pack(fill="x", padx=pad, pady=(pad, 10))
+        # Storage for input fields
+        self._weight_entries = {}
+        self._tenor_entries = {}
+        self._result_labels = {}
 
-        tk.Label(top, text="ACTIVE VALIDATION RULES DATABASE", fg=THEME["muted"], bg=THEME["bg_panel"],
+        # Create scrollable container
+        self.canvas = tk.Canvas(self, bg=THEME["bg_panel"], highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas, bg=THEME["bg_panel"])
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        # Mouse wheel scrolling
+        self.canvas.bind_all("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+
+        self.scrollbar.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+
+        # ====================================================================
+        # HEADER
+        # ====================================================================
+        header = tk.Frame(self.scrollable_frame, bg=THEME["bg_panel"])
+        header.pack(fill="x", padx=pad, pady=(pad, 5))
+
+        tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg=THEME["bg_panel"],
                  font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
 
-        self.filter_var = tk.StringVar(value="ALL")
-        self.filter_combo = ttk.Combobox(top, textvariable=self.filter_var,
-                                         values=["ALL", "MATCHING", "ID CHECKS", "ROUNDING", "THRESHOLDS"],
-                                         state="readonly", width=14)
-        self.filter_combo.pack(side="right")
-        self.filter_combo.bind("<<ComboboxSelected>>", lambda _e: self.update())
+        tk.Label(header, text="Manual calculation for verification and contingency",
+                 fg=THEME["text_muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", 10)).pack(side="left", padx=(15, 0))
 
-        self.table = DataTableTree(self, columns=["ID", "TOP CELL", "REF CELL", "LOGIC", "MESSAGE"],
-                                   col_widths=[70, 110, 110, 160, 560], height=22)
-        self.table.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+        # ====================================================================
+        # WEIGHTS SECTION
+        # ====================================================================
+        weights_frame = tk.Frame(self.scrollable_frame, bg=THEME["bg_card"], relief="flat")
+        weights_frame.pack(fill="x", padx=pad, pady=(10, 5))
+
+        weights_inner = tk.Frame(weights_frame, bg=THEME["bg_card"])
+        weights_inner.pack(fill="x", padx=15, pady=12)
+
+        tk.Label(weights_inner, text="WEIGHTS", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 11)).pack(anchor="w")
+
+        weights_row = tk.Frame(weights_inner, bg=THEME["bg_card"])
+        weights_row.pack(fill="x", pady=(8, 0))
+
+        for ccy in ["EUR", "USD", "NOK"]:
+            w_frame = tk.Frame(weights_row, bg=THEME["bg_card"])
+            w_frame.pack(side="left", padx=(0, 30))
+
+            tk.Label(w_frame, text=f"{ccy} Weight", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 9)).pack(anchor="w")
+
+            entry = tk.Entry(w_frame, width=10, font=("Consolas", 11),
+                           bg=THEME["bg_card_2"], fg=THEME["text"],
+                           insertbackground=THEME["text"], relief="flat", bd=0)
+            entry.pack(anchor="w", pady=(2, 0), ipady=4)
+            entry.insert(0, "0.333333")
+            self._weight_entries[ccy] = entry
+
+        # ====================================================================
+        # TENOR INPUT SECTIONS
+        # ====================================================================
+        for tenor in self.TENORS:
+            self._create_tenor_section(tenor, pad)
+
+        # ====================================================================
+        # CALCULATE BUTTON
+        # ====================================================================
+        btn_frame = tk.Frame(self.scrollable_frame, bg=THEME["bg_panel"])
+        btn_frame.pack(fill="x", padx=pad, pady=15)
+
+        calc_btn = ctk.CTkButton(
+            btn_frame,
+            text="CALCULATE NIBOR RATES",
+            command=self._calculate,
+            fg_color=THEME["accent"],
+            hover_color=THEME["accent_hover"],
+            text_color="white",
+            font=("Segoe UI Semibold", 13),
+            corner_radius=8,
+            height=44,
+            width=280
+        ) if CTK_AVAILABLE else tk.Button(btn_frame, text="CALCULATE", command=self._calculate)
+        calc_btn.pack(side="left")
+
+        clear_btn = ctk.CTkButton(
+            btn_frame,
+            text="CLEAR ALL",
+            command=self._clear_all,
+            fg_color=THEME["bg_card_2"],
+            hover_color=THEME["border"],
+            text_color=THEME["text_muted"],
+            font=("Segoe UI", 11),
+            corner_radius=8,
+            height=44,
+            width=120
+        ) if CTK_AVAILABLE else tk.Button(btn_frame, text="CLEAR", command=self._clear_all)
+        clear_btn.pack(side="left", padx=(15, 0))
+
+        # ====================================================================
+        # RESULTS SECTION
+        # ====================================================================
+        results_frame = tk.Frame(self.scrollable_frame, bg=THEME["bg_card"], relief="flat")
+        results_frame.pack(fill="x", padx=pad, pady=(5, pad))
+
+        results_inner = tk.Frame(results_frame, bg=THEME["bg_card"])
+        results_inner.pack(fill="x", padx=15, pady=12)
+
+        tk.Label(results_inner, text="CALCULATED NIBOR RATES", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 11)).pack(anchor="w")
+
+        results_row = tk.Frame(results_inner, bg=THEME["bg_card"])
+        results_row.pack(fill="x", pady=(10, 0))
+
+        for tenor in self.TENORS:
+            r_frame = tk.Frame(results_row, bg=THEME["bg_card"])
+            r_frame.pack(side="left", padx=(0, 25))
+
+            tk.Label(r_frame, text=tenor, fg=THEME["text_muted"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 9)).pack(anchor="w")
+
+            result_lbl = tk.Label(r_frame, text="—", fg=THEME["text"], bg=THEME["bg_card"],
+                                  font=("Consolas", 18, "bold"))
+            result_lbl.pack(anchor="w")
+            self._result_labels[tenor] = result_lbl
+
+        # Formula explanation
+        formula_frame = tk.Frame(results_inner, bg=THEME["bg_card"])
+        formula_frame.pack(fill="x", pady=(15, 0))
+
+        tk.Label(formula_frame, text="Formula:", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9)).pack(anchor="w")
+        tk.Label(formula_frame,
+                 text="NIBOR = (EUR_Implied × EUR_Weight) + (USD_Implied × USD_Weight) + (NOK_CM × NOK_Weight)",
+                 fg=THEME["text_light"], bg=THEME["bg_card"],
+                 font=("Consolas", 10)).pack(anchor="w", pady=(2, 0))
+        tk.Label(formula_frame,
+                 text="Implied = ((Spot + Pips/10000) / Spot × (1 + ECP × Days/36000) - 1) × 36000/Days",
+                 fg=THEME["text_light"], bg=THEME["bg_card"],
+                 font=("Consolas", 10)).pack(anchor="w", pady=(2, 0))
+
+    def _create_tenor_section(self, tenor: str, pad: int):
+        """Create input section for a single tenor."""
+        frame = tk.Frame(self.scrollable_frame, bg=THEME["bg_card"], relief="flat")
+        frame.pack(fill="x", padx=pad, pady=3)
+
+        inner = tk.Frame(frame, bg=THEME["bg_card"])
+        inner.pack(fill="x", padx=15, pady=10)
+
+        # Tenor header with days input
+        header_row = tk.Frame(inner, bg=THEME["bg_card"])
+        header_row.pack(fill="x")
+
+        tk.Label(header_row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 12)).pack(side="left")
+
+        tk.Label(header_row, text="Days:", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9)).pack(side="left", padx=(20, 5))
+
+        days_entry = tk.Entry(header_row, width=5, font=("Consolas", 10),
+                             bg=THEME["bg_card_2"], fg=THEME["text"],
+                             insertbackground=THEME["text"], relief="flat", bd=0)
+        days_entry.pack(side="left", ipady=3)
+        days_entry.insert(0, str(self.DEFAULT_DAYS.get(tenor, 30)))
+
+        # Store entries for this tenor
+        self._tenor_entries[tenor] = {"days": days_entry}
+
+        # Input grid
+        input_row = tk.Frame(inner, bg=THEME["bg_card"])
+        input_row.pack(fill="x", pady=(8, 0))
+
+        # EUR inputs
+        eur_frame = tk.Frame(input_row, bg=THEME["bg_card"])
+        eur_frame.pack(side="left", padx=(0, 20))
+
+        tk.Label(eur_frame, text="EUR", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 9)).pack(anchor="w")
+
+        eur_inputs = tk.Frame(eur_frame, bg=THEME["bg_card"])
+        eur_inputs.pack(anchor="w", pady=(3, 0))
+
+        for field, width, default in [("Spot", 10, "11.8000"), ("Pips", 8, "0.00"), ("ECP %", 8, "2.50")]:
+            f = tk.Frame(eur_inputs, bg=THEME["bg_card"])
+            f.pack(side="left", padx=(0, 10))
+            tk.Label(f, text=field, fg=THEME["text_muted"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            e = tk.Entry(f, width=width, font=("Consolas", 10),
+                        bg=THEME["bg_card_2"], fg=THEME["text"],
+                        insertbackground=THEME["text"], relief="flat", bd=0)
+            e.pack(anchor="w", ipady=3)
+            e.insert(0, default)
+            key = f"eur_{field.lower().replace(' ', '_').replace('%', 'pct')}"
+            self._tenor_entries[tenor][key] = e
+
+        # USD inputs
+        usd_frame = tk.Frame(input_row, bg=THEME["bg_card"])
+        usd_frame.pack(side="left", padx=(0, 20))
+
+        tk.Label(usd_frame, text="USD", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 9)).pack(anchor="w")
+
+        usd_inputs = tk.Frame(usd_frame, bg=THEME["bg_card"])
+        usd_inputs.pack(anchor="w", pady=(3, 0))
+
+        for field, width, default in [("Spot", 10, "10.9000"), ("Pips", 8, "0.00"), ("ECP %", 8, "4.50")]:
+            f = tk.Frame(usd_inputs, bg=THEME["bg_card"])
+            f.pack(side="left", padx=(0, 10))
+            tk.Label(f, text=field, fg=THEME["text_muted"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            e = tk.Entry(f, width=width, font=("Consolas", 10),
+                        bg=THEME["bg_card_2"], fg=THEME["text"],
+                        insertbackground=THEME["text"], relief="flat", bd=0)
+            e.pack(anchor="w", ipady=3)
+            e.insert(0, default)
+            key = f"usd_{field.lower().replace(' ', '_').replace('%', 'pct')}"
+            self._tenor_entries[tenor][key] = e
+
+        # NOK CM input
+        nok_frame = tk.Frame(input_row, bg=THEME["bg_card"])
+        nok_frame.pack(side="left")
+
+        tk.Label(nok_frame, text="NOK", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 9)).pack(anchor="w")
+
+        nok_inputs = tk.Frame(nok_frame, bg=THEME["bg_card"])
+        nok_inputs.pack(anchor="w", pady=(3, 0))
+
+        f = tk.Frame(nok_inputs, bg=THEME["bg_card"])
+        f.pack(side="left")
+        tk.Label(f, text="CM Rate %", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 8)).pack(anchor="w")
+        e = tk.Entry(f, width=8, font=("Consolas", 10),
+                    bg=THEME["bg_card_2"], fg=THEME["text"],
+                    insertbackground=THEME["text"], relief="flat", bd=0)
+        e.pack(anchor="w", ipady=3)
+        e.insert(0, "4.50")
+        self._tenor_entries[tenor]["nok_cm_pct"] = e
+
+    def _calculate(self):
+        """Calculate NIBOR rates for all tenors."""
+        from calculations import calc_implied_yield, calc_funding_rate
+
+        # Get weights
+        weights = {}
+        try:
+            for ccy in ["EUR", "USD", "NOK"]:
+                weights[ccy] = float(self._weight_entries[ccy].get().replace(",", "."))
+        except ValueError:
+            self.app.toast.error("Invalid weight values")
+            return
+
+        # Calculate for each tenor
+        for tenor in self.TENORS:
+            try:
+                entries = self._tenor_entries[tenor]
+                days = int(entries["days"].get())
+
+                # EUR implied
+                eur_spot = float(entries["eur_spot"].get().replace(",", "."))
+                eur_pips = float(entries["eur_pips"].get().replace(",", "."))
+                eur_ecp = float(entries["eur_ecp_pct"].get().replace(",", "."))
+                eur_implied = calc_implied_yield(eur_spot, eur_pips, eur_ecp, days)
+
+                # USD implied
+                usd_spot = float(entries["usd_spot"].get().replace(",", "."))
+                usd_pips = float(entries["usd_pips"].get().replace(",", "."))
+                usd_ecp = float(entries["usd_ecp_pct"].get().replace(",", "."))
+                usd_implied = calc_implied_yield(usd_spot, usd_pips, usd_ecp, days)
+
+                # NOK CM
+                nok_cm = float(entries["nok_cm_pct"].get().replace(",", "."))
+
+                # Calculate weighted rate
+                if eur_implied is not None and usd_implied is not None:
+                    nibor_rate = calc_funding_rate(eur_implied, usd_implied, nok_cm, weights)
+                    if nibor_rate is not None:
+                        self._result_labels[tenor].configure(
+                            text=f"{nibor_rate:.4f}%",
+                            fg=THEME["good"]
+                        )
+                    else:
+                        self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+                else:
+                    self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+
+            except (ValueError, KeyError) as e:
+                log.error(f"Calculation error for {tenor}: {e}")
+                self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+
+        self.app.toast.success("Calculation complete")
+
+    def _clear_all(self):
+        """Clear all input fields and reset to defaults."""
+        for ccy in ["EUR", "USD", "NOK"]:
+            self._weight_entries[ccy].delete(0, tk.END)
+            self._weight_entries[ccy].insert(0, "0.333333")
+
+        for tenor in self.TENORS:
+            entries = self._tenor_entries[tenor]
+            entries["days"].delete(0, tk.END)
+            entries["days"].insert(0, str(self.DEFAULT_DAYS.get(tenor, 30)))
+
+            for key in ["eur_spot", "eur_pips", "eur_ecp_pct", "usd_spot", "usd_pips", "usd_ecp_pct", "nok_cm_pct"]:
+                if key in entries:
+                    entries[key].delete(0, tk.END)
+                    # Set reasonable defaults
+                    if "spot" in key:
+                        entries[key].insert(0, "11.8000" if "eur" in key else "10.9000")
+                    elif "pips" in key:
+                        entries[key].insert(0, "0.00")
+                    else:
+                        entries[key].insert(0, "4.50")
+
+        for tenor in self.TENORS:
+            self._result_labels[tenor].configure(text="—", fg=THEME["text"])
 
     def update(self, *_):
-        self.table.clear()
-        cat = self.filter_var.get()
+        """Called when page is shown - no auto-refresh needed for manual calculator."""
+        pass
 
-        for rule in RULES_DB:
-            rid = int(rule[0])
-            include = False
-            if cat == "ALL":
-                include = True
-            elif cat == "MATCHING" and (1 <= rid <= 100):
-                include = True
-            elif cat == "ID CHECKS" and (101 <= rid <= 110):
-                include = True
-            elif cat == "ROUNDING" and (111 <= rid <= 118):
-                include = True
-            elif cat == "THRESHOLDS" and (119 <= rid <= 128):
-                include = True
 
-            if include:
-                self.table.add_row(list(rule), style="normal")
+# Alias for backwards compatibility
+RulesPage = BackupNiborPage
 
 
 class BloombergPage(tk.Frame):
