@@ -1888,8 +1888,10 @@ class DashboardPage(BaseFrame):
         data_with_match = dict(data)
         data_with_match['match_data'] = match_data
 
-        # Show the drawer
-        self._drawer.pack(side="right", fill="y", padx=(0, 0), pady=0)
+        # Show the drawer - pack with fill="both" and explicit width constraint
+        if not self._drawer.winfo_ismapped():
+            self._drawer.pack(side="right", fill="both", expand=False)
+        self._drawer.configure(width=400)
         self._drawer.show_for_tenor(tenor_key, data_with_match)
 
         log.info(f"[Dashboard] Opened drawer for tenor: {tenor_key}")

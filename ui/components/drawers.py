@@ -87,9 +87,11 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 **kwargs
             )
 
-        # Prevent drawer from shrinking
-        self.pack_propagate(False)
-        self.grid_propagate(False)
+        # Configure fixed width - drawer should not shrink horizontally
+        self.configure(width=width)
+        if CTK_AVAILABLE:
+            # For CTk, we need to prevent width from auto-sizing
+            self._desired_width = width
 
         # Build internal structure
         self._build_layout()
