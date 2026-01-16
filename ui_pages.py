@@ -1865,7 +1865,9 @@ class DashboardPage(BaseFrame):
         if hasattr(self, '_original_window_width'):
             root = self.winfo_toplevel()
             current_height = root.winfo_height()
-            root.geometry(f"{self._original_window_width}x{current_height}")
+            current_x = root.winfo_x()
+            current_y = root.winfo_y()
+            root.geometry(f"{self._original_window_width}x{current_height}+{current_x}+{current_y}")
             # Reset column minsize
             self._main_container.grid_columnconfigure(1, weight=0, minsize=0)
         log.info("[Dashboard] Drawer closed")
@@ -1907,15 +1909,17 @@ class DashboardPage(BaseFrame):
             root = self.winfo_toplevel()
             current_width = root.winfo_width()
             current_height = root.winfo_height()
+            current_x = root.winfo_x()
+            current_y = root.winfo_y()
             drawer_width = 420  # 400 + padding
 
             # Store original width for restoration
             if not hasattr(self, '_original_window_width'):
                 self._original_window_width = current_width
 
-            # Expand window
+            # Expand window - keep same position
             new_width = self._original_window_width + drawer_width
-            root.geometry(f"{new_width}x{current_height}")
+            root.geometry(f"{new_width}x{current_height}+{current_x}+{current_y}")
 
             # Show drawer
             self._drawer.grid(row=0, column=1, sticky="nsew", padx=(8, 12), pady=(0, 6))
