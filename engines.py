@@ -586,17 +586,43 @@ class ExcelEngine:
         import win32com.client
         import re
         import pythoncom
+        import time
 
         # Initialize COM for this thread
         pythoncom.CoInitialize()
 
-        try:
-            excel = win32com.client.GetObject(Class="Excel.Application")
-            log.info("[ExcelEngine] Connected to running Excel instance")
-        except:
-            # Excel not running, start it
-            excel = win32com.client.Dispatch("Excel.Application")
-            log.info("[ExcelEngine] Started new Excel instance")
+        max_retries = 3
+        retry_delay = 1.0  # seconds
+
+        excel = None
+        for attempt in range(max_retries):
+            try:
+                # Try to connect to running Excel
+                excel = win32com.client.GetObject(Class="Excel.Application")
+                log.info("[ExcelEngine] Connected to running Excel instance")
+                break
+            except pythoncom.com_error as e:
+                log.warning(f"[ExcelEngine] COM error connecting to Excel (attempt {attempt+1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    # Last resort: try to start Excel
+                    try:
+                        excel = win32com.client.Dispatch("Excel.Application")
+                        log.info("[ExcelEngine] Started new Excel instance")
+                    except Exception as e2:
+                        log.error(f"[ExcelEngine] Failed to start Excel: {e2}")
+                        raise
+            except Exception as e:
+                log.warning(f"[ExcelEngine] Error connecting to Excel: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    excel = win32com.client.Dispatch("Excel.Application")
+                    log.info("[ExcelEngine] Started new Excel instance")
+
+        if excel is None:
+            raise Exception("Could not connect to Excel")
 
         wb = None
         opened_by_us = False
@@ -608,6 +634,16 @@ class ExcelEngine:
 
             log.info(f"[ExcelEngine] Looking for workbook: {target_filename}")
             log.info(f"[ExcelEngine] Full path: {file_path_str}")
+
+            # Wait for Excel to be ready (not busy)
+            for wait_attempt in range(5):
+                try:
+                    # Test if Excel is responsive
+                    _ = excel.Workbooks.Count
+                    break
+                except pythoncom.com_error:
+                    log.info(f"[ExcelEngine] Excel busy, waiting... (attempt {wait_attempt+1})")
+                    time.sleep(0.5)
 
             # List all open workbooks for debugging
             try:
@@ -649,26 +685,48 @@ class ExcelEngine:
             GREEN_BG = 13561798  # RGB(198, 239, 206) as BGR
             DARK_GREEN_TEXT = 5287936  # RGB(0, 128, 80) as BGR
 
+            def write_cell_with_retry(cell_addr, text, max_attempts=3):
+                """Write to cell with retry on COM errors."""
+                for attempt in range(max_attempts):
+                    try:
+                        cell = ws.Range(cell_addr)
+                        cell.Value = text
+                        cell.Interior.Color = GREEN_BG
+                        cell.Font.Color = DARK_GREEN_TEXT
+                        cell.Font.Bold = True
+                        log.info(f"[ExcelEngine]   WROTE {cell_addr}: {text} (green)")
+                        return True
+                    except pythoncom.com_error as ce:
+                        log.warning(f"[ExcelEngine]   COM error writing {cell_addr} (attempt {attempt+1}): {ce}")
+                        if attempt < max_attempts - 1:
+                            time.sleep(0.5)
+                    except Exception as write_err:
+                        log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
+                        return False
+                return False
+
             confirmed_tenors = []
             for tenor in tenors_to_confirm:
                 cell_addrs = confirm_cell_mapping.get(tenor, [])
                 log.info(f"[ExcelEngine] Tenor {tenor} -> cells {cell_addrs}")
                 if cell_addrs:
+                    all_written = True
                     for cell_addr in cell_addrs:
-                        try:
-                            cell = ws.Range(cell_addr)
-                            cell.Value = confirm_text
-                            cell.Interior.Color = GREEN_BG
-                            cell.Font.Color = DARK_GREEN_TEXT
-                            cell.Font.Bold = True
-                            log.info(f"[ExcelEngine]   WROTE {cell_addr}: {confirm_text} (green)")
-                        except Exception as write_err:
-                            log.error(f"[ExcelEngine]   FAILED to write {cell_addr}: {write_err}")
-                    confirmed_tenors.append(tenor.upper())
+                        if not write_cell_with_retry(cell_addr, confirm_text):
+                            all_written = False
+                    if all_written:
+                        confirmed_tenors.append(tenor.upper())
 
-            # Save the workbook (DO NOT close it!)
+            # Save the workbook with retry
             log.info(f"[ExcelEngine] Saving workbook...")
-            wb.Save()
+            for save_attempt in range(3):
+                try:
+                    wb.Save()
+                    break
+                except pythoncom.com_error as ce:
+                    log.warning(f"[ExcelEngine] COM error saving (attempt {save_attempt+1}): {ce}")
+                    if save_attempt < 2:
+                        time.sleep(0.5)
             log.info(f"[ExcelEngine] Workbook saved (kept open)")
 
             msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
