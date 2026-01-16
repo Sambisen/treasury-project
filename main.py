@@ -237,57 +237,38 @@ class NiborTerminalCTK(ctk.CTk):
         self.register_update_button(self.header_update_btn)
 
         # ====================================================================
-        # PREMIUM CLOCK - Subtle elegance
+        # MINIMAL CLOCK - No frame, clean floating design
         # ====================================================================
-        clock_frame = ctk.CTkFrame(header_right, fg_color=THEME["bg_card"],
-                                   corner_radius=10,
-                                   border_width=1, border_color=THEME["border"])
-        clock_frame.pack(side="right")
+        clock_container = ctk.CTkFrame(header_right, fg_color="transparent")
+        clock_container.pack(side="right")
 
-        clock_inner = ctk.CTkFrame(clock_frame, fg_color="transparent")
-        clock_inner.pack(padx=18, pady=10)
-
-        # Time section
-        time_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        time_section.pack(side="left", padx=(0, 10))
-
-        # Use Consolas (monospace) to prevent jumping when digits change
-        self._header_clock_time = ctk.CTkLabel(time_section, text="--:--:--",
+        # Time display (monospace for stability)
+        self._header_clock_time = ctk.CTkLabel(clock_container, text="--:--:--",
                                                text_color=THEME["text"],
-                                               font=("Consolas", 16, "bold"),
-                                               width=85)
+                                               font=("Consolas", 14))
         self._header_clock_time.pack(side="left")
 
-        self._header_clock_date = ctk.CTkLabel(time_section, text="",
-                                               text_color=THEME["text_muted"],
-                                               font=("Segoe UI", 9),
-                                               width=110)
-        self._header_clock_date.pack(side="left", padx=(12, 0))
-
-        # Subtle separator
-        ctk.CTkFrame(clock_inner, fg_color=THEME["border"], width=1, height=26).pack(side="left", padx=14)
-
-        # NIBOR Fixing section
-        nibor_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        nibor_section.pack(side="left", padx=(10, 0))
-
-        ctk.CTkLabel(nibor_section, text="FIXING",
+        # Separator
+        ctk.CTkLabel(clock_container, text="|",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 10))
+                    font=("Consolas", 14)).pack(side="left", padx=10)
 
-        # Use Consolas (monospace) to prevent jumping when digits change
-        self._nibor_fixing_status = ctk.CTkLabel(nibor_section, text="--:--:--",
-                                                 text_color=THEME["accent"],
-                                                 font=("Consolas", 16, "bold"),
-                                                 width=85)
+        # FIXING label
+        ctk.CTkLabel(clock_container, text="FIXING",
+                    text_color=THEME["text_muted"],
+                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
+
+        # Fixing countdown (monospace for stability)
+        self._nibor_fixing_status = ctk.CTkLabel(clock_container, text="--:--:--",
+                                                 text_color=THEME["text"],
+                                                 font=("Consolas", 14))
         self._nibor_fixing_status.pack(side="left")
 
-        # Fixing indicator (shown inline)
-        self._nibor_fixing_indicator = ctk.CTkLabel(nibor_section, text="",
+        # Fixing indicator
+        self._nibor_fixing_indicator = ctk.CTkLabel(clock_container, text="",
                                                     text_color=THEME["text_muted"],
-                                                    font=("Segoe UI", 9),
-                                                    width=100)
-        self._nibor_fixing_indicator.pack(side="left", padx=(10, 0))
+                                                    font=("Segoe UI", 9))
+        self._nibor_fixing_indicator.pack(side="left", padx=(8, 0))
 
         # Start the header clock update
         self._update_header_clock()
@@ -424,15 +405,7 @@ class NiborTerminalCTK(ctk.CTk):
         """Update the header clock and NIBOR fixing countdown every second."""
         now = datetime.now()
 
-        # Swedish day and month names
-        days_sv = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"]
-        months_sv = ["", "jan", "feb", "mar", "apr", "maj", "jun",
-                     "jul", "aug", "sep", "okt", "nov", "dec"]
-        day_name = days_sv[now.weekday()]
-        date_str = f"{day_name} {now.day} {months_sv[now.month]} {now.year}"
-
-        # Update date and time (unified HH:MM:SS format) - CTk uses configure
-        self._header_clock_date.configure(text=date_str)
+        # Update time only (no date in minimal design)
         self._header_clock_time.configure(text=now.strftime("%H:%M:%S"))
 
         # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
@@ -446,35 +419,30 @@ class NiborTerminalCTK(ctk.CTk):
         fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
 
         if weekday >= 5:  # Weekend
-            self._nibor_fixing_status.configure(text="— — —", text_color=THEME["muted"])
-            self._nibor_fixing_indicator.configure(text="Weekend", text_color=THEME["muted"])
+            self._nibor_fixing_status.configure(text="— — —", text_color=THEME["text_muted"])
+            self._nibor_fixing_indicator.configure(text="Weekend", text_color=THEME["text_muted"])
         elif current_seconds < fixing_start:
             # Before fixing window - countdown to open
             secs_until = fixing_start - current_seconds
             hrs = secs_until // 3600
             mins = (secs_until % 3600) // 60
             secs = secs_until % 60
-
-            # Always show H:MM:SS format for consistency
             countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
-            # Orange warning when less than 30 min
-            color = THEME["warning"] if hrs == 0 and mins < 30 else THEME["muted"]
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=color)
-            self._nibor_fixing_indicator.configure(text="until open", text_color=color)
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["text"])
+            self._nibor_fixing_indicator.configure(text="until open", text_color=THEME["text_muted"])
         elif current_seconds < fixing_end:
-            # FIXING WINDOW OPEN - countdown to close
+            # FIXING WINDOW OPEN - accent color only here
             secs_left = fixing_end - current_seconds
             mins = secs_left // 60
             secs = secs_left % 60
             countdown_str = f"0:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["good"])
-            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["good"])
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["accent"])
+            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["accent"])
         else:
             # After fixing window - closed
-            self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["muted"])
-            # Friday = weekday 4, show "until next week" instead of "until tomorrow"
+            self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["text_muted"])
             closed_msg = "until next week" if weekday == 4 else "until tomorrow"
-            self._nibor_fixing_indicator.configure(text=closed_msg, text_color=THEME["muted"])
+            self._nibor_fixing_indicator.configure(text=closed_msg, text_color=THEME["text_muted"])
 
         # Schedule next update
         self.after(1000, self._update_header_clock)
