@@ -765,147 +765,111 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         for widget in self._inputs_container.winfo_children():
             widget.destroy()
 
-        # Create table
+        # Create table using grid for perfect alignment
         table = tk.Frame(self._inputs_container, bg=COLORS.SURFACE)
         table.pack(fill="x")
 
-        # Header
-        header = tk.Frame(table, bg=COLORS.TABLE_HEADER_BG)
-        header.pack(fill="x")
+        # Configure grid columns with fixed widths
+        table.columnconfigure(0, weight=0, minsize=120)  # Field
+        table.columnconfigure(1, weight=0, minsize=100)  # Value
+        table.columnconfigure(2, weight=1, minsize=100)  # Source
 
-        # Column widths (in characters)
-        col_widths = [("Field", 12, "w"), ("Value", 10, "center"), ("Source", 12, "center")]
-        for text, width, anchor in col_widths:
+        # Header row
+        row_idx = 0
+        for col, (text, anchor) in enumerate([("Field", "w"), ("Value", "e"), ("Source", "w")]):
             tk.Label(
-                header,
+                table,
                 text=text,
                 font=FONTS.TABLE_HEADER,
                 fg=COLORS.TEXT_MUTED,
                 bg=COLORS.TABLE_HEADER_BG,
-                width=width,
                 anchor=anchor,
-                padx=SPACING.SM,
+                padx=SPACING.MD,
                 pady=SPACING.SM
-            ).pack(side="left")
+            ).grid(row=row_idx, column=col, sticky="ew")
+        row_idx += 1
 
         # Data rows
         weights = data.get("weights", {})
-        rate_source = data.get("rate_label", "Bloomberg")
 
-        # Build inputs list - include rates used for implied calculation
+        # Build inputs list
         inputs = [
             ("EUR Implied", f"{data.get('eur_impl', 0):.4f}%" if data.get('eur_impl') else "—", "Calculated"),
             ("USD Implied", f"{data.get('usd_impl', 0):.4f}%" if data.get('usd_impl') else "—", "Calculated"),
+            ("─── Rates ───", None, None),
+            ("EUR", f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—", "Internal Rate"),
+            ("USD", f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—", "Internal Rate"),
+            ("NOK ECP", f"{data.get('nok_cm', 0):.2f}%" if data.get('nok_cm') else "—", "Bloomberg"),
+            ("─── FX Data ───", None, None),
+            ("EUR Spot", f"{data.get('eur_spot', 0):.4f}" if data.get('eur_spot') else "—", "Bloomberg"),
+            ("EUR Pips", f"{data.get('eur_pips', 0):.2f}" if data.get('eur_pips') else "—", "Bloomberg"),
+            ("EUR Days", f"{int(data.get('eur_days', 0))}" if data.get('eur_days') else "—", "Days file"),
+            ("USD Spot", f"{data.get('usd_spot', 0):.4f}" if data.get('usd_spot') else "—", "Bloomberg"),
+            ("USD Pips", f"{data.get('usd_pips', 0):.2f}" if data.get('usd_pips') else "—", "Bloomberg"),
+            ("USD Days", f"{int(data.get('usd_days', 0))}" if data.get('usd_days') else "—", "Days file"),
+            ("─── Weights ───", None, None),
+            ("EUR Weight", f"{weights.get('EUR', 0) * 100:.2f}%", "Weights file"),
+            ("USD Weight", f"{weights.get('USD', 0) * 100:.2f}%", "Weights file"),
+            ("NOK Weight", f"{weights.get('NOK', 0) * 100:.2f}%", "Weights file"),
+            ("─── Config ───", None, None),
+            ("Spread", f"{data.get('spread', 0):.2f}%", "Config"),
         ]
 
-        # Add separator for rates used in calculation
-        inputs.append(("─── Rates ───", "", ""))
-
-        # EUR rate
-        inputs.append((
-            "EUR",
-            f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—",
-            "Internal Rate"
-        ))
-
-        # USD rate
-        inputs.append((
-            "USD",
-            f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—",
-            "Internal Rate"
-        ))
-
-        # NOK ECP rate
-        inputs.append((
-            "NOK ECP",
-            f"{data.get('nok_cm', 0):.2f}%" if data.get('nok_cm') else "—",
-            "Bloomberg"
-        ))
-
-        # Add separator for FX data
-        inputs.append(("─── FX Data ───", "", ""))
-
-        # EUR FX inputs
-        inputs.append(("EUR Spot", f"{data.get('eur_spot', 0):.4f}" if data.get('eur_spot') else "—", "Bloomberg"))
-        inputs.append(("EUR Pips", f"{data.get('eur_pips', 0):.2f}" if data.get('eur_pips') else "—", "Bloomberg"))
-        inputs.append(("EUR Days", f"{int(data.get('eur_days', 0))}" if data.get('eur_days') else "—", "Days file"))
-
-        # USD FX inputs
-        inputs.append(("USD Spot", f"{data.get('usd_spot', 0):.4f}" if data.get('usd_spot') else "—", "Bloomberg"))
-        inputs.append(("USD Pips", f"{data.get('usd_pips', 0):.2f}" if data.get('usd_pips') else "—", "Bloomberg"))
-        inputs.append(("USD Days", f"{int(data.get('usd_days', 0))}" if data.get('usd_days') else "—", "Days file"))
-
-        # Add separator for weights
-        inputs.append(("─── Weights ───", "", ""))
-
-        inputs.append(("EUR Weight", f"{weights.get('EUR', 0) * 100:.2f}%", "Weights file"))
-        inputs.append(("USD Weight", f"{weights.get('USD', 0) * 100:.2f}%", "Weights file"))
-        inputs.append(("NOK Weight", f"{weights.get('NOK', 0) * 100:.2f}%", "Weights file"))
-
-        # Spread
-        inputs.append(("─── Config ───", "", ""))
-        inputs.append(("Spread", f"{data.get('spread', 0):.2f}%", "Config"))
-
-        for i, (field, value, source) in enumerate(inputs):
-            # Check if this is a separator row
+        data_row_idx = 0
+        for field, value, source in inputs:
             is_separator = field.startswith("───")
 
             if is_separator:
-                # Separator row - section header style
-                row = tk.Frame(table, bg=COLORS.TABLE_HEADER_BG)
-                row.pack(fill="x", pady=(SPACING.SM, 0))
-
+                # Separator spans all columns
                 tk.Label(
-                    row,
+                    table,
                     text=field,
                     font=FONTS.TABLE_HEADER,
                     fg=COLORS.TEXT_MUTED,
                     bg=COLORS.TABLE_HEADER_BG,
                     anchor="w",
-                    padx=SPACING.SM,
+                    padx=SPACING.MD,
                     pady=SPACING.XS
-                ).pack(side="left", fill="x", expand=True)
+                ).grid(row=row_idx, column=0, columnspan=3, sticky="ew", pady=(SPACING.SM, 0))
             else:
-                # Normal data row
-                row_bg = COLORS.SURFACE if i % 2 == 0 else COLORS.ROW_ZEBRA
-                row = tk.Frame(table, bg=row_bg)
-                row.pack(fill="x")
+                row_bg = COLORS.SURFACE if data_row_idx % 2 == 0 else COLORS.ROW_ZEBRA
 
                 tk.Label(
-                    row,
+                    table,
                     text=field,
                     font=FONTS.BODY_SM,
                     fg=COLORS.TEXT,
                     bg=row_bg,
-                    width=12,
                     anchor="w",
-                    padx=SPACING.SM,
+                    padx=SPACING.MD,
                     pady=SPACING.XS
-                ).pack(side="left")
+                ).grid(row=row_idx, column=0, sticky="ew")
 
                 tk.Label(
-                    row,
+                    table,
                     text=value,
                     font=FONTS.TABLE_CELL_MONO,
                     fg=COLORS.TEXT,
                     bg=row_bg,
-                    width=10,
-                    anchor="center",
-                    padx=SPACING.SM,
+                    anchor="e",
+                    padx=SPACING.MD,
                     pady=SPACING.XS
-                ).pack(side="left")
+                ).grid(row=row_idx, column=1, sticky="ew")
 
                 tk.Label(
-                    row,
+                    table,
                     text=source,
                     font=FONTS.BODY_SM,
                     fg=COLORS.TEXT_MUTED,
                     bg=row_bg,
-                    width=12,
-                    anchor="center",
-                    padx=SPACING.SM,
+                    anchor="w",
+                    padx=SPACING.MD,
                     pady=SPACING.XS
-                ).pack(side="left")
+                ).grid(row=row_idx, column=2, sticky="ew")
+
+                data_row_idx += 1
+
+            row_idx += 1
 
     def _update_steps_section(self, data: Dict[str, Any]):
         """Update the calculation steps."""
