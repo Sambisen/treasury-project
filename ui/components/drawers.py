@@ -626,9 +626,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     font=FONTS.BODY_SM,
                     fg=COLORS.SUCCESS,
                     bg="#E8F5E9",
-                    padx=SPACING.MD,
-                    pady=(0, SPACING.SM)
-                ).pack(anchor="w")
+                    padx=SPACING.MD
+                ).pack(anchor="w", pady=(0, SPACING.SM))
             return
 
         # Collect unique component names that differ
