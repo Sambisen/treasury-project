@@ -733,9 +733,9 @@ if CTK_AVAILABLE:
         ):
             super().__init__(master, fg_color="transparent", **kwargs)
 
-            self._w = width
-            self._h = height
-            self._r = radius
+            self._btn_width = width
+            self._btn_height = height
+            self._btn_radius = radius
             self._text = text
             self._command = command
 
@@ -757,11 +757,11 @@ if CTK_AVAILABLE:
             self._shadow_on = shadow
 
             # Shadow layer
-            self._shadow_canvas = ctk.CTkCanvas(self, width=self._w, height=self._h, highlightthickness=0, bd=0)
+            self._shadow_canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0)
             self._shadow_canvas.grid(row=0, column=0, sticky="nsew")
 
             # Main canvas layer
-            self._canvas = ctk.CTkCanvas(self, width=self._w, height=self._h, highlightthickness=0, bd=0)
+            self._canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0)
             self._canvas.grid(row=0, column=0, sticky="nsew")
 
             # Content label
@@ -778,7 +778,7 @@ if CTK_AVAILABLE:
             self._progress = ctk.CTkProgressBar(
                 self,
                 mode="indeterminate",
-                width=int(self._w * 0.55),
+                width=int(self._btn_width * 0.55),
                 height=8,
                 fg_color=_lighten("#000000", 0.92),
                 progress_color=_lighten("#FFFFFF", 0.1),
@@ -793,7 +793,7 @@ if CTK_AVAILABLE:
                 widget.bind("<ButtonPress-1>", self._on_press)
                 widget.bind("<ButtonRelease-1>", self._on_release)
 
-            self.configure(width=self._w, height=self._h)
+            self.configure(width=self._btn_width, height=self._btn_height)
             self.grid_propagate(False)
             self._redraw()
 
@@ -909,9 +909,9 @@ if CTK_AVAILABLE:
                     self._shadow_canvas,
                     x=2,
                     y=3 if not self._pressed else 4,
-                    w=self._w - 2,
-                    h=self._h - 2,
-                    r=self._r,
+                    w=self._btn_width - 2,
+                    h=self._btn_height - 2,
+                    r=self._btn_radius,
                     fill=_blend(shadow_color, bg_canvas, 0.93),
                     outline="",
                 )
@@ -919,18 +919,18 @@ if CTK_AVAILABLE:
             # Main button with gradient
             y_offset = 0 if not self._pressed else 1
             self._draw_vertical_gradient(
-                self._canvas, 0, y_offset, self._w, self._h - y_offset, self._r, top, bottom
+                self._canvas, 0, y_offset, self._btn_width, self._btn_height - y_offset, self._btn_radius, top, bottom
             )
 
             # Border
             self._draw_rounded_rect(
-                self._canvas, 0, y_offset, self._w - 1, self._h - 1 - y_offset, self._r, fill="", outline=border
+                self._canvas, 0, y_offset, self._btn_width - 1, self._btn_height - 1 - y_offset, self._btn_radius, fill="", outline=border
             )
 
             # Top highlight
             self._draw_rounded_rect(
-                self._canvas, 1, 1 + y_offset, self._w - 3, int((self._h - y_offset) * 0.42),
-                max(8, self._r - 3), fill="", outline=_blend("#FFFFFF", top, 0.35)
+                self._canvas, 1, 1 + y_offset, self._btn_width - 3, int((self._btn_height - y_offset) * 0.42),
+                max(8, self._btn_radius - 3), fill="", outline=_blend("#FFFFFF", top, 0.35)
             )
 
         def _draw_vertical_gradient(self, canvas, x, y, w, h, r, top, bottom, steps=16):
@@ -972,9 +972,9 @@ if CTK_AVAILABLE:
         ):
             super().__init__(master, fg_color="transparent", **kwargs)
 
-            self._w = width
-            self._h = height
-            self._r = radius
+            self._btn_width = width
+            self._btn_height = height
+            self._btn_radius = radius
             self._text = text
             self._command = command
             self._icon_text = icon_text
@@ -994,9 +994,9 @@ if CTK_AVAILABLE:
             # Main frame with border
             self._inner = ctk.CTkFrame(
                 self,
-                width=self._w,
-                height=self._h,
-                corner_radius=self._r,
+                width=self._btn_width,
+                height=self._btn_height,
+                corner_radius=self._btn_radius,
                 fg_color=self._bg_normal,
                 border_color=self._border_color,
                 border_width=1,
