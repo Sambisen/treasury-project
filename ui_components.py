@@ -1044,7 +1044,7 @@ if CTK_AVAILABLE:
                 self._icon_lbl.bind("<ButtonPress-1>", self._on_press)
                 self._icon_lbl.bind("<ButtonRelease-1>", self._on_release)
 
-            self.configure(width=self._w, height=self._h)
+            self.configure(width=self._btn_width, height=self._btn_height)
 
         def set_enabled(self, enabled: bool) -> None:
             self._enabled = bool(enabled)
