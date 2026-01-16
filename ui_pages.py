@@ -1707,8 +1707,8 @@ class DashboardPage(BaseFrame):
                 pass
             return None
 
-        # Collect all diffs across all tenors (same checks as drawer)
-        all_diffs = set()
+        # Collect diffs per tenor (same checks as drawer)
+        tenor_diffs = {}  # {tenor: set of diff labels}
 
         # Input fields to check - same as drawer recon
         input_fields = [
@@ -1740,14 +1740,21 @@ class DashboardPage(BaseFrame):
                         gui_rounded = round(float(gui_value), decimals)
                         excel_rounded = round(float(excel_value), decimals)
                         if gui_rounded != excel_rounded:
-                            all_diffs.add(label)
+                            if tenor_key not in tenor_diffs:
+                                tenor_diffs[tenor_key] = set()
+                            tenor_diffs[tenor_key].add(label)
                     except (ValueError, TypeError):
                         pass
 
         # Update NIBOR Contrib validation icon based on diffs
-        if all_diffs:
-            diff_list = sorted(all_diffs)
-            self._update_validation_check("nibor_contrib", False, [f"Diff: {', '.join(diff_list)}"])
+        if tenor_diffs:
+            # Format: "1M: NOK ECP, EURNOK | 2M: EURNOK"
+            diff_messages = []
+            for tenor in ["1m", "2m", "3m", "6m"]:
+                if tenor in tenor_diffs:
+                    labels = sorted(tenor_diffs[tenor])
+                    diff_messages.append(f"{tenor.upper()}: {', '.join(labels)}")
+            self._update_validation_check("nibor_contrib", False, diff_messages)
         else:
             # Only mark OK if we have data
             if getattr(self.app, 'funding_calc_data', {}):
