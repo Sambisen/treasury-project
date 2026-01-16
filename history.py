@@ -669,11 +669,17 @@ def confirm_rates(app) -> tuple[bool, str]:
         excel_engine = getattr(app, 'excel_engine', None)
         excel_msg = ""
         if excel_engine:
+            log.info(f"[{mode_str}] Calling write_confirmation_to_excel...")
             excel_ok, excel_result = excel_engine.write_confirmation_to_excel()
+            log.info(f"[{mode_str}] Excel result: ok={excel_ok}, result={excel_result}")
             if excel_ok:
                 excel_msg = f" Excel: {excel_result}."
             else:
+                excel_msg = f" Excel FAILED: {excel_result}."
                 log.warning(f"[{mode_str}] Excel confirmation failed: {excel_result}")
+        else:
+            excel_msg = " Excel: No engine available."
+            log.warning(f"[{mode_str}] No excel_engine found on app")
 
         if saved_count > 0:
             msg = f"Rates confirmed and saved for {date_key}. Backfilled {saved_count} fixing dates.{excel_msg}"
