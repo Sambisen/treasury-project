@@ -245,43 +245,49 @@ class NiborTerminalCTK(ctk.CTk):
         clock_frame.pack(side="right")
 
         clock_inner = ctk.CTkFrame(clock_frame, fg_color="transparent")
-        clock_inner.pack(padx=14, pady=8)
+        clock_inner.pack(padx=18, pady=10)
 
         # Time section
         time_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        time_section.pack(side="left", padx=(0, 8))
+        time_section.pack(side="left", padx=(0, 10))
 
+        # Use Consolas (monospace) to prevent jumping when digits change
         self._header_clock_time = ctk.CTkLabel(time_section, text="--:--:--",
                                                text_color=THEME["text"],
-                                               font=("Segoe UI Semibold", 15))
+                                               font=("Consolas", 16, "bold"),
+                                               width=85)
         self._header_clock_time.pack(side="left")
 
         self._header_clock_date = ctk.CTkLabel(time_section, text="",
                                                text_color=THEME["text_muted"],
-                                               font=("Segoe UI", 9))
-        self._header_clock_date.pack(side="left", padx=(10, 0))
+                                               font=("Segoe UI", 9),
+                                               width=110)
+        self._header_clock_date.pack(side="left", padx=(12, 0))
 
         # Subtle separator
-        ctk.CTkFrame(clock_inner, fg_color=THEME["border"], width=1, height=22).pack(side="left", padx=12)
+        ctk.CTkFrame(clock_inner, fg_color=THEME["border"], width=1, height=26).pack(side="left", padx=14)
 
         # NIBOR Fixing section
         nibor_section = ctk.CTkFrame(clock_inner, fg_color="transparent")
-        nibor_section.pack(side="left", padx=(8, 0))
+        nibor_section.pack(side="left", padx=(10, 0))
 
         ctk.CTkLabel(nibor_section, text="FIXING",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
+                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 10))
 
+        # Use Consolas (monospace) to prevent jumping when digits change
         self._nibor_fixing_status = ctk.CTkLabel(nibor_section, text="--:--:--",
                                                  text_color=THEME["accent"],
-                                                 font=("Segoe UI Semibold", 15))
+                                                 font=("Consolas", 16, "bold"),
+                                                 width=85)
         self._nibor_fixing_status.pack(side="left")
 
         # Fixing indicator (shown inline)
         self._nibor_fixing_indicator = ctk.CTkLabel(nibor_section, text="",
                                                     text_color=THEME["text_muted"],
-                                                    font=("Segoe UI", 9))
-        self._nibor_fixing_indicator.pack(side="left", padx=(8, 0))
+                                                    font=("Segoe UI", 9),
+                                                    width=100)
+        self._nibor_fixing_indicator.pack(side="left", padx=(10, 0))
 
         # Start the header clock update
         self._update_header_clock()
