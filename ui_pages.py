@@ -1586,6 +1586,9 @@ class DashboardPage(BaseFrame):
         # Show/hide alerts
         self._update_alerts(alert_messages)
 
+        # Run recon checks and update validation icons
+        self._update_recon_validation()
+
         # Enable/disable Confirm button based on matching status
         self._update_confirm_button_state()
 
@@ -1687,6 +1690,86 @@ class DashboardPage(BaseFrame):
                 else:
                     # For other categories, mark OK if no alerts
                     self._update_validation_check(check_id, True, [])
+
+    def _update_recon_validation(self):
+        """Run recon checks for all tenors and update validation icons."""
+        from config import RECON_CELL_MAPPING
+
+        if not hasattr(self, 'validation_checks'):
+            return
+
+        # Helper to read Excel value safely
+        def read_excel_cell(cell):
+            try:
+                if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+                    return self.app.excel_engine.get_recon_value(cell)
+            except Exception:
+                pass
+            return None
+
+        # Collect all diffs across all tenors
+        all_diffs = set()
+
+        # Input fields to check - maps to component names shown in validation
+        input_fields = [
+            ("NOK ECP", "NOK_ECP", "nok_cm", 2),
+            ("EUR ECP", "EUR_RATE", "eur_rate", 2),
+            ("USD ECP", "USD_RATE", "usd_rate", 2),
+            ("EURNOK", "EUR_SPOT", "eur_spot", 4),
+            ("EURNOK", "EUR_PIPS", "eur_pips", 2),
+            ("USDNOK", "USD_SPOT", "usd_spot", 4),
+            ("USDNOK", "USD_PIPS", "usd_pips", 2),
+        ]
+
+        for tenor_key in ["1m", "2m", "3m", "6m"]:
+            data = getattr(self.app, 'funding_calc_data', {}).get(tenor_key, {})
+            if not data:
+                continue
+
+            for label, mapping_key, data_key, decimals in input_fields:
+                cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
+                if not cell:
+                    continue
+
+                gui_value = data.get(data_key)
+                excel_value = read_excel_cell(cell)
+
+                # Compare values
+                if gui_value is not None and excel_value is not None:
+                    try:
+                        gui_rounded = round(float(gui_value), decimals)
+                        excel_rounded = round(float(excel_value), decimals)
+                        if gui_rounded != excel_rounded:
+                            all_diffs.add(label)
+                    except (ValueError, TypeError):
+                        pass
+
+        # Update validation icons based on diffs
+        # Map diff labels to validation categories
+        bloomberg_diffs = []
+        excel_diffs = []
+
+        for diff_label in all_diffs:
+            if diff_label in ["EURNOK", "USDNOK", "NOK ECP"]:
+                bloomberg_diffs.append(diff_label)
+            elif diff_label in ["EUR ECP", "USD ECP"]:
+                excel_diffs.append(diff_label)
+
+        # Update bloomberg validation icon
+        if bloomberg_diffs:
+            self._update_validation_check("bloomberg", False, [f"Diff: {', '.join(bloomberg_diffs)}"])
+        else:
+            # Only mark OK if we have data
+            if getattr(self.app, 'funding_calc_data', {}):
+                self._update_validation_check("bloomberg", True, [])
+
+        # Update excel_cells validation icon
+        if excel_diffs:
+            self._update_validation_check("excel_cells", False, [f"Diff: {', '.join(excel_diffs)}"])
+        else:
+            # Only mark OK if we have data
+            if getattr(self.app, 'funding_calc_data', {}):
+                self._update_validation_check("excel_cells", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
