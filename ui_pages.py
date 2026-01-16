@@ -103,28 +103,34 @@ class DashboardPage(BaseFrame):
         # ====================================================================
         # DASHBOARD CONTENT (CTk if available) - Aligned with sidebar
         # ====================================================================
-        # Create horizontal container for main content + drawer
+        # Create horizontal container for main content + drawer using GRID
         if CTK_AVAILABLE:
             self._main_container = ctk.CTkFrame(self, fg_color="transparent")
         else:
             self._main_container = tk.Frame(self, bg=THEME["bg_panel"])
         self._main_container.pack(fill="both", expand=True)
 
-        # Main content area (left side)
+        # Configure grid: column 0 expands, column 1 is fixed width for drawer
+        self._main_container.grid_columnconfigure(0, weight=1)
+        self._main_container.grid_columnconfigure(1, weight=0, minsize=0)
+        self._main_container.grid_rowconfigure(0, weight=1)
+
+        # Main content area (left side) - grid column 0
         if CTK_AVAILABLE:
             content = ctk.CTkFrame(self._main_container, fg_color="transparent")
         else:
             content = tk.Frame(self._main_container, bg=THEME["bg_panel"])
-        content.pack(fill="both", expand=True, side="left", padx=12, pady=(0, 6))
+        content.grid(row=0, column=0, sticky="nsew", padx=(12, 0), pady=(0, 6))
         self._content = content
 
-        # Calculation Drawer (right side) - initially hidden
+        # Calculation Drawer (right side) - grid column 1, initially hidden
         self._drawer = CalculationDrawer(
             self._main_container,
             width=400,
             on_close=self._on_drawer_close,
             on_rerun=self._on_drawer_rerun
         )
+        # Drawer will be shown via grid() when needed, not packed here
 
         # Bind ESC to close drawer (use toplevel window, not bind_all which CTk disallows)
         self.winfo_toplevel().bind("<Escape>", self._close_drawer_on_escape, add="+")
@@ -1888,10 +1894,10 @@ class DashboardPage(BaseFrame):
         data_with_match = dict(data)
         data_with_match['match_data'] = match_data
 
-        # Show the drawer - pack with fill="both" and explicit width constraint
+        # Show the drawer using grid layout (column 1)
         if not self._drawer.winfo_ismapped():
-            self._drawer.pack(side="right", fill="both", expand=False)
-        self._drawer.configure(width=400)
+            self._drawer.grid(row=0, column=1, sticky="nsew", padx=(8, 12), pady=(0, 6))
+            self._main_container.grid_columnconfigure(1, weight=0, minsize=400)
         self._drawer.show_for_tenor(tenor_key, data_with_match)
 
         log.info(f"[Dashboard] Opened drawer for tenor: {tenor_key}")
