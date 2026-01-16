@@ -758,7 +758,7 @@ class DashboardPage(BaseFrame):
         popup = tk.Toplevel(self.winfo_toplevel())
         popup.title(f"Validation: {check_name}")
         popup.configure(bg=THEME["bg_panel"])
-        popup.geometry("550x400")
+        popup.geometry("500x450")
         popup.resizable(True, True)
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
@@ -796,56 +796,57 @@ class DashboardPage(BaseFrame):
                 font=("Segoe UI", 11),
                 fg=status_color, bg=header_bg).pack(pady=(0, 20))
 
-        # Alerts list
-        alerts = check.get("alerts", [])
-
-        if alerts:
-            # Scrollable alerts area
-            alerts_frame = tk.Frame(popup, bg=THEME["bg_panel"])
-            alerts_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-            tk.Label(alerts_frame,
-                    text=f"Issues ({len(alerts)}):",
-                    font=("Segoe UI Semibold", 11),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
-
-            # Canvas for scrolling
-            canvas = tk.Canvas(alerts_frame, bg=THEME["bg_panel"], highlightthickness=0)
-            scrollbar = tk.Scrollbar(alerts_frame, orient="vertical", command=canvas.yview)
-            scroll_frame = tk.Frame(canvas, bg=THEME["bg_panel"])
-
-            scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-            canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-            canvas.configure(yscrollcommand=scrollbar.set)
-
-            canvas.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
-
-            for i, alert in enumerate(alerts):
-                alert_card = tk.Frame(scroll_frame, bg=THEME["bg_card"],
-                                      highlightthickness=1, highlightbackground=THEME["border"])
-                alert_card.pack(fill="x", pady=4, padx=2)
-
-                tk.Label(alert_card,
-                        text=f"✗ {alert}",
-                        font=("Segoe UI", 10),
-                        fg=THEME["danger"], bg=THEME["bg_card"],
-                        anchor="w", wraplength=480, justify="left").pack(padx=12, pady=10, anchor="w")
+        # Special handling for NIBOR Contrib - show detailed table
+        if check_id == "nibor_contrib" and hasattr(self, '_recon_diff_details') and self._recon_diff_details:
+            self._show_nibor_contrib_table(popup)
         else:
-            # No alerts - show success message
-            success_frame = tk.Frame(popup, bg=THEME["bg_panel"])
-            success_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            # Standard alerts list for other checks
+            alerts = check.get("alerts", [])
 
-            if status is True:
-                tk.Label(success_frame,
-                        text="✓ All validation checks passed",
-                        font=("Segoe UI", 12),
-                        fg=THEME["success"], bg=THEME["bg_panel"]).pack(expand=True)
+            if alerts:
+                alerts_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+                alerts_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+                tk.Label(alerts_frame,
+                        text=f"Issues ({len(alerts)}):",
+                        font=("Segoe UI Semibold", 11),
+                        fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+                canvas = tk.Canvas(alerts_frame, bg=THEME["bg_panel"], highlightthickness=0)
+                scrollbar = tk.Scrollbar(alerts_frame, orient="vertical", command=canvas.yview)
+                scroll_frame = tk.Frame(canvas, bg=THEME["bg_panel"])
+
+                scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+                canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+                canvas.configure(yscrollcommand=scrollbar.set)
+
+                canvas.pack(side="left", fill="both", expand=True)
+                scrollbar.pack(side="right", fill="y")
+
+                for i, alert in enumerate(alerts):
+                    alert_card = tk.Frame(scroll_frame, bg=THEME["bg_card"],
+                                          highlightthickness=1, highlightbackground=THEME["border"])
+                    alert_card.pack(fill="x", pady=4, padx=2)
+
+                    tk.Label(alert_card,
+                            text=f"✗ {alert}",
+                            font=("Segoe UI", 10),
+                            fg=THEME["danger"], bg=THEME["bg_card"],
+                            anchor="w", wraplength=480, justify="left").pack(padx=12, pady=10, anchor="w")
             else:
-                tk.Label(success_frame,
-                        text="No validation data yet",
-                        font=("Segoe UI", 12),
-                        fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(expand=True)
+                success_frame = tk.Frame(popup, bg=THEME["bg_panel"])
+                success_frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+                if status is True:
+                    tk.Label(success_frame,
+                            text="✓ All validation checks passed",
+                            font=("Segoe UI", 12),
+                            fg=THEME["success"], bg=THEME["bg_panel"]).pack(expand=True)
+                else:
+                    tk.Label(success_frame,
+                            text="No validation data yet",
+                            font=("Segoe UI", 12),
+                            fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(expand=True)
 
         # Close button
         btn_frame = tk.Frame(popup, bg=THEME["bg_panel"])
@@ -863,6 +864,96 @@ class DashboardPage(BaseFrame):
         close_btn.pack(side="right")
 
         popup.focus_set()
+
+    def _show_nibor_contrib_table(self, popup):
+        """Show elegant table with GUI vs Excel comparison for NIBOR Contrib."""
+        content = tk.Frame(popup, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Title
+        tk.Label(content,
+                text=f"Differences ({len(self._recon_diff_details)})",
+                font=("Segoe UI Semibold", 11),
+                fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+        # Table frame
+        table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+        table.pack(fill="both", expand=True)
+
+        # Configure grid columns
+        table.columnconfigure(0, weight=0, minsize=60)   # Tenor
+        table.columnconfigure(1, weight=1, minsize=100)  # Component
+        table.columnconfigure(2, weight=0, minsize=90)   # GUI
+        table.columnconfigure(3, weight=0, minsize=90)   # Excel
+        table.columnconfigure(4, weight=0, minsize=80)   # Diff
+
+        # Header row
+        headers = [("Tenor", "center"), ("Component", "w"), ("GUI", "e"), ("Excel", "e"), ("Diff", "e")]
+        for col, (text, anchor) in enumerate(headers):
+            tk.Label(table,
+                    text=text,
+                    font=("Segoe UI Semibold", 10),
+                    fg=THEME["text_muted"],
+                    bg=THEME["chip"],
+                    anchor=anchor,
+                    padx=12, pady=8).grid(row=0, column=col, sticky="ew")
+
+        # Data rows
+        for i, diff in enumerate(self._recon_diff_details):
+            row_bg = THEME["bg_card"] if i % 2 == 0 else "#F8F9FA"
+            row_idx = i + 1
+
+            tenor = diff["tenor"]
+            component = diff["component"]
+            gui_val = diff["gui_value"]
+            excel_val = diff["excel_value"]
+            decimals = diff["decimals"]
+            diff_val = gui_val - excel_val
+
+            # Tenor
+            tk.Label(table,
+                    text=tenor,
+                    font=("Segoe UI Semibold", 10),
+                    fg=THEME["text"],
+                    bg=row_bg,
+                    anchor="center",
+                    padx=12, pady=6).grid(row=row_idx, column=0, sticky="ew")
+
+            # Component
+            tk.Label(table,
+                    text=component,
+                    font=("Segoe UI", 10),
+                    fg=THEME["danger"],
+                    bg=row_bg,
+                    anchor="w",
+                    padx=12, pady=6).grid(row=row_idx, column=1, sticky="ew")
+
+            # GUI value
+            tk.Label(table,
+                    text=f"{gui_val:.{decimals}f}",
+                    font=("Consolas", 10),
+                    fg=THEME["text"],
+                    bg=row_bg,
+                    anchor="e",
+                    padx=12, pady=6).grid(row=row_idx, column=2, sticky="ew")
+
+            # Excel value
+            tk.Label(table,
+                    text=f"{excel_val:.{decimals}f}",
+                    font=("Consolas", 10),
+                    fg=THEME["text"],
+                    bg=row_bg,
+                    anchor="e",
+                    padx=12, pady=6).grid(row=row_idx, column=3, sticky="ew")
+
+            # Diff
+            tk.Label(table,
+                    text=f"{diff_val:+.{decimals}f}",
+                    font=("Consolas", 10),
+                    fg=THEME["danger"],
+                    bg=row_bg,
+                    anchor="e",
+                    padx=12, pady=6).grid(row=row_idx, column=4, sticky="ew")
 
     def _update_validation_check(self, check_id, status, alerts=None):
         """Update a validation check badge status.
@@ -1707,8 +1798,9 @@ class DashboardPage(BaseFrame):
                 pass
             return None
 
-        # Collect diffs per tenor (same checks as drawer)
-        tenor_diffs = {}  # {tenor: set of diff labels}
+        # Collect detailed diffs per tenor (same checks as drawer)
+        # Store full details for the popup display
+        self._recon_diff_details = []  # List of dicts with full diff info
 
         # Input fields to check - same as drawer recon
         input_fields = [
@@ -1740,20 +1832,20 @@ class DashboardPage(BaseFrame):
                         gui_rounded = round(float(gui_value), decimals)
                         excel_rounded = round(float(excel_value), decimals)
                         if gui_rounded != excel_rounded:
-                            if tenor_key not in tenor_diffs:
-                                tenor_diffs[tenor_key] = set()
-                            tenor_diffs[tenor_key].add(label)
+                            self._recon_diff_details.append({
+                                "tenor": tenor_key.upper(),
+                                "component": label,
+                                "gui_value": gui_rounded,
+                                "excel_value": excel_rounded,
+                                "decimals": decimals
+                            })
                     except (ValueError, TypeError):
                         pass
 
         # Update NIBOR Contrib validation icon based on diffs
-        if tenor_diffs:
-            # Format: "1M: NOK ECP, EURNOK | 2M: EURNOK"
-            diff_messages = []
-            for tenor in ["1m", "2m", "3m", "6m"]:
-                if tenor in tenor_diffs:
-                    labels = sorted(tenor_diffs[tenor])
-                    diff_messages.append(f"{tenor.upper()}: {', '.join(labels)}")
+        if self._recon_diff_details:
+            # Simple alert messages for backwards compatibility
+            diff_messages = [f"{d['tenor']}: {d['component']}" for d in self._recon_diff_details]
             self._update_validation_check("nibor_contrib", False, diff_messages)
         else:
             # Only mark OK if we have data
