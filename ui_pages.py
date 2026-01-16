@@ -1879,7 +1879,7 @@ class DashboardPage(BaseFrame):
 
         # Position drawer to the right of main window
         drawer_x = main_x + main_width + 2
-        drawer_width = 400
+        drawer_width = 450
 
         # Update drawer position and height
         self._drawer_window.geometry(f"{drawer_width}x{main_height}+{drawer_x}+{main_y}")
@@ -2001,7 +2001,7 @@ class DashboardPage(BaseFrame):
         root = self.winfo_toplevel()
         root.update_idletasks()
 
-        drawer_width = 400
+        drawer_width = 450
         drawer_height = root.winfo_height()
 
         # Position drawer window to the right of main window

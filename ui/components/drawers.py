@@ -655,20 +655,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             pady=SPACING.SM
         ).pack(anchor="w")
 
-        # Show warning if inputs don't match
-        if not all_inputs_match and input_diffs:
-            warn_frame = tk.Frame(self._recon_container, bg=COLORS.WARNING_BG)
-            warn_frame.pack(fill="x", pady=(0, SPACING.SM))
-            tk.Label(
-                warn_frame,
-                text="⚠ Formula outputs not checked - fix inputs first",
-                font=FONTS.BODY_SM,
-                fg=COLORS.WARNING,
-                bg=COLORS.WARNING_BG,
-                padx=SPACING.SM,
-                pady=SPACING.XS
-            ).pack(anchor="w")
-
     def _add_recon_diff_row(self, parent, item: Dict[str, Any], index: int):
         """Add a single diff row to the recon table."""
         label = item.get("label", "")
