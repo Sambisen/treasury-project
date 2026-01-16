@@ -250,6 +250,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
         # Build sections
         self._build_result_section()
+        self._build_recon_section()
         self._build_inputs_section()
         self._build_steps_section()
         self._build_checks_section()
@@ -340,6 +341,15 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         val.pack(side="right")
 
         return {"label": lbl, "value": val}
+
+    def _build_recon_section(self):
+        """Build the Reconciliation section for Excel comparison."""
+        section = self._create_section("Reconciliation")
+        self._recon_section = section
+
+        # Container for recon table
+        self._recon_container = tk.Frame(section, bg=COLORS.SURFACE)
+        self._recon_container.pack(fill="x", pady=(SPACING.SM, 0))
 
     def _build_inputs_section(self):
         """Build the Inputs table section."""
@@ -487,6 +497,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
         # Update sections
         self._update_result_section(data)
+        self._update_recon_section(data)
         self._update_inputs_section(tenor_key, data)
         self._update_steps_section(data)
         self._update_checks_section(data)
@@ -565,6 +576,194 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             self._result_delta.config(text=f"{delta:.4f}", fg=delta_color)
         else:
             self._result_delta.config(text="—", fg=COLORS.TEXT_MUTED)
+
+    def _update_recon_section(self, data: Dict[str, Any]):
+        """Update the reconciliation section with Excel comparison data."""
+        # Clear existing
+        for widget in self._recon_container.winfo_children():
+            widget.destroy()
+
+        recon_data = data.get("recon_data", [])
+        all_inputs_match = data.get("all_inputs_match", False)
+
+        if not recon_data:
+            tk.Label(
+                self._recon_container,
+                text="No reconciliation data available",
+                font=FONTS.BODY_SM,
+                fg=COLORS.TEXT_MUTED,
+                bg=COLORS.SURFACE
+            ).pack(anchor="w", pady=SPACING.SM)
+            return
+
+        # Create table
+        table = tk.Frame(self._recon_container, bg=COLORS.SURFACE)
+        table.pack(fill="x")
+
+        # Header
+        header = tk.Frame(table, bg=COLORS.TABLE_HEADER_BG)
+        header.pack(fill="x")
+
+        headers = [("Field", 70), ("Cell", 35), ("GUI", 55), ("Excel", 55), ("Status", 45)]
+        for text, width in headers:
+            tk.Label(
+                header,
+                text=text,
+                font=FONTS.TABLE_HEADER,
+                fg=COLORS.TEXT_MUTED,
+                bg=COLORS.TABLE_HEADER_BG,
+                width=width // 8,
+                anchor="w",
+                padx=SPACING.XS,
+                pady=SPACING.SM
+            ).pack(side="left")
+
+        # Separator between inputs and outputs
+        inputs_section_added = False
+        outputs_section_added = False
+
+        for i, item in enumerate(recon_data):
+            is_input = item.get("is_input", True)
+            skipped = item.get("skipped", False)
+
+            # Add section headers
+            if is_input and not inputs_section_added:
+                self._add_recon_section_header(table, "─── Inputs ───")
+                inputs_section_added = True
+            elif not is_input and not outputs_section_added:
+                self._add_recon_section_header(table, "─── Formula Outputs ───")
+                if not all_inputs_match:
+                    # Show warning that outputs are skipped
+                    warn_frame = tk.Frame(table, bg=COLORS.WARNING_BG)
+                    warn_frame.pack(fill="x", pady=(0, SPACING.XS))
+                    tk.Label(
+                        warn_frame,
+                        text="⚠ Skipped - inputs do not match",
+                        font=FONTS.BODY_SM,
+                        fg=COLORS.WARNING,
+                        bg=COLORS.WARNING_BG,
+                        padx=SPACING.SM,
+                        pady=SPACING.XS
+                    ).pack(anchor="w")
+                outputs_section_added = True
+
+            # Data row
+            label = item.get("label", "")
+            cell = item.get("cell", "")
+            gui_value = item.get("gui_value")
+            excel_value = item.get("excel_value")
+            decimals = item.get("decimals", 4)
+            matched = item.get("matched", False)
+
+            row_bg = COLORS.SURFACE if i % 2 == 0 else COLORS.ROW_ZEBRA
+            row = tk.Frame(table, bg=row_bg)
+            row.pack(fill="x")
+
+            # Field name
+            tk.Label(
+                row,
+                text=label,
+                font=FONTS.BODY_SM,
+                fg=COLORS.TEXT,
+                bg=row_bg,
+                width=9,
+                anchor="w",
+                padx=SPACING.XS,
+                pady=SPACING.XS
+            ).pack(side="left")
+
+            # Cell reference
+            tk.Label(
+                row,
+                text=cell,
+                font=FONTS.TABLE_CELL_MONO,
+                fg=COLORS.TEXT_MUTED,
+                bg=row_bg,
+                width=4,
+                anchor="w",
+                padx=SPACING.XS,
+                pady=SPACING.XS
+            ).pack(side="left")
+
+            # GUI value
+            gui_str = f"{gui_value:.{decimals}f}" if gui_value is not None else "—"
+            tk.Label(
+                row,
+                text=gui_str,
+                font=FONTS.TABLE_CELL_MONO,
+                fg=COLORS.TEXT,
+                bg=row_bg,
+                width=7,
+                anchor="e",
+                padx=SPACING.XS,
+                pady=SPACING.XS
+            ).pack(side="left")
+
+            # Excel value
+            if skipped:
+                excel_str = "—"
+                excel_color = COLORS.TEXT_MUTED
+            elif excel_value is not None:
+                excel_str = f"{excel_value:.{decimals}f}"
+                excel_color = COLORS.TEXT
+            else:
+                excel_str = "N/A"
+                excel_color = COLORS.TEXT_MUTED
+
+            tk.Label(
+                row,
+                text=excel_str,
+                font=FONTS.TABLE_CELL_MONO,
+                fg=excel_color,
+                bg=row_bg,
+                width=7,
+                anchor="e",
+                padx=SPACING.XS,
+                pady=SPACING.XS
+            ).pack(side="left")
+
+            # Status
+            if skipped:
+                status_text = "SKIP"
+                status_color = COLORS.TEXT_MUTED
+                status_bg = COLORS.CHIP_BG
+            elif matched:
+                status_text = ICONS.CHECK
+                status_color = COLORS.SUCCESS
+                status_bg = "#E8F5E9"
+            else:
+                status_text = ICONS.CROSS
+                status_color = COLORS.DANGER
+                status_bg = "#FFEBEE"
+
+            status_label = tk.Label(
+                row,
+                text=status_text,
+                font=FONTS.BODY_SM,
+                fg=status_color,
+                bg=status_bg,
+                width=5,
+                anchor="center",
+                padx=SPACING.XS,
+                pady=SPACING.XS
+            )
+            status_label.pack(side="left", padx=(SPACING.XS, 0))
+
+    def _add_recon_section_header(self, parent, text: str):
+        """Add a section header in the recon table."""
+        header = tk.Frame(parent, bg=COLORS.TABLE_HEADER_BG)
+        header.pack(fill="x", pady=(SPACING.SM, 0))
+
+        tk.Label(
+            header,
+            text=text,
+            font=FONTS.TABLE_HEADER,
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.TABLE_HEADER_BG,
+            anchor="w",
+            padx=SPACING.SM,
+            pady=SPACING.XS
+        ).pack(side="left", fill="x", expand=True)
 
     def _update_inputs_section(self, tenor_key: str, data: Dict[str, Any]):
         """Update the inputs table with field values and sources."""

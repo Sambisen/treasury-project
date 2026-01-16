@@ -1886,6 +1886,8 @@ class DashboardPage(BaseFrame):
 
     def _open_drawer_for_tenor(self, tenor_key: str):
         """Open the calculation drawer for a specific tenor."""
+        from config import RECON_CELL_MAPPING
+
         # Auto-update if data not available
         if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
             self._update_funding_rates_with_validation()
@@ -1899,6 +1901,100 @@ class DashboardPage(BaseFrame):
         match_data = self._match_data.get(tenor_key, {})
         data_with_match = dict(data)
         data_with_match['match_data'] = match_data
+
+        # Build reconciliation data by reading Excel cells
+        recon_data = []
+        all_inputs_match = True
+
+        # Helper to read Excel value safely
+        def read_excel_cell(cell):
+            try:
+                if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+                    return self.app.excel_engine.get_recon_value(cell)
+            except Exception as e:
+                log.warning(f"[Drawer] Could not read Excel cell {cell}: {e}")
+            return None
+
+        # Input fields to check (must all match before checking outputs)
+        input_fields = [
+            ("NOK ECP", "NOK_ECP", "nok_cm", 2),
+            ("EUR Rate", "EUR_RATE", "eur_rate", 2),
+            ("USD Rate", "USD_RATE", "usd_rate", 2),
+            ("EUR Spot", "EUR_SPOT", "eur_spot", 4),
+            ("USD Spot", "USD_SPOT", "usd_spot", 4),
+            ("EUR Pips", "EUR_PIPS", "eur_pips", 2),
+            ("USD Pips", "USD_PIPS", "usd_pips", 2),
+        ]
+
+        for label, mapping_key, data_key, decimals in input_fields:
+            cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
+            if not cell:
+                continue
+
+            gui_value = data.get(data_key)
+            excel_value = read_excel_cell(cell)
+
+            # Compare values
+            matched = False
+            if gui_value is not None and excel_value is not None:
+                try:
+                    gui_rounded = round(float(gui_value), decimals)
+                    excel_rounded = round(float(excel_value), decimals)
+                    matched = (gui_rounded == excel_rounded)
+                except (ValueError, TypeError):
+                    pass
+
+            if not matched:
+                all_inputs_match = False
+
+            recon_data.append({
+                "label": label,
+                "cell": cell,
+                "gui_value": gui_value,
+                "excel_value": excel_value,
+                "decimals": decimals,
+                "matched": matched,
+                "is_input": True
+            })
+
+        # Output fields (only check if all inputs match)
+        output_fields = [
+            ("EUR Implied", "EUR_IMPLIED", "eur_impl", 4),
+            ("USD Implied", "USD_IMPLIED", "usd_impl", 4),
+        ]
+
+        for label, mapping_key, data_key, decimals in output_fields:
+            cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
+            if not cell:
+                continue
+
+            gui_value = data.get(data_key)
+            excel_value = read_excel_cell(cell) if all_inputs_match else None
+
+            # Compare values (only if inputs matched)
+            matched = False
+            skipped = not all_inputs_match
+            if not skipped and gui_value is not None and excel_value is not None:
+                try:
+                    gui_rounded = round(float(gui_value), decimals)
+                    excel_rounded = round(float(excel_value), decimals)
+                    matched = (gui_rounded == excel_rounded)
+                except (ValueError, TypeError):
+                    pass
+
+            recon_data.append({
+                "label": label,
+                "cell": cell,
+                "gui_value": gui_value,
+                "excel_value": excel_value,
+                "decimals": decimals,
+                "matched": matched,
+                "is_input": False,
+                "skipped": skipped
+            })
+
+        data_with_match['recon_data'] = recon_data
+        data_with_match['all_inputs_match'] = all_inputs_match
 
         # Show drawer in a separate window positioned next to main window
         root = self.winfo_toplevel()

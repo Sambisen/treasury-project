@@ -460,6 +460,22 @@ EXCEL_CM_RATES_MAPPING = {
     "USD_1M": "R30", "USD_2M": "R31", "USD_3M": "R32", "USD_6M": "R33",
 }
 
+# Full reconciliation cell mapping for drawer
+# Row mapping: 1M=30, 2M=31, 3M=32, 6M=33
+RECON_CELL_MAPPING = {
+    # Input rates (must match before checking formula outputs)
+    "NOK_ECP": {"1m": "K30", "2m": "K31", "3m": "K32", "6m": "K33"},
+    "EUR_RATE": {"1m": "M30", "2m": "M31", "3m": "M32", "6m": "M33"},
+    "USD_RATE": {"1m": "R30", "2m": "R31", "3m": "R32", "6m": "R33"},
+    "EUR_SPOT": {"1m": "N30", "2m": "N31", "3m": "N32", "6m": "N33"},
+    "USD_SPOT": {"1m": "S30", "2m": "S31", "3m": "S32", "6m": "S33"},
+    "EUR_PIPS": {"1m": "O30", "2m": "O31", "3m": "O32", "6m": "O33"},
+    "USD_PIPS": {"1m": "T30", "2m": "T31", "3m": "T32", "6m": "T33"},
+    # Output rates (formula results - only check if inputs match)
+    "EUR_IMPLIED": {"1m": "P30", "2m": "P31", "3m": "P32", "6m": "P33"},
+    "USD_IMPLIED": {"1m": "U30", "2m": "U31", "3m": "U32", "6m": "U33"},
+}
+
 # ============================================================================
 # CALCULATION MODELS
 # ============================================================================
