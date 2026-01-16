@@ -592,56 +592,102 @@ class ExcelEngine:
             return False, f"Failed to write to Excel: {e}"
 
     def _write_confirmation_xlwings(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
-        """Write confirmation using xlwings (most reliable for open Excel files)."""
-        import xlwings as xw
-        import re
+        """Write confirmation using PowerShell (most reliable on Windows)."""
+        import subprocess
+        import json
 
-        log.info("[ExcelEngine] Using xlwings for Excel write")
+        log.info("[ExcelEngine] Using PowerShell for Excel write")
         file_path_str = str(nibor_file.resolve())
 
-        # xw.Book() connects to open workbook or opens it
-        # This is the simplest and most reliable approach
-        wb = xw.Book(file_path_str)
-        log.info(f"[ExcelEngine] Connected to workbook: {wb.name}")
-
-        # Find the latest date sheet
-        date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-        sheet_names = [s.name for s in wb.sheets]
-        date_sheets = [name for name in sheet_names if date_pattern.match(name)]
-
-        if not date_sheets:
-            return False, f"No date sheets found. Sheets: {sheet_names[:5]}"
-
-        latest_sheet_name = sorted(date_sheets)[-1]
-        ws = wb.sheets[latest_sheet_name]
-
-        log.info(f"[ExcelEngine] Writing to sheet: {latest_sheet_name}")
-
-        # Write confirmation to each tenor cell
-        confirmed_tenors = []
+        # Build list of cells to write
+        cells_to_write = []
         for tenor in tenors_to_confirm:
             cell_addrs = confirm_cell_mapping.get(tenor, [])
-            if cell_addrs:
-                for cell_addr in cell_addrs:
-                    try:
-                        cell = ws.range(cell_addr)
-                        cell.value = confirm_text
-                        # Green background RGB(198, 239, 206)
-                        cell.color = (198, 239, 206)
-                        # Dark green text RGB(0, 128, 80)
-                        cell.api.Font.Color = 0x508000  # BGR format for win32
-                        cell.api.Font.Bold = True
-                        log.info(f"[ExcelEngine]   WROTE {cell_addr}")
-                    except Exception as e:
-                        log.error(f"[ExcelEngine]   FAILED {cell_addr}: {e}")
-                confirmed_tenors.append(tenor.upper())
+            cells_to_write.extend(cell_addrs)
 
-        # Save
-        wb.save()
-        log.info("[ExcelEngine] Workbook saved")
+        # PowerShell script that writes to Excel
+        ps_script = f'''
+$ErrorActionPreference = "Stop"
+try {{
+    $excel = [Runtime.Interopservices.Marshal]::GetActiveObject("Excel.Application")
+    $filePath = "{file_path_str.replace(chr(92), chr(92)+chr(92))}"
+    $fileName = [System.IO.Path]::GetFileName($filePath)
 
-        msg = f"Confirmed {', '.join(confirmed_tenors)} in {latest_sheet_name}"
-        return True, msg
+    # Find the workbook
+    $wb = $null
+    foreach ($book in $excel.Workbooks) {{
+        if ($book.Name -eq $fileName) {{
+            $wb = $book
+            break
+        }}
+    }}
+
+    if ($wb -eq $null) {{
+        $wb = $excel.Workbooks.Open($filePath)
+    }}
+
+    # Find latest date sheet
+    $dateSheets = @()
+    foreach ($sheet in $wb.Sheets) {{
+        if ($sheet.Name -match "^\\d{{4}}-\\d{{2}}-\\d{{2}}$") {{
+            $dateSheets += $sheet.Name
+        }}
+    }}
+
+    if ($dateSheets.Count -eq 0) {{
+        Write-Output "ERROR: No date sheets found"
+        exit 1
+    }}
+
+    $latestSheet = ($dateSheets | Sort-Object)[-1]
+    $ws = $wb.Sheets($latestSheet)
+
+    # Write to cells
+    $cells = @({','.join([f'"{c}"' for c in cells_to_write])})
+    $confirmText = "{confirm_text}"
+
+    foreach ($cellAddr in $cells) {{
+        $cell = $ws.Range($cellAddr)
+        $cell.Value = $confirmText
+        $cell.Interior.Color = 13561798  # Light green BGR
+        $cell.Font.Color = 5287936       # Dark green BGR
+        $cell.Font.Bold = $true
+    }}
+
+    $wb.Save()
+    Write-Output "OK: Confirmed in $latestSheet"
+}} catch {{
+    Write-Output "ERROR: $($_.Exception.Message)"
+    exit 1
+}}
+'''
+
+        try:
+            result = subprocess.run(
+                ["powershell", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            output = result.stdout.strip()
+            log.info(f"[ExcelEngine] PowerShell output: {output}")
+
+            if output.startswith("OK:"):
+                return True, output[4:].strip()
+            elif output.startswith("ERROR:"):
+                return False, output[7:].strip()
+            else:
+                if result.returncode == 0:
+                    return True, f"Confirmed {', '.join(tenors_to_confirm)}"
+                else:
+                    return False, f"PowerShell failed: {result.stderr or output}"
+
+        except subprocess.TimeoutExpired:
+            return False, "PowerShell timeout - Excel might be busy"
+        except Exception as e:
+            log.error(f"[ExcelEngine] PowerShell error: {e}")
+            raise
 
     def _write_confirmation_win32com(self, nibor_file, confirm_cell_mapping, tenors_to_confirm, confirm_text):
         """Write confirmation using win32com (works with open Excel files)."""
