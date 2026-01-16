@@ -206,16 +206,13 @@ class SplashScreenManager:
         return self._root
 
 
-def run_with_splash(app_factory, total_duration=6.0):
+def show_splash_then_run(app, total_duration=6.0):
     """
-    Run an application with a splash screen.
+    Show a splash screen over an existing app, then reveal the app.
 
     Args:
-        app_factory: A callable that creates and returns the main app window
+        app: The main application window (already created but can be hidden)
         total_duration: Total time to show splash screen in seconds (default 6)
-
-    Returns:
-        The created app instance
     """
     # Loading steps with progress percentages
     LOADING_STEPS = [
@@ -229,31 +226,37 @@ def run_with_splash(app_factory, total_duration=6.0):
         (100, "Ready!"),
     ]
 
-    # Calculate delay between steps
-    step_delay = total_duration / len(LOADING_STEPS)
+    # Hide the main app temporarily
+    app.withdraw()
 
-    # Create hidden root for splash
-    root = tk.Tk()
-    root.withdraw()
-
-    splash = SplashScreen(root)
+    # Create splash as Toplevel of the app
+    splash = SplashScreen(app)
     splash.update()
 
-    # Show loading steps with timing
-    for progress, status in LOADING_STEPS:
-        splash.set_progress(progress, status)
-        splash.update()
-        time.sleep(step_delay)
+    # Calculate delay between steps (in milliseconds)
+    step_delay_ms = int((total_duration * 1000) / len(LOADING_STEPS))
 
-    # Brief pause on "Ready!"
-    time.sleep(0.3)
+    # Current step index
+    current_step = [0]
 
-    # Destroy splash
-    splash.destroy()
-    root.destroy()
+    def show_next_step():
+        if current_step[0] < len(LOADING_STEPS):
+            progress, status = LOADING_STEPS[current_step[0]]
+            splash.set_progress(progress, status)
+            current_step[0] += 1
+            app.after(step_delay_ms, show_next_step)
+        else:
+            # All steps done - close splash and show app
+            app.after(300, finish_splash)
 
-    # Now create and return the main app
-    return app_factory()
+    def finish_splash():
+        splash.destroy()
+        app.deiconify()
+        app.lift()
+        app.focus_force()
+
+    # Start the animation
+    app.after(100, show_next_step)
 
 
 def demo_splash():

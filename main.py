@@ -1413,14 +1413,13 @@ def generate_alerts_report():
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
-    from splash_screen import run_with_splash
+    from splash_screen import show_splash_then_run
 
-    def create_app():
-        """Factory function to create the main application."""
-        return NiborTerminalCTK()
+    # Create main application
+    app = NiborTerminalCTK()
 
-    # Show splash screen for 6 seconds, then launch main application
-    app = run_with_splash(create_app, total_duration=6.0)
+    # Show splash screen for 6 seconds while app initializes
+    show_splash_then_run(app, total_duration=6.0)
 
     # Import fixing history from Excel on startup
     try:
