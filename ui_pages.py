@@ -203,20 +203,20 @@ class DashboardPage(BaseFrame):
         header_bg = THEME["table_header_bg"]     # Subtle header background
         row_separator_color = THEME["border"]     # Subtle border
 
-        # Main headers with premium styling - wider columns
+        # Main headers with premium styling - wider columns with better hierarchy
         headers = [
             ("TENOR", 12, "center"),
-            ("FUNDING RATE", 18, "e"),
+            ("FUNDING RATE", 20, "e"),  # Bredare kolumn
             ("SPREAD", 12, "e"),
-            ("NIBOR", 18, "e"),
-            ("CHG", 12, "e"),
+            ("NIBOR", 20, "e"),  # Bredare kolumn för hero data
+            ("CHG", 14, "e"),  # Något bredare för pilar
         ]
         for col, (text, width, anchor) in enumerate(headers):
             tk.Label(funding_frame, text=text,
-                    fg=header_text_color,
+                    fg=THEME["text"],  # Mörkare text för bättre kontrast
                     bg=header_bg,
-                    font=("Segoe UI Semibold", 10),
-                    width=width, pady=10, padx=16,
+                    font=("Segoe UI Semibold", 11),  # Något större font
+                    width=width, pady=12, padx=18,  # Mer padding
                     anchor=anchor).grid(row=0, column=col, sticky="nsew")
 
         # Vertical separator between main cols and contribution
@@ -278,51 +278,51 @@ class DashboardPage(BaseFrame):
             # Collect all widgets in this row for hover effect
             row_widgets = []
 
-            # TENOR label - bold, larger
+            # TENOR label - bold, larger, more padding
             tenor_lbl = tk.Label(funding_frame, text=tenor["label"], fg=THEME["text"],
                     bg=row_bg, font=("Segoe UI Semibold", 13),
-                    width=12, anchor="center", pady=10, padx=16)
+                    width=12, anchor="center", pady=14, padx=18)
             tenor_lbl.grid(row=row_idx, column=0, sticky="nsew")
             row_widgets.append(tenor_lbl)
 
             cells = {}
 
-            # FUNDING RATE - monospace, right-aligned, clickable
+            # FUNDING RATE - monospace, right-aligned, clickable, more padding
             funding_lbl = tk.Label(funding_frame, text="—",
                                   fg=THEME["text"], bg=row_bg,
                                   font=("Consolas", 12),
-                                  width=18, anchor="e", cursor="hand2", pady=10, padx=16)
+                                  width=20, anchor="e", cursor="hand2", pady=14, padx=18)
             funding_lbl.grid(row=row_idx, column=1, sticky="nsew")
             funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(funding_lbl)
             cells["funding"] = funding_lbl
             ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
 
-            # SPREAD - monospace, right-aligned, muted
+            # SPREAD - monospace, right-aligned, muted, more padding
             spread_lbl = tk.Label(funding_frame, text="—",
                                  fg=THEME["text_muted"], bg=row_bg,
                                  font=("Consolas", 12),
-                                 width=12, anchor="e", pady=10, padx=16)
+                                 width=12, anchor="e", pady=14, padx=18)
             spread_lbl.grid(row=row_idx, column=2, sticky="nsew")
             row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
 
-            # NIBOR - HERO COLUMN - Extra large, bold, accent color
+            # NIBOR - HERO COLUMN - EXTRA LARGE, bold, accent color, MORE PADDING
             final_lbl = tk.Label(funding_frame, text="—",
                                 fg=THEME["accent"], bg=row_bg,
-                                font=("Consolas", 16, "bold"),
-                                width=18, anchor="e", cursor="hand2", pady=10, padx=16)
+                                font=("Consolas", 18, "bold"),  # Ökat från 16 till 18
+                                width=20, anchor="e", cursor="hand2", pady=14, padx=20)
             final_lbl.grid(row=row_idx, column=3, sticky="nsew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
             row_widgets.append(final_lbl)
             cells["final"] = final_lbl
             ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
 
-            # CHG - monospace, right-aligned (color set dynamically)
+            # CHG - monospace, right-aligned (color set dynamically), more padding
             chg_lbl = tk.Label(funding_frame, text="—",
                               fg=THEME["text_muted"], bg=row_bg,
                               font=("Consolas", 12),
-                              width=12, anchor="e", pady=10, padx=16)
+                              width=14, anchor="e", pady=14, padx=18)
             chg_lbl.grid(row=row_idx, column=4, sticky="nsew")
             row_widgets.append(chg_lbl)
             cells["chg"] = chg_lbl
@@ -1455,7 +1455,7 @@ class DashboardPage(BaseFrame):
                 cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
 
             # CHG (Change from previous sheet in Excel - AA30-AA33)
-            # Nordic Light: green positive, red negative, gray near-zero
+            # Nordic Light: green positive with ▲, red negative with ▼, gray near-zero with —
             if "chg" in cells:
                 chg_lbl = cells["chg"]
                 prev_nibor = None
@@ -1466,13 +1466,13 @@ class DashboardPage(BaseFrame):
                     chg = final_rate - prev_nibor
                     # Near-zero threshold (less than 0.005 rounds to 0.00)
                     if abs(chg) < 0.005:
-                        chg_text = "0.00"
+                        chg_text = "— 0.00"  # Dash for no significant change
                         chg_color = THEME["text_muted"]  # Gray for near-zero
                     elif chg > 0:
-                        chg_text = f"+{chg:.2f}"
+                        chg_text = f"▲ +{chg:.2f}"  # Up arrow for positive
                         chg_color = THEME["success"]  # Green for positive
                     else:
-                        chg_text = f"{chg:.2f}"
+                        chg_text = f"▼ {chg:.2f}"   # Down arrow for negative
                         chg_color = THEME["danger"]   # Red for negative
                     chg_lbl.config(text=chg_text, fg=chg_color)
                 else:
@@ -1618,27 +1618,27 @@ class DashboardPage(BaseFrame):
                 lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
 
                 if all_matched and match_details['criteria']:
-                    # Matched - Green pill (Nordic Light)
+                    # Matched - Green pill with checkmark icon (Nordic Light)
                     matched_bg = "#E8F5E9"  # Light green bg
                     matched_fg = THEME["success"]  # #1E8E3E
                     if is_ctk_widget:
                         badge.configure(fg_color=matched_bg)
-                        lbl.configure(text="Matched", text_color=matched_fg)
+                        lbl.configure(text="✓ Matched", text_color=matched_fg)
                     else:
-                        lbl.config(text="Matched", fg=matched_fg, bg=matched_bg,
+                        lbl.config(text="✓ Matched", fg=matched_fg, bg=matched_bg,
                                   font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=matched_bg)
                     self._stop_blink(lbl)
                 elif errors:
-                    # Failed - Red pill (Nordic Light)
+                    # Failed - Red pill with cross icon (Nordic Light)
                     failed_bg = "#FFEBEE"  # Light red bg
                     failed_fg = THEME["danger"]  # #D93025
                     if is_ctk_widget:
                         badge.configure(fg_color=failed_bg)
-                        lbl.configure(text="Failed", text_color=failed_fg)
+                        lbl.configure(text="✗ Failed", text_color=failed_fg)
                     else:
-                        lbl.config(text="Failed", fg=failed_fg, bg=failed_bg,
+                        lbl.config(text="✗ Failed", fg=failed_fg, bg=failed_bg,
                                   font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=failed_bg)
@@ -1646,7 +1646,7 @@ class DashboardPage(BaseFrame):
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
-                    # Pending - Neutral pill
+                    # Pending - Neutral pill with dash
                     pending_bg = THEME["chip"]
                     pending_fg = THEME["text_muted"]
                     if is_ctk_widget:
