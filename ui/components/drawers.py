@@ -621,28 +621,34 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         weights = data.get("weights", {})
         rate_source = data.get("rate_label", "Bloomberg")
 
-        # Build inputs list - include CM rates used for implied calculation
+        # Build inputs list - include rates used for implied calculation
         inputs = [
             ("EUR Implied", f"{data.get('eur_impl', 0):.4f}%" if data.get('eur_impl') else "—", "Calculated"),
             ("USD Implied", f"{data.get('usd_impl', 0):.4f}%" if data.get('usd_impl') else "—", "Calculated"),
-            ("NOK CM", f"{data.get('nok_cm', 0):.4f}%" if data.get('nok_cm') else "—", rate_source),
         ]
 
-        # Add separator for CM rates used in calculation
-        inputs.append(("─── CM Rates ───", "", ""))
+        # Add separator for rates used in calculation
+        inputs.append(("─── Rates ───", "", ""))
 
         # EUR CM rate (EURIBOR) used in implied calculation
         inputs.append((
             "EUR CM (EURIBOR)",
             f"{data.get('eur_rate', 0):.4f}%" if data.get('eur_rate') else "—",
-            rate_source
+            "Bloomberg"
         ))
 
         # USD CM rate (SOFR) used in implied calculation
         inputs.append((
             "USD CM (SOFR)",
             f"{data.get('usd_rate', 0):.4f}%" if data.get('usd_rate') else "—",
-            rate_source
+            "Bloomberg"
+        ))
+
+        # NOK ECP rate
+        inputs.append((
+            "NOK ECP",
+            f"{data.get('nok_cm', 0):.4f}%" if data.get('nok_cm') else "—",
+            "Bloomberg"
         ))
 
         # Add separator for FX data
