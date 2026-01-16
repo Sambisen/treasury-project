@@ -711,8 +711,8 @@ def _darken(c: str, amount: float) -> str:
 if CTK_AVAILABLE:
     class PremiumCTAButton(ctk.CTkFrame):
         """
-        A premium-looking CTA button with gradient, shadow, and states.
-        Supports: hover/pressed/disabled/loading/confirmed.
+        Premium CTA button - clean, solid design that looks expensive.
+        Uses CTkButton internally for reliability.
         """
 
         def __init__(
@@ -720,240 +720,93 @@ if CTK_AVAILABLE:
             master,
             text: str = "Confirm rates",
             command=None,
-            width: int = 190,
-            height: int = 46,
-            radius: int = 14,
-            fg_top: str = None,
-            fg_bottom: str = None,
-            border_color: str = None,
-            text_color: str = "#FFFFFF",
-            font: tuple = ("Segoe UI", 13, "bold"),
-            shadow: bool = True,
+            width: int = 180,
+            height: int = 44,
+            radius: int = 10,
             **kwargs,
         ):
             super().__init__(master, fg_color="transparent", **kwargs)
 
-            self._btn_width = width
-            self._btn_height = height
-            self._btn_radius = radius
             self._text = text
             self._command = command
-
-            self._enabled = True
-            self._hover = False
-            self._pressed = False
+            self._enabled = False  # Start disabled
             self._loading = False
-            self._confirmed = False
-            self._focus = False
 
-            accent = THEME.get("accent", "#FF6A00")
-            accent_hover = THEME.get("accent_hover", "#FF7A1A")
+            # Premium colors
+            self._accent = THEME.get("accent", "#F57C00")
+            self._accent_hover = _darken(self._accent, 0.08)
+            self._accent_pressed = _darken(self._accent, 0.15)
+            self._success = THEME.get("good", "#1E8E3E")
+            self._disabled_bg = "#D1D5DB"
+            self._disabled_text = "#9CA3AF"
 
-            self._fg_top = fg_top or _lighten(accent, 0.06)
-            self._fg_bottom = fg_bottom or _darken(accent, 0.04)
-            self._border_color = border_color or _darken(accent, 0.12)
-            self._text_color = text_color
-            self._font = font
-            self._shadow_on = shadow
-
-            # Get accent color for canvas background
-            accent = THEME.get("accent", "#FF6A00")
-
-            # Shadow layer
-            self._shadow_canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0, bg=accent)
-            self._shadow_canvas.grid(row=0, column=0, sticky="nsew")
-
-            # Main canvas layer
-            self._canvas = ctk.CTkCanvas(self, width=self._btn_width, height=self._btn_height, highlightthickness=0, bd=0, bg=accent)
-            self._canvas.grid(row=0, column=0, sticky="nsew")
-
-            # Content label
-            self._label = ctk.CTkLabel(
+            # Main button - solid orange, clean look
+            self._btn = ctk.CTkButton(
                 self,
-                text=self._text,
-                text_color=self._text_color,
-                font=self._font,
-                fg_color="transparent",
+                text=text,
+                command=self._on_click,
+                width=width,
+                height=height,
+                corner_radius=radius,
+                fg_color=self._disabled_bg,
+                hover_color=self._disabled_bg,
+                text_color=self._disabled_text,
+                font=("Segoe UI Semibold", 13),
+                border_width=0,
             )
-            self._label.place(relx=0.5, rely=0.5, anchor="center")
-
-            # Progress bar for loading state
-            self._progress = ctk.CTkProgressBar(
-                self,
-                mode="indeterminate",
-                width=int(self._btn_width * 0.55),
-                height=8,
-                fg_color=_lighten("#000000", 0.92),
-                progress_color=_lighten("#FFFFFF", 0.1),
-                corner_radius=999,
-            )
-            self._progress.place_forget()
-
-            # Bindings
-            for widget in (self, self._canvas, self._label):
-                widget.bind("<Enter>", self._on_enter)
-                widget.bind("<Leave>", self._on_leave)
-                widget.bind("<ButtonPress-1>", self._on_press)
-                widget.bind("<ButtonRelease-1>", self._on_release)
-
-            self.configure(width=self._btn_width, height=self._btn_height)
-            self.grid_propagate(False)
-            self._redraw()
+            self._btn.pack()
 
         def set_enabled(self, enabled: bool) -> None:
+            """Enable or disable the button."""
             self._enabled = bool(enabled)
-            if not self._enabled:
-                self._hover = False
-                self._pressed = False
-            self._redraw()
-
-        def set_loading(self, loading: bool, loading_text: str = "Confirming...") -> None:
-            self._loading = bool(loading)
-            if self._loading:
-                self._label.configure(text=loading_text)
-                self._progress.place(relx=0.5, rely=0.78, anchor="center")
-                self._progress.start()
+            if self._enabled:
+                self._btn.configure(
+                    fg_color=self._accent,
+                    hover_color=self._accent_hover,
+                    text_color="#FFFFFF",
+                    cursor="hand2"
+                )
             else:
-                self._progress.stop()
-                self._progress.place_forget()
-                self._label.configure(text=self._text)
-            self._redraw()
-
-        def flash_confirmed(self, confirmed_text: str = "Confirmed") -> None:
-            self._confirmed = True
-            self._label.configure(text=confirmed_text)
-            self._redraw()
-
-            def _restore():
-                self._confirmed = False
-                self._label.configure(text=self._text)
-                self._redraw()
-
-            self.after(1200, _restore)
-
-        def _on_enter(self, _evt=None) -> None:
-            if not self._enabled or self._loading:
-                return
-            self._hover = True
-            self._redraw()
-
-        def _on_leave(self, _evt=None) -> None:
-            self._hover = False
-            self._pressed = False
-            self._redraw()
-
-        def _on_press(self, _evt=None) -> None:
-            if not self._enabled or self._loading:
-                return
-            self._pressed = True
-            self._redraw()
-
-        def _on_release(self, _evt=None) -> None:
-            if not self._enabled or self._loading:
-                return
-            was_pressed = self._pressed
-            self._pressed = False
-            self._redraw()
-            if was_pressed and self._hover and callable(self._command):
-                self._command()
-
-        def _redraw(self) -> None:
-            self._shadow_canvas.delete("all")
-            self._canvas.delete("all")
-
-            accent = THEME.get("accent", "#FF6A00")
-            accent_hover = THEME.get("accent_hover", "#FF7A1A")
-            accent_pressed = _darken(accent, 0.1)
-            success = THEME.get("good", "#1E8E3E")
-            text_primary = THEME.get("text", "#1F2937")
-            bg_canvas = THEME.get("bg_panel", "#F7F7F6")
-            shadow_color = "#000000"
-
-            if not self._enabled:
-                top = _lighten("#9CA3AF", 0.20)
-                bottom = _darken("#9CA3AF", 0.08)
-                border = _darken("#9CA3AF", 0.15)
-                text_color = _lighten(text_primary, 0.45)
-                shadow_alpha = 0.00
-            elif self._confirmed:
-                top = _lighten(success, 0.08)
-                bottom = _darken(success, 0.05)
-                border = _darken(success, 0.18)
-                text_color = "#FFFFFF"
-                shadow_alpha = 0.14
-            elif self._pressed:
-                top = _lighten(accent_pressed, 0.04)
-                bottom = _darken(accent_pressed, 0.06)
-                border = _darken(accent_pressed, 0.20)
-                text_color = "#FFFFFF"
-                shadow_alpha = 0.10
-            elif self._hover:
-                top = _lighten(accent_hover, 0.06)
-                bottom = _darken(accent_hover, 0.05)
-                border = _darken(accent_hover, 0.18)
-                text_color = "#FFFFFF"
-                shadow_alpha = 0.16
-            else:
-                top = self._fg_top
-                bottom = self._fg_bottom
-                border = self._border_color
-                text_color = self._text_color
-                shadow_alpha = 0.14
-
-            if self._loading and self._enabled:
-                top = _blend(top, "#FFFFFF", 0.06)
-                bottom = _blend(bottom, "#FFFFFF", 0.06)
-
-            self._label.configure(text_color=text_color)
-
-            # Shadow
-            if self._shadow_on and shadow_alpha > 0:
-                self._draw_rounded_rect(
-                    self._shadow_canvas,
-                    x=2,
-                    y=3 if not self._pressed else 4,
-                    w=self._btn_width - 2,
-                    h=self._btn_height - 2,
-                    r=self._btn_radius,
-                    fill=_blend(shadow_color, bg_canvas, 0.93),
-                    outline="",
+                self._btn.configure(
+                    fg_color=self._disabled_bg,
+                    hover_color=self._disabled_bg,
+                    text_color=self._disabled_text,
+                    cursor=""
                 )
 
-            # Main button with gradient
-            y_offset = 0 if not self._pressed else 1
-            self._draw_vertical_gradient(
-                self._canvas, 0, y_offset, self._btn_width, self._btn_height - y_offset, self._btn_radius, top, bottom
+        def set_loading(self, loading: bool, loading_text: str = "Confirming...") -> None:
+            """Set loading state with spinner text."""
+            self._loading = bool(loading)
+            if self._loading:
+                self._btn.configure(
+                    text=loading_text,
+                    fg_color=_blend(self._accent, "#FFFFFF", 0.2),
+                    hover_color=_blend(self._accent, "#FFFFFF", 0.2),
+                )
+            else:
+                self._btn.configure(text=self._text)
+                # Restore proper state
+                self.set_enabled(self._enabled)
+
+        def flash_confirmed(self, confirmed_text: str = "Confirmed") -> None:
+            """Flash green confirmed state briefly."""
+            self._btn.configure(
+                text=confirmed_text,
+                fg_color=self._success,
+                hover_color=self._success,
+                text_color="#FFFFFF"
             )
 
-            # Border
-            self._draw_rounded_rect(
-                self._canvas, 0, y_offset, self._btn_width - 1, self._btn_height - 1 - y_offset, self._btn_radius, fill="", outline=border
-            )
+            def _restore():
+                self._btn.configure(text=self._text)
+                self.set_enabled(self._enabled)
 
-            # Top highlight
-            self._draw_rounded_rect(
-                self._canvas, 1, 1 + y_offset, self._btn_width - 3, int((self._btn_height - y_offset) * 0.42),
-                max(8, self._btn_radius - 3), fill="", outline=_blend("#FFFFFF", top, 0.35)
-            )
+            self.after(1500, _restore)
 
-        def _draw_vertical_gradient(self, canvas, x, y, w, h, r, top, bottom, steps=16):
-            for i in range(steps):
-                t = i / max(1, steps - 1)
-                color = _blend(top, bottom, t)
-                y0 = y + int((h * i) / steps)
-                y1 = y + int((h * (i + 1)) / steps)
-                self._draw_rounded_rect(canvas, x, y0, w, (y1 - y0) + 1, r, fill=color, outline=color)
-
-        def _draw_rounded_rect(self, canvas, x, y, w, h, r, fill, outline, width=1):
-            r = max(0, min(r, int(min(w, h) / 2)))
-            x2, y2 = x + w, y + h
-            points = [
-                (x + r, y), (x2 - r, y), (x2, y), (x2, y + r),
-                (x2, y2 - r), (x2, y2), (x2 - r, y2), (x + r, y2),
-                (x, y2), (x, y2 - r), (x, y + r), (x, y),
-            ]
-            flat = [p for xy in points for p in xy]
-            canvas.create_polygon(flat, smooth=True, splinesteps=36, fill=fill, outline=outline, width=width)
+        def _on_click(self) -> None:
+            """Handle button click."""
+            if self._enabled and not self._loading and callable(self._command):
+                self._command()
 
 
     class SecondaryActionButton(ctk.CTkFrame):
