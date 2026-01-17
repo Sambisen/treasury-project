@@ -42,13 +42,40 @@ def get_logger(name):
 DEVELOPMENT_MODE = True  # Default to TEST mode
 
 # ============================================================================
-# BLOOMBERG TICKER SUFFIX (F033 for Prod, F043 for Dev)
+# FIXING TIME CONFIGURATION
 # ============================================================================
+# Bloomberg tickers use different suffixes based on fixing time:
+#   - F043 = 10:30 fixing (default)
+#   - F040 = 10:00 fixing
+#
+# The validation gate time is synchronized with the selected fixing time.
+FIXING_CONFIGS = {
+    "10:30": {"suffix": "F043", "gate": (10, 30), "label": "10:30 (F043)"},
+    "10:00": {"suffix": "F040", "gate": (10, 0), "label": "10:00 (F040)"},
+}
+DEFAULT_FIXING_TIME = "10:30"
+VALIDATION_GATE_TZ = "Europe/Stockholm"
+
+def get_fixing_config():
+    """Get the current fixing configuration based on settings."""
+    try:
+        from settings import get_setting
+        fixing_time = get_setting("fixing_time", DEFAULT_FIXING_TIME)
+    except Exception:
+        fixing_time = DEFAULT_FIXING_TIME
+    return FIXING_CONFIGS.get(fixing_time, FIXING_CONFIGS[DEFAULT_FIXING_TIME])
+
 def get_ticker_suffix():
-    """Get the Bloomberg ticker suffix.
-    Always F043 for both Dev and Prod mode.
+    """Get the Bloomberg ticker suffix based on selected fixing time.
+    Returns F043 for 10:30 fixing, F040 for 10:00 fixing.
     """
-    return "F043"
+    return get_fixing_config()["suffix"]
+
+def get_gate_time():
+    """Get the validation gate time (hour, minute) based on selected fixing time.
+    Returns (10, 30) for 10:30 fixing, (10, 0) for 10:00 fixing.
+    """
+    return get_fixing_config()["gate"]
 
 def get_ticker(base_ticker):
     """Convert a base ticker to use the correct suffix for current mode.

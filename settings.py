@@ -3,6 +3,7 @@ Settings management for Nibor Calculation Terminal.
 Handles loading, saving, and accessing user preferences.
 """
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 from datetime import datetime
@@ -15,6 +16,9 @@ log = get_logger("settings")
 DEFAULT_SETTINGS = {
     # Data Source Mode
     "development_mode": True,  # True = TEST files, False = PROD files
+
+    # Fixing Time (affects Bloomberg ticker suffix and validation gate)
+    "fixing_time": "10:30",  # "10:30" (F043) or "10:00" (F040)
 
     # Appearance
     "theme": "dark",  # dark, light
@@ -267,3 +271,37 @@ ACCENT_COLORS = {
     "purple": "#8b5cf6",
     "cyan": "#06b6d4",
 }
+
+
+# ============================================================================
+# APP ENVIRONMENT (PROD/DEV)
+# ============================================================================
+def get_app_env() -> str:
+    """
+    Get the application environment (PROD or DEV).
+
+    Priority:
+    1. APP_ENV environment variable (if set to "PROD" or "DEV")
+    2. development_mode setting (True = DEV, False = PROD)
+
+    Returns:
+        "PROD" or "DEV"
+    """
+    # Check environment variable first
+    env_var = os.environ.get("APP_ENV", "").upper()
+    if env_var in ("PROD", "DEV"):
+        return env_var
+
+    # Fallback to development_mode setting
+    dev_mode = get_setting("development_mode", True)
+    return "DEV" if dev_mode else "PROD"
+
+
+def is_prod_mode() -> bool:
+    """Check if running in PROD mode."""
+    return get_app_env() == "PROD"
+
+
+def is_dev_mode() -> bool:
+    """Check if running in DEV mode."""
+    return get_app_env() == "DEV"

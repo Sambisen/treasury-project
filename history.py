@@ -94,8 +94,34 @@ def save_history(history: dict):
         log.error(f"[{mode_str}] Failed to save history: {e}")
 
 
+def compute_overall_status(app) -> str:
+    """
+    Compute overall validation status based on all status flags.
+
+    Returns:
+        "OK" if all validations pass and no alerts
+        "FAIL" otherwise
+    """
+    # Check all status flags
+    status_spot = getattr(app, 'status_spot', True)
+    status_fwds = getattr(app, 'status_fwds', True)
+    status_days = getattr(app, 'status_days', True)
+    status_cells = getattr(app, 'status_cells', True)
+    status_weights = getattr(app, 'status_weights', True)
+
+    all_status_ok = all([status_spot, status_fwds, status_days, status_cells, status_weights])
+
+    # Check for alerts
+    alerts = getattr(app, 'active_alerts', [])
+    no_alerts = len(alerts) == 0
+
+    return "OK" if (all_status_ok and no_alerts) else "FAIL"
+
+
 def create_snapshot(app) -> dict:
     """Create a snapshot of current NIBOR calculation state."""
+    from settings import get_app_env, get_setting
+
     user, machine = get_user_info()
     timestamp = datetime.now().isoformat()
 
@@ -141,6 +167,13 @@ def create_snapshot(app) -> dict:
     # Get model
     model = getattr(app, 'selected_calc_model', 'unknown')
 
+    # Compute overall status
+    overall_status = compute_overall_status(app)
+
+    # Get environment and fixing time
+    env = get_app_env()
+    fixing_time = get_setting("fixing_time", "10:30")
+
     snapshot = {
         'timestamp': timestamp,
         'user': user,
@@ -150,7 +183,14 @@ def create_snapshot(app) -> dict:
         'weights': weights,
         'market_data': market_data,
         'excel_cm_rates': excel_cm_rates,
-        'alerts': alerts
+        'alerts': alerts,
+        # New fields for gated validation
+        'overall_status': overall_status,
+        'env': env,
+        'fixing_time': fixing_time,
+        'confirmed': False,
+        'confirmed_by': None,
+        'confirmed_at': None,
     }
 
     return snapshot
@@ -182,6 +222,66 @@ def get_snapshot(date_key: str) -> dict | None:
     """Get a specific snapshot by date key (YYYY-MM-DD)."""
     history = load_history()
     return history.get(date_key)
+
+
+def get_last_approved(env_filter: str = None) -> dict | None:
+    """
+    Get the most recent approved snapshot.
+
+    Search priority:
+    1. Most recent with overall_status=="OK" AND confirmed==True AND env==env_filter
+    2. Fallback: Most recent with overall_status=="OK" (regardless of confirmed)
+    3. Fallback: Most recent snapshot with rates data
+
+    Args:
+        env_filter: Optional environment filter ("PROD" or "DEV").
+                   If None, no environment filtering is applied.
+
+    Returns:
+        dict with keys: 'date_key', 'snapshot', or None if no suitable snapshot found
+    """
+    history = load_history()
+
+    if not history:
+        log.info("No history found for get_last_approved")
+        return None
+
+    # Sort by date (newest first)
+    sorted_dates = sorted(history.keys(), reverse=True)
+
+    # Priority 1: Find confirmed OK snapshot matching env
+    for date_key in sorted_dates:
+        entry = history[date_key]
+        overall_status = entry.get('overall_status', None)
+        confirmed = entry.get('confirmed', False)
+        entry_env = entry.get('env', None)
+
+        if overall_status == "OK" and confirmed:
+            if env_filter is None or entry_env == env_filter:
+                log.info(f"Found confirmed approved snapshot: {date_key} (env={entry_env})")
+                return {'date_key': date_key, 'snapshot': entry}
+
+    # Priority 2: Find any OK snapshot (regardless of confirmed)
+    for date_key in sorted_dates:
+        entry = history[date_key]
+        overall_status = entry.get('overall_status', None)
+
+        if overall_status == "OK":
+            log.info(f"Found unconfirmed OK snapshot: {date_key}")
+            return {'date_key': date_key, 'snapshot': entry}
+
+    # Priority 3: Find any snapshot with rates data
+    for date_key in sorted_dates:
+        entry = history[date_key]
+        rates = entry.get('rates', {})
+
+        # Check if rates has actual data
+        if rates and any(rates.get(t, {}).get('nibor') is not None for t in ['1m', '2m', '3m', '6m']):
+            log.info(f"Found snapshot with rates (no status): {date_key}")
+            return {'date_key': date_key, 'snapshot': entry}
+
+    log.warning("No suitable snapshot found in history")
+    return None
 
 
 def get_previous_day_rates(date_key: str = None) -> dict | None:
@@ -652,8 +752,16 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
 
 def confirm_rates(app) -> tuple[bool, str]:
     """
-    Confirm rates: backfill fixings, save contribution snapshot, and write to Excel.
+    Confirm rates: backfill fixings, save contribution snapshot, and mark as confirmed.
+
+    This function:
+    1. Backfills NIBOR fixings from Bloomberg
+    2. Saves a snapshot with confirmed=True
+    3. Updates the history with confirmation metadata
     """
+    from settings import get_app_env
+
+    env = get_app_env()
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -663,7 +771,19 @@ def confirm_rates(app) -> tuple[bool, str]:
         engine = getattr(app, 'engine', None)
         saved_count, saved_dates = backfill_fixings(engine, num_dates=5)
 
+        # Create and save snapshot
         date_key = save_snapshot(app)
+
+        # Now update the snapshot with confirmation data
+        history = load_history()
+        if date_key in history:
+            user, machine = get_user_info()
+            history[date_key]['confirmed'] = True
+            history[date_key]['confirmed_by'] = user
+            history[date_key]['confirmed_at'] = datetime.now().isoformat()
+            history[date_key]['env'] = env
+            save_history(history)
+            log.info(f"[{mode_str}] Snapshot {date_key} marked as confirmed by {user}")
 
         msg = f"Rates confirmed and saved for {date_key}"
 
@@ -674,3 +794,30 @@ def confirm_rates(app) -> tuple[bool, str]:
         error_msg = f"Failed to confirm rates: {e}"
         log.error(f"[{mode_str}] {error_msg}")
         return False, error_msg
+
+
+def set_snapshot_confirmed(date_key: str, confirmed: bool = True) -> bool:
+    """
+    Mark a specific snapshot as confirmed or unconfirmed.
+
+    Args:
+        date_key: The snapshot date key (YYYY-MM-DD)
+        confirmed: Whether to mark as confirmed (default True)
+
+    Returns:
+        True if successful, False otherwise
+    """
+    history = load_history()
+
+    if date_key not in history:
+        log.error(f"Snapshot {date_key} not found in history")
+        return False
+
+    user, machine = get_user_info()
+    history[date_key]['confirmed'] = confirmed
+    history[date_key]['confirmed_by'] = user if confirmed else None
+    history[date_key]['confirmed_at'] = datetime.now().isoformat() if confirmed else None
+
+    save_history(history)
+    log.info(f"Snapshot {date_key} confirmed={confirmed} by {user}")
+    return True

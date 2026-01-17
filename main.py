@@ -6,8 +6,12 @@ CustomTkinter Edition - Modern UI with rounded corners and dark theme.
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, time as dt_time
 from tkinter import messagebox
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 import tkinter as tk
 from ctk_compat import ctk, CTK_AVAILABLE
@@ -24,7 +28,10 @@ from config import (
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, SWET_CM_RECON_MAPPING,
     ALL_REAL_TICKERS,
     get_recon_mapping, get_market_structure, get_all_real_tickers,
-    setup_logging, get_logger
+    setup_logging, get_logger,
+    # New: Fixing time and gate configuration
+    FIXING_CONFIGS, DEFAULT_FIXING_TIME, VALIDATION_GATE_TZ,
+    get_fixing_config, get_ticker_suffix, get_gate_time,
 )
 
 # Configure CustomTkinter appearance
@@ -42,7 +49,8 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
-from history import save_snapshot
+from history import save_snapshot, get_last_approved, compute_overall_status
+from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
     NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage,
@@ -119,13 +127,31 @@ class NiborTerminalCTK(ctk.CTk):
         self._update_buttons: list[tk.Button] = []
         self._update_btn_original_text: dict[int, str] = {}
 
+        # Gated validation state
+        self._validation_locked = True  # Will be updated by _check_validation_gate()
+        self._current_validation_ok = False  # True after successful validation
+        self._showing_last_approved = False  # True when showing last approved data
+        self._last_approved_info = None  # Dict with date_key, snapshot
+        self._gate_timer_id = None  # Timer ID for gate check
+
         self.build_ui()
         self._setup_keyboard_shortcuts()
+
+        # Load last approved data immediately (before any refresh)
+        self._load_last_approved()
+
+        # Update last approved banner visibility
+        self.after(100, self._update_last_approved_banner)
+
+        # Start gate check timer
+        self._check_validation_gate()
 
         # Set up window close handler for system tray
         self.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
-        self.after(250, self.refresh_data)
+        # Only auto-refresh if not showing last approved OR if validation is unlocked
+        if not self._showing_last_approved or not self._is_validation_locked():
+            self.after(250, self.refresh_data)
 
     def _setup_keyboard_shortcuts(self):
         """Setup global keyboard shortcuts."""
@@ -161,6 +187,178 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Ctrl+M = Minimize to tray
         self.bind("<Control-m>", lambda e: self._minimize_to_tray())
+
+    # =========================================================================
+    # GATED VALIDATION METHODS
+    # =========================================================================
+
+    def _is_validation_locked(self) -> bool:
+        """
+        Check if validation is currently locked based on time gate.
+
+        In DEV mode: Always unlocked (returns False)
+        In PROD mode: Locked before gate time (returns True)
+
+        The gate time is determined by the selected fixing time:
+        - 10:30 fixing (F043): Gate at 10:30
+        - 10:00 fixing (F040): Gate at 10:00
+        """
+        # DEV mode: never locked
+        if is_dev_mode():
+            return False
+
+        # Get current Stockholm time
+        try:
+            stockholm_tz = ZoneInfo(VALIDATION_GATE_TZ)
+            now = datetime.now(stockholm_tz)
+        except Exception:
+            # Fallback to local time if timezone fails
+            now = datetime.now()
+            log.warning("Could not get Stockholm time, using local time")
+
+        # Get gate time based on selected fixing
+        gate_hour, gate_minute = get_gate_time()
+        gate_time = dt_time(gate_hour, gate_minute, 0)
+
+        # Check if current time is before gate
+        current_time = now.time()
+        is_locked = current_time < gate_time
+
+        return is_locked
+
+    def _check_validation_gate(self):
+        """
+        Periodic check of validation gate status.
+        Updates button state and text based on current time.
+        Called every 15 seconds.
+        """
+        was_locked = self._validation_locked
+        self._validation_locked = self._is_validation_locked()
+
+        # Update button state
+        self._update_validation_button_state()
+
+        # Log if state changed
+        if was_locked != self._validation_locked:
+            state_str = "LOCKED" if self._validation_locked else "UNLOCKED"
+            log.info(f"Validation gate changed to: {state_str}")
+            if not self._validation_locked:
+                self.toast.info("Validation unlocked – Ready to run")
+
+        # Schedule next check (every 15 seconds)
+        self._gate_timer_id = self.after(15000, self._check_validation_gate)
+
+    def _update_validation_button_state(self):
+        """Update the validation button text and state based on current lock status."""
+        if not hasattr(self, 'validation_btn'):
+            return
+
+        if self._busy:
+            # Currently running
+            self.validation_btn.configure(
+                state="disabled",
+                text="⏳ Running..."
+            )
+        elif self._validation_locked and is_prod_mode():
+            # Locked in PROD mode
+            gate_hour, gate_minute = get_gate_time()
+            self.validation_btn.configure(
+                state="disabled",
+                text=f"🔒 Locked until {gate_hour}:{gate_minute:02d} (Stockholm)"
+            )
+        else:
+            # Unlocked - ready to run
+            self.validation_btn.configure(
+                state="normal",
+                text="▶ Run Calculation & Validation"
+            )
+
+    def _load_last_approved(self):
+        """
+        Load last approved snapshot on startup.
+        Populates the UI with last approved data immediately.
+        """
+        log.info("Loading last approved snapshot...")
+
+        # Try to get last approved for current environment
+        env = get_app_env()
+        result = get_last_approved(env_filter=env)
+
+        # Fallback: try without env filter
+        if result is None:
+            result = get_last_approved(env_filter=None)
+
+        if result is None:
+            log.info("No approved snapshot found in history")
+            self._showing_last_approved = False
+            self._last_approved_info = None
+            return
+
+        self._last_approved_info = result
+        snapshot = result['snapshot']
+        date_key = result['date_key']
+
+        log.info(f"Loading last approved from {date_key}")
+
+        # Populate cached_market_data from snapshot
+        market_data = snapshot.get('market_data', {})
+        if market_data:
+            # Convert to expected format (with 'price' key)
+            self.cached_market_data = {}
+            for ticker, value in market_data.items():
+                if isinstance(value, dict):
+                    self.cached_market_data[ticker] = value
+                else:
+                    self.cached_market_data[ticker] = {'price': value}
+            log.info(f"Loaded {len(self.cached_market_data)} market data points from last approved")
+
+        # Populate funding_calc_data from snapshot rates
+        rates = snapshot.get('rates', {})
+        weights = snapshot.get('weights', {})
+        if rates:
+            self.funding_calc_data = {}
+            for tenor, rate_data in rates.items():
+                self.funding_calc_data[tenor] = {
+                    'funding_rate': rate_data.get('funding'),
+                    'spread': rate_data.get('spread'),
+                    'final_rate': rate_data.get('nibor'),
+                    'eur_impl': rate_data.get('eur_impl'),
+                    'usd_impl': rate_data.get('usd_impl'),
+                    'nok_cm': rate_data.get('nok_cm'),
+                    'weights': weights,
+                }
+            log.info(f"Loaded rates for {list(self.funding_calc_data.keys())} from last approved")
+
+        self._showing_last_approved = True
+        self.bbg_ok = True  # Pretend we have data for UI purposes
+        self.excel_ok = True
+
+        log.info(f"Last approved data loaded: {date_key}")
+
+    def _on_fixing_time_change(self, new_value: str):
+        """
+        Handle fixing time radio button change.
+        Saves setting and triggers data refresh with new tickers.
+        """
+        current = get_setting("fixing_time", DEFAULT_FIXING_TIME)
+
+        if new_value == current:
+            return
+
+        # Save new setting
+        set_setting("fixing_time", new_value, save=True)
+        log.info(f"Fixing time changed: {current} -> {new_value}")
+
+        # Update gate check
+        self._check_validation_gate()
+
+        # Show toast and refresh data
+        config = FIXING_CONFIGS.get(new_value, FIXING_CONFIGS[DEFAULT_FIXING_TIME])
+        suffix = config["suffix"]
+        self.toast.info(f"Fixing time: {new_value} ({suffix}) – Fetching new data...")
+
+        # Trigger refresh with new tickers
+        self.refresh_data()
 
     def _shortcut_save_snapshot(self, event=None):
         """Handle Ctrl+S shortcut."""
@@ -211,30 +409,82 @@ class NiborTerminalCTK(ctk.CTk):
         hpad = CURRENT_MODE["hpad"]
 
         # ====================================================================
-        # GLOBAL HEADER - Compact bar with UPDATE + Clock
+        # GLOBAL HEADER - Compact bar with ENV badge, Fixing toggle, Validation button, Clock
         # ====================================================================
         global_header = ctk.CTkFrame(self, fg_color=THEME["bg_main"], corner_radius=0)
         global_header.pack(fill="x", padx=hpad, pady=(8, 0))
 
-        # Header content container - right aligned
+        # Header content container - left side (env badge + fixing toggle)
+        header_left = ctk.CTkFrame(global_header, fg_color="transparent")
+        header_left.pack(side="left")
+
+        # PROD/DEV Badge
+        env = get_app_env()
+        env_color = "#1E8E3E" if env == "PROD" else "#F59E0B"  # Green for PROD, Yellow for DEV
+        env_text_color = "white"
+
+        self.env_badge = ctk.CTkLabel(
+            header_left,
+            text=f"● {env}",
+            text_color=env_text_color,
+            fg_color=env_color,
+            font=("Segoe UI Semibold", 11),
+            corner_radius=6,
+            padx=10,
+            pady=4
+        )
+        self.env_badge.pack(side="left", padx=(0, 15))
+
+        # Fixing Time Toggle
+        fixing_frame = ctk.CTkFrame(header_left, fg_color="transparent")
+        fixing_frame.pack(side="left", padx=(0, 15))
+
+        ctk.CTkLabel(
+            fixing_frame,
+            text="FIXING:",
+            text_color=THEME["text_muted"],
+            font=("Segoe UI", 10)
+        ).pack(side="left", padx=(0, 8))
+
+        # Radio button variable
+        current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
+        self._fixing_time_var = tk.StringVar(value=current_fixing)
+
+        # Radio buttons for fixing time
+        for fixing_time, config in FIXING_CONFIGS.items():
+            rb = ctk.CTkRadioButton(
+                fixing_frame,
+                text=config["label"],
+                variable=self._fixing_time_var,
+                value=fixing_time,
+                command=lambda ft=fixing_time: self._on_fixing_time_change(ft),
+                font=("Segoe UI", 10),
+                text_color=THEME["text"],
+                fg_color=THEME["accent"],
+                hover_color=THEME["accent_hover"],
+                border_color=THEME["border"],
+            )
+            rb.pack(side="left", padx=(0, 10))
+
+        # Header content container - right side
         header_right = ctk.CTkFrame(global_header, fg_color="transparent")
         header_right.pack(side="right")
 
-        # UPDATE button - compact
-        self.header_update_btn = ctk.CTkButton(
+        # Run Calculation & Validation button
+        self.validation_btn = ctk.CTkButton(
             header_right,
-            text="UPDATE",
+            text="▶ Run Calculation & Validation",
             command=self.refresh_data,
             fg_color=THEME["accent"],
             hover_color=THEME["accent_hover"],
             text_color="white",
             font=("Segoe UI Semibold", 11),
             corner_radius=8,
-            width=90,
+            width=220,
             height=32
         )
-        self.header_update_btn.pack(side="left", padx=(0, 12))
-        self.register_update_button(self.header_update_btn)
+        self.validation_btn.pack(side="left", padx=(0, 12))
+        self.register_update_button(self.validation_btn)
 
         # ====================================================================
         # MINIMAL CLOCK - No frame, clean floating design
@@ -272,6 +522,47 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Start the header clock update
         self._update_header_clock()
+
+        # ====================================================================
+        # DEV WARNING BANNER - Only shown in DEV mode
+        # ====================================================================
+        if is_dev_mode():
+            self.dev_warning_banner = ctk.CTkFrame(
+                self,
+                fg_color="#FEF3C7",  # Light yellow/amber background
+                corner_radius=0,
+                height=36
+            )
+            self.dev_warning_banner.pack(fill="x", padx=hpad, pady=(4, 0))
+            self.dev_warning_banner.pack_propagate(False)
+
+            ctk.CTkLabel(
+                self.dev_warning_banner,
+                text="⚠️  DEV MODE – Bloomberg data may be stale before 10:30. Validation results are for testing only.",
+                text_color="#92400E",  # Dark amber text
+                font=("Segoe UI Semibold", 11),
+                anchor="w"
+            ).pack(side="left", padx=15, pady=8)
+
+        # ====================================================================
+        # LAST APPROVED INFO BANNER - Shows when displaying last approved data
+        # ====================================================================
+        self.last_approved_banner = ctk.CTkFrame(
+            self,
+            fg_color="#DBEAFE",  # Light blue background
+            corner_radius=0,
+            height=36
+        )
+        # Don't pack yet - will be shown/hidden by _update_last_approved_banner()
+
+        self.last_approved_label = ctk.CTkLabel(
+            self.last_approved_banner,
+            text="📋 Data shown: Last approved",
+            text_color="#1E40AF",  # Dark blue text
+            font=("Segoe UI Semibold", 11),
+            anchor="w"
+        )
+        self.last_approved_label.pack(side="left", padx=15, pady=8)
 
         # ====================================================================
         # STATUS BAR - Bottom of window
@@ -785,10 +1076,25 @@ class NiborTerminalCTK(ctk.CTk):
             messagebox.showerror("Nibor Terminal", f"Folder missing: {STIBOR_GRSS_PATH}")
 
     def refresh_data(self):
+        """
+        Fetch fresh data from Bloomberg and Excel, then run validation.
+        Always fetches new data to ensure fresh results.
+        """
         if self._busy:
             return
 
-        self.set_busy(True, text="FETCHING…")
+        # Check validation gate in PROD mode
+        if self._is_validation_locked() and is_prod_mode():
+            gate_hour, gate_minute = get_gate_time()
+            self.toast.warning(f"Validation locked until {gate_hour}:{gate_minute:02d} (Stockholm)")
+            log.warning("Refresh blocked: validation gate is locked")
+            return
+
+        self.set_busy(True, text="⏳ FETCHING...")
+
+        # No longer showing last approved - we're getting fresh data
+        self._showing_last_approved = False
+        self._update_last_approved_banner()
 
         # Set connection indicators to "connecting" state
         self.connection_panel.set_bloomberg_status(ConnectionStatusIndicator.CONNECTING)
@@ -798,6 +1104,27 @@ class NiborTerminalCTK(ctk.CTk):
         self.update_days_from_date(today)
 
         threading.Thread(target=self._worker_refresh_excel_then_bbg, daemon=True).start()
+
+    def _update_last_approved_banner(self):
+        """Show or hide the last approved banner based on current state."""
+        if not hasattr(self, 'last_approved_banner'):
+            return
+
+        if self._showing_last_approved and self._last_approved_info:
+            # Show banner with info
+            date_key = self._last_approved_info.get('date_key', 'Unknown')
+            snapshot = self._last_approved_info.get('snapshot', {})
+            timestamp = snapshot.get('timestamp', '')[:16].replace('T', ' ')
+            env = snapshot.get('env', '')
+
+            env_str = f" ({env})" if env else ""
+            self.last_approved_label.configure(
+                text=f"📋 Last approved: {timestamp}{env_str}  |  Data shown: Last approved run"
+            )
+            self.last_approved_banner.pack(fill="x", padx=CURRENT_MODE["hpad"], pady=(4, 0), before=self.body)
+        else:
+            # Hide banner
+            self.last_approved_banner.pack_forget()
 
     def _worker_refresh_excel_then_bbg(self):
         log.info("===== REFRESH DATA WORKER STARTED =====")
@@ -946,6 +1273,14 @@ class NiborTerminalCTK(ctk.CTk):
                 log.info(f"Auto-saved snapshot: {date_key}")
             except Exception as e:
                 log.error(f"Failed to auto-save snapshot: {e}")
+
+        # Compute overall validation status
+        overall_status = compute_overall_status(self)
+        self._current_validation_ok = (overall_status == "OK")
+        log.info(f"Validation complete: overall_status={overall_status}")
+
+        # Update validation button state
+        self._update_validation_button_state()
 
     def refresh_ui(self):
         if self._current_page and self._current_page in self._pages:
