@@ -969,7 +969,7 @@ class DashboardPage(BaseFrame):
                     padx=12, pady=6).grid(row=row_idx, column=4, sticky="ew")
 
     def _show_excel_cells_table(self, popup):
-        """Show professional Excel Cells validation table with collapsible rows."""
+        """Show professional Excel Cells validation table with separated Failed/Matched sections."""
         content = tk.Frame(popup, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=20, pady=10)
 
@@ -980,10 +980,10 @@ class DashboardPage(BaseFrame):
                     fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=20)
             return
 
-        # Count stats
+        # Separate failed and matched checks
+        failed_checks = [c for c in self._excel_cells_details if not c.get("matched")]
+        matched_checks = [c for c in self._excel_cells_details if c.get("matched")]
         total_checks = len(self._excel_cells_details)
-        passed_checks = sum(1 for c in self._excel_cells_details if c.get("matched"))
-        failed_checks = total_checks - passed_checks
 
         # Summary header
         summary_frame = tk.Frame(content, bg=THEME["bg_panel"])
@@ -994,14 +994,14 @@ class DashboardPage(BaseFrame):
                 font=("Segoe UI Semibold", 11),
                 fg=THEME["text"], bg=THEME["bg_panel"]).pack(side="left")
 
-        if failed_checks > 0:
+        if failed_checks:
             tk.Label(summary_frame,
-                    text=f"  •  {failed_checks} failed",
+                    text=f"  •  {len(failed_checks)} failed",
                     font=("Segoe UI", 10),
                     fg=THEME["danger"], bg=THEME["bg_panel"]).pack(side="left")
 
         tk.Label(summary_frame,
-                text=f"  •  {passed_checks} passed",
+                text=f"  •  {len(matched_checks)} passed",
                 font=("Segoe UI", 10),
                 fg=THEME["success"], bg=THEME["bg_panel"]).pack(side="left")
 
@@ -1014,7 +1014,6 @@ class DashboardPage(BaseFrame):
         canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Make scroll_frame expand to canvas width
         def on_canvas_configure(e):
             canvas.itemconfig(canvas_window, width=e.width)
         canvas.bind("<Configure>", on_canvas_configure)
@@ -1027,161 +1026,155 @@ class DashboardPage(BaseFrame):
             canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
-        # Group by tenor
-        tenors_order = ["1M", "2M", "3M", "6M"]
-        checks_by_tenor = {}
-        for check in self._excel_cells_details:
-            tenor = check.get("tenor", "Unknown")
-            if tenor not in checks_by_tenor:
-                checks_by_tenor[tenor] = []
-            checks_by_tenor[tenor].append(check)
+        # Helper to create a check row
+        def create_check_row(parent, check, row_idx):
+            field = check.get("field", "")
+            tenor = check.get("tenor", "")
+            cell = check.get("cell", "")
+            gui_val = check.get("gui_value")
+            excel_val = check.get("excel_value")
+            decimals = check.get("decimals", 4)
+            matched = check.get("matched", False)
 
-        # Collapsible state tracking
-        self._excel_cells_expanded = {}
+            row_bg = THEME["bg_card"] if row_idx % 2 == 0 else "#F8F9FA"
+            check_row = tk.Frame(parent, bg=row_bg)
+            check_row.pack(fill="x")
 
-        for tenor in tenors_order:
-            if tenor not in checks_by_tenor:
-                continue
+            # Status icon
+            icon_text = "✓" if matched else "✗"
+            icon_color = THEME["success"] if matched else THEME["danger"]
+            tk.Label(check_row, text=icon_text, font=("Segoe UI", 10),
+                    fg=icon_color, bg=row_bg, width=3).pack(side="left", padx=(8, 0), pady=5)
 
-            checks = checks_by_tenor[tenor]
-            tenor_passed = sum(1 for c in checks if c.get("matched"))
-            tenor_failed = len(checks) - tenor_passed
+            # Tenor
+            tk.Label(check_row, text=tenor, font=("Segoe UI Semibold", 9),
+                    fg=THEME["text"], bg=row_bg, width=4, anchor="w").pack(side="left", padx=(4, 4), pady=5)
 
-            # Tenor section container
-            tenor_section = tk.Frame(scroll_frame, bg=THEME["bg_panel"])
-            tenor_section.pack(fill="x", pady=(0, 8))
+            # Field name
+            tk.Label(check_row, text=field, font=("Segoe UI", 10),
+                    fg=THEME["text"], bg=row_bg, width=11, anchor="w").pack(side="left", padx=(0, 4), pady=5)
 
-            # Tenor header (clickable)
-            header_bg = "#FFEBEE" if tenor_failed > 0 else "#E8F5E9"
-            header_fg = THEME["danger"] if tenor_failed > 0 else THEME["success"]
+            # Cell reference
+            tk.Label(check_row, text=cell, font=("Consolas", 9),
+                    fg=THEME["text_muted"], bg=row_bg, width=5, anchor="w").pack(side="left", padx=(0, 6), pady=5)
 
-            tenor_header = tk.Frame(tenor_section, bg=header_bg, cursor="hand2")
-            tenor_header.pack(fill="x")
+            # GUI value
+            gui_str = f"{gui_val:.{decimals}f}" if gui_val is not None else "—"
+            tk.Label(check_row, text=gui_str, font=("Consolas", 10),
+                    fg=THEME["text"], bg=row_bg, width=10, anchor="e").pack(side="left", padx=2, pady=5)
 
-            # Expand/collapse indicator
-            expand_key = f"tenor_{tenor}"
-            self._excel_cells_expanded[expand_key] = tenor_failed > 0  # Auto-expand if has failures
+            # Comparison symbol
+            cmp_text = "=" if matched else "≠"
+            cmp_color = THEME["success"] if matched else THEME["danger"]
+            tk.Label(check_row, text=cmp_text, font=("Segoe UI", 10),
+                    fg=cmp_color, bg=row_bg, width=2).pack(side="left", pady=5)
 
-            expand_lbl = tk.Label(tenor_header,
-                                 text="▼" if self._excel_cells_expanded[expand_key] else "▶",
-                                 font=("Segoe UI", 9),
-                                 fg=header_fg, bg=header_bg)
-            expand_lbl.pack(side="left", padx=(12, 4), pady=8)
+            # Excel value
+            excel_str = f"{excel_val:.{decimals}f}" if excel_val is not None else "—"
+            tk.Label(check_row, text=excel_str, font=("Consolas", 10),
+                    fg=THEME["text"], bg=row_bg, width=10, anchor="e").pack(side="left", padx=2, pady=5)
 
-            # Tenor label with status
-            status_icon = "✓" if tenor_failed == 0 else "✗"
-            tk.Label(tenor_header,
-                    text=f"{status_icon}  NIBOR {tenor}",
-                    font=("Segoe UI Semibold", 11),
-                    fg=header_fg, bg=header_bg).pack(side="left", pady=8)
+            # Diff (only for failures)
+            if not matched and gui_val is not None and excel_val is not None:
+                try:
+                    diff = float(gui_val) - float(excel_val)
+                    diff_str = f"{diff:+.{decimals}f}"
+                except (ValueError, TypeError):
+                    diff_str = ""
+                tk.Label(check_row, text=diff_str, font=("Consolas", 9),
+                        fg=THEME["danger"], bg=row_bg, width=10, anchor="e").pack(side="right", padx=8, pady=5)
 
-            # Stats badge
-            stats_text = f"{tenor_passed}/{len(checks)} passed" if tenor_failed == 0 else f"{tenor_failed} failed"
-            tk.Label(tenor_header,
-                    text=stats_text,
-                    font=("Segoe UI", 9),
-                    fg=header_fg, bg=header_bg).pack(side="right", padx=12, pady=8)
+        # Collapsible state
+        self._excel_cells_expanded = {"failed": True, "matched": False}
 
-            # Checks container (collapsible)
-            checks_container = tk.Frame(tenor_section, bg=THEME["bg_card"])
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 1: FAILED CHECKS (always expanded, shown first)
+        # ═══════════════════════════════════════════════════════════════
+        if failed_checks:
+            failed_section = tk.Frame(scroll_frame, bg=THEME["bg_panel"])
+            failed_section.pack(fill="x", pady=(0, 12))
 
-            # Populate checks
-            for i, check in enumerate(checks):
-                matched = check.get("matched", False)
-                field = check.get("field", "")
-                cell = check.get("cell", "")
-                gui_val = check.get("gui_value")
-                excel_val = check.get("excel_value")
-                decimals = check.get("decimals", 4)
-                is_input = check.get("is_input", True)
+            # Header
+            failed_header = tk.Frame(failed_section, bg="#FFEBEE", cursor="hand2")
+            failed_header.pack(fill="x")
 
-                row_bg = THEME["bg_card"] if i % 2 == 0 else "#F8F9FA"
+            failed_expand_lbl = tk.Label(failed_header, text="▼", font=("Segoe UI", 9),
+                                        fg=THEME["danger"], bg="#FFEBEE")
+            failed_expand_lbl.pack(side="left", padx=(12, 4), pady=10)
 
-                # Check row
-                check_row = tk.Frame(checks_container, bg=row_bg)
-                check_row.pack(fill="x")
+            tk.Label(failed_header, text=f"✗  Failed Checks", font=("Segoe UI Semibold", 11),
+                    fg=THEME["danger"], bg="#FFEBEE").pack(side="left", pady=10)
 
-                # Status icon
-                icon_text = "✓" if matched else "✗"
-                icon_color = THEME["success"] if matched else THEME["danger"]
-                tk.Label(check_row,
-                        text=icon_text,
-                        font=("Segoe UI", 10),
-                        fg=icon_color, bg=row_bg,
-                        width=3).pack(side="left", padx=(8, 0), pady=6)
+            tk.Label(failed_header, text=f"{len(failed_checks)} issues", font=("Segoe UI", 9),
+                    fg=THEME["danger"], bg="#FFEBEE").pack(side="right", padx=12, pady=10)
 
-                # Field name
-                tk.Label(check_row,
-                        text=field,
-                        font=("Segoe UI", 10),
-                        fg=THEME["text"], bg=row_bg,
-                        width=12, anchor="w").pack(side="left", padx=(4, 8), pady=6)
+            # Container
+            failed_container = tk.Frame(failed_section, bg=THEME["bg_card"],
+                                        highlightthickness=1, highlightbackground="#FFCDD2")
+            failed_container.pack(fill="x")
 
-                # Cell reference
-                tk.Label(check_row,
-                        text=cell,
-                        font=("Consolas", 9),
-                        fg=THEME["text_muted"], bg=row_bg,
-                        width=6, anchor="w").pack(side="left", padx=(0, 8), pady=6)
+            # Sort by tenor then field
+            failed_sorted = sorted(failed_checks, key=lambda x: (x.get("tenor", ""), x.get("field", "")))
+            for i, check in enumerate(failed_sorted):
+                create_check_row(failed_container, check, i)
 
-                # GUI value
-                gui_str = f"{gui_val:.{decimals}f}" if gui_val is not None else "—"
-                tk.Label(check_row,
-                        text=gui_str,
-                        font=("Consolas", 10),
-                        fg=THEME["text"], bg=row_bg,
-                        width=10, anchor="e").pack(side="left", padx=4, pady=6)
+            # Toggle
+            def toggle_failed(e=None):
+                self._excel_cells_expanded["failed"] = not self._excel_cells_expanded["failed"]
+                if self._excel_cells_expanded["failed"]:
+                    failed_container.pack(fill="x")
+                    failed_expand_lbl.config(text="▼")
+                else:
+                    failed_container.pack_forget()
+                    failed_expand_lbl.config(text="▶")
 
-                # Arrow or equals
-                cmp_text = "=" if matched else "≠"
-                cmp_color = THEME["success"] if matched else THEME["danger"]
-                tk.Label(check_row,
-                        text=cmp_text,
-                        font=("Segoe UI", 10),
-                        fg=cmp_color, bg=row_bg,
-                        width=2).pack(side="left", pady=6)
+            failed_header.bind("<Button-1>", toggle_failed)
+            for child in failed_header.winfo_children():
+                child.bind("<Button-1>", toggle_failed)
 
-                # Excel value
-                excel_str = f"{excel_val:.{decimals}f}" if excel_val is not None else "—"
-                tk.Label(check_row,
-                        text=excel_str,
-                        font=("Consolas", 10),
-                        fg=THEME["text"], bg=row_bg,
-                        width=10, anchor="e").pack(side="left", padx=4, pady=6)
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 2: MATCHED CELLS (collapsed by default)
+        # ═══════════════════════════════════════════════════════════════
+        if matched_checks:
+            matched_section = tk.Frame(scroll_frame, bg=THEME["bg_panel"])
+            matched_section.pack(fill="x", pady=(0, 8))
 
-                # Diff (only for failures)
-                if not matched and gui_val is not None and excel_val is not None:
-                    try:
-                        diff = float(gui_val) - float(excel_val)
-                        diff_str = f"{diff:+.{decimals}f}"
-                    except (ValueError, TypeError):
-                        diff_str = ""
-                    tk.Label(check_row,
-                            text=diff_str,
-                            font=("Consolas", 9),
-                            fg=THEME["danger"], bg=row_bg,
-                            width=10, anchor="e").pack(side="right", padx=8, pady=6)
+            # Header
+            matched_header = tk.Frame(matched_section, bg="#E8F5E9", cursor="hand2")
+            matched_header.pack(fill="x")
 
-            # Toggle function
-            def make_toggle(container, expand_lbl, key):
-                def toggle(e=None):
-                    self._excel_cells_expanded[key] = not self._excel_cells_expanded[key]
-                    if self._excel_cells_expanded[key]:
-                        container.pack(fill="x")
-                        expand_lbl.config(text="▼")
-                    else:
-                        container.pack_forget()
-                        expand_lbl.config(text="▶")
-                return toggle
+            matched_expand_lbl = tk.Label(matched_header, text="▶", font=("Segoe UI", 9),
+                                         fg=THEME["success"], bg="#E8F5E9")
+            matched_expand_lbl.pack(side="left", padx=(12, 4), pady=10)
 
-            toggle_fn = make_toggle(checks_container, expand_lbl, expand_key)
-            tenor_header.bind("<Button-1>", toggle_fn)
-            for child in tenor_header.winfo_children():
-                child.bind("<Button-1>", toggle_fn)
+            tk.Label(matched_header, text=f"✓  Matched Cells", font=("Segoe UI Semibold", 11),
+                    fg=THEME["success"], bg="#E8F5E9").pack(side="left", pady=10)
 
-            # Show/hide based on initial state
-            if self._excel_cells_expanded[expand_key]:
-                checks_container.pack(fill="x")
+            tk.Label(matched_header, text=f"{len(matched_checks)} passed", font=("Segoe UI", 9),
+                    fg=THEME["success"], bg="#E8F5E9").pack(side="right", padx=12, pady=10)
+
+            # Container (initially hidden)
+            matched_container = tk.Frame(matched_section, bg=THEME["bg_card"],
+                                        highlightthickness=1, highlightbackground="#C8E6C9")
+
+            # Sort by tenor then field
+            matched_sorted = sorted(matched_checks, key=lambda x: (x.get("tenor", ""), x.get("field", "")))
+            for i, check in enumerate(matched_sorted):
+                create_check_row(matched_container, check, i)
+
+            # Toggle
+            def toggle_matched(e=None):
+                self._excel_cells_expanded["matched"] = not self._excel_cells_expanded["matched"]
+                if self._excel_cells_expanded["matched"]:
+                    matched_container.pack(fill="x")
+                    matched_expand_lbl.config(text="▼")
+                else:
+                    matched_container.pack_forget()
+                    matched_expand_lbl.config(text="▶")
+
+            matched_header.bind("<Button-1>", toggle_matched)
+            for child in matched_header.winfo_children():
+                child.bind("<Button-1>", toggle_matched)
 
         # Unbind mousewheel on popup close
         def on_popup_destroy(e):
