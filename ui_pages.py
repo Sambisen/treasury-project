@@ -763,7 +763,13 @@ class DashboardPage(BaseFrame):
         popup = tk.Toplevel(self.winfo_toplevel())
         popup.title(f"Validation: {check_name}")
         popup.configure(bg=THEME["bg_panel"])
-        popup.geometry("500x450")
+
+        # Size based on content type
+        if check_id == "excel_cells":
+            popup.geometry("620x520")
+        else:
+            popup.geometry("500x450")
+
         popup.resizable(True, True)
         popup.transient(self.winfo_toplevel())
         popup.grab_set()
@@ -801,9 +807,11 @@ class DashboardPage(BaseFrame):
                 font=("Segoe UI", 11),
                 fg=status_color, bg=header_bg).pack(pady=(0, 20))
 
-        # Special handling for NIBOR Contrib - show detailed table
+        # Special handling for detailed tables
         if check_id == "nibor_contrib" and hasattr(self, '_recon_diff_details') and self._recon_diff_details:
             self._show_nibor_contrib_table(popup)
+        elif check_id == "excel_cells" and hasattr(self, '_excel_cells_details'):
+            self._show_excel_cells_table(popup)
         else:
             # Standard alerts list for other checks
             alerts = check.get("alerts", [])
@@ -959,6 +967,229 @@ class DashboardPage(BaseFrame):
                     bg=row_bg,
                     anchor="e",
                     padx=12, pady=6).grid(row=row_idx, column=4, sticky="ew")
+
+    def _show_excel_cells_table(self, popup):
+        """Show professional Excel Cells validation table with collapsible rows."""
+        content = tk.Frame(popup, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=20, pady=10)
+
+        if not hasattr(self, '_excel_cells_details') or not self._excel_cells_details:
+            tk.Label(content,
+                    text="No Excel cell data available",
+                    font=("Segoe UI", 11),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=20)
+            return
+
+        # Count stats
+        total_checks = len(self._excel_cells_details)
+        passed_checks = sum(1 for c in self._excel_cells_details if c.get("matched"))
+        failed_checks = total_checks - passed_checks
+
+        # Summary header
+        summary_frame = tk.Frame(content, bg=THEME["bg_panel"])
+        summary_frame.pack(fill="x", pady=(0, 12))
+
+        tk.Label(summary_frame,
+                text=f"{total_checks} checks",
+                font=("Segoe UI Semibold", 11),
+                fg=THEME["text"], bg=THEME["bg_panel"]).pack(side="left")
+
+        if failed_checks > 0:
+            tk.Label(summary_frame,
+                    text=f"  •  {failed_checks} failed",
+                    font=("Segoe UI", 10),
+                    fg=THEME["danger"], bg=THEME["bg_panel"]).pack(side="left")
+
+        tk.Label(summary_frame,
+                text=f"  •  {passed_checks} passed",
+                font=("Segoe UI", 10),
+                fg=THEME["success"], bg=THEME["bg_panel"]).pack(side="left")
+
+        # Scrollable container
+        canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
+        scrollbar = tk.Scrollbar(content, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=THEME["bg_panel"])
+
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Make scroll_frame expand to canvas width
+        def on_canvas_configure(e):
+            canvas.itemconfig(canvas_window, width=e.width)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Mousewheel scrolling
+        def on_mousewheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        # Group by tenor
+        tenors_order = ["1M", "2M", "3M", "6M"]
+        checks_by_tenor = {}
+        for check in self._excel_cells_details:
+            tenor = check.get("tenor", "Unknown")
+            if tenor not in checks_by_tenor:
+                checks_by_tenor[tenor] = []
+            checks_by_tenor[tenor].append(check)
+
+        # Collapsible state tracking
+        self._excel_cells_expanded = {}
+
+        for tenor in tenors_order:
+            if tenor not in checks_by_tenor:
+                continue
+
+            checks = checks_by_tenor[tenor]
+            tenor_passed = sum(1 for c in checks if c.get("matched"))
+            tenor_failed = len(checks) - tenor_passed
+
+            # Tenor section container
+            tenor_section = tk.Frame(scroll_frame, bg=THEME["bg_panel"])
+            tenor_section.pack(fill="x", pady=(0, 8))
+
+            # Tenor header (clickable)
+            header_bg = "#FFEBEE" if tenor_failed > 0 else "#E8F5E9"
+            header_fg = THEME["danger"] if tenor_failed > 0 else THEME["success"]
+
+            tenor_header = tk.Frame(tenor_section, bg=header_bg, cursor="hand2")
+            tenor_header.pack(fill="x")
+
+            # Expand/collapse indicator
+            expand_key = f"tenor_{tenor}"
+            self._excel_cells_expanded[expand_key] = tenor_failed > 0  # Auto-expand if has failures
+
+            expand_lbl = tk.Label(tenor_header,
+                                 text="▼" if self._excel_cells_expanded[expand_key] else "▶",
+                                 font=("Segoe UI", 9),
+                                 fg=header_fg, bg=header_bg)
+            expand_lbl.pack(side="left", padx=(12, 4), pady=8)
+
+            # Tenor label with status
+            status_icon = "✓" if tenor_failed == 0 else "✗"
+            tk.Label(tenor_header,
+                    text=f"{status_icon}  NIBOR {tenor}",
+                    font=("Segoe UI Semibold", 11),
+                    fg=header_fg, bg=header_bg).pack(side="left", pady=8)
+
+            # Stats badge
+            stats_text = f"{tenor_passed}/{len(checks)} passed" if tenor_failed == 0 else f"{tenor_failed} failed"
+            tk.Label(tenor_header,
+                    text=stats_text,
+                    font=("Segoe UI", 9),
+                    fg=header_fg, bg=header_bg).pack(side="right", padx=12, pady=8)
+
+            # Checks container (collapsible)
+            checks_container = tk.Frame(tenor_section, bg=THEME["bg_card"])
+
+            # Populate checks
+            for i, check in enumerate(checks):
+                matched = check.get("matched", False)
+                field = check.get("field", "")
+                cell = check.get("cell", "")
+                gui_val = check.get("gui_value")
+                excel_val = check.get("excel_value")
+                decimals = check.get("decimals", 4)
+                is_input = check.get("is_input", True)
+
+                row_bg = THEME["bg_card"] if i % 2 == 0 else "#F8F9FA"
+
+                # Check row
+                check_row = tk.Frame(checks_container, bg=row_bg)
+                check_row.pack(fill="x")
+
+                # Status icon
+                icon_text = "✓" if matched else "✗"
+                icon_color = THEME["success"] if matched else THEME["danger"]
+                tk.Label(check_row,
+                        text=icon_text,
+                        font=("Segoe UI", 10),
+                        fg=icon_color, bg=row_bg,
+                        width=3).pack(side="left", padx=(8, 0), pady=6)
+
+                # Field name
+                tk.Label(check_row,
+                        text=field,
+                        font=("Segoe UI", 10),
+                        fg=THEME["text"], bg=row_bg,
+                        width=12, anchor="w").pack(side="left", padx=(4, 8), pady=6)
+
+                # Cell reference
+                tk.Label(check_row,
+                        text=cell,
+                        font=("Consolas", 9),
+                        fg=THEME["text_muted"], bg=row_bg,
+                        width=6, anchor="w").pack(side="left", padx=(0, 8), pady=6)
+
+                # GUI value
+                gui_str = f"{gui_val:.{decimals}f}" if gui_val is not None else "—"
+                tk.Label(check_row,
+                        text=gui_str,
+                        font=("Consolas", 10),
+                        fg=THEME["text"], bg=row_bg,
+                        width=10, anchor="e").pack(side="left", padx=4, pady=6)
+
+                # Arrow or equals
+                cmp_text = "=" if matched else "≠"
+                cmp_color = THEME["success"] if matched else THEME["danger"]
+                tk.Label(check_row,
+                        text=cmp_text,
+                        font=("Segoe UI", 10),
+                        fg=cmp_color, bg=row_bg,
+                        width=2).pack(side="left", pady=6)
+
+                # Excel value
+                excel_str = f"{excel_val:.{decimals}f}" if excel_val is not None else "—"
+                tk.Label(check_row,
+                        text=excel_str,
+                        font=("Consolas", 10),
+                        fg=THEME["text"], bg=row_bg,
+                        width=10, anchor="e").pack(side="left", padx=4, pady=6)
+
+                # Diff (only for failures)
+                if not matched and gui_val is not None and excel_val is not None:
+                    try:
+                        diff = float(gui_val) - float(excel_val)
+                        diff_str = f"{diff:+.{decimals}f}"
+                    except (ValueError, TypeError):
+                        diff_str = ""
+                    tk.Label(check_row,
+                            text=diff_str,
+                            font=("Consolas", 9),
+                            fg=THEME["danger"], bg=row_bg,
+                            width=10, anchor="e").pack(side="right", padx=8, pady=6)
+
+            # Toggle function
+            def make_toggle(container, expand_lbl, key):
+                def toggle(e=None):
+                    self._excel_cells_expanded[key] = not self._excel_cells_expanded[key]
+                    if self._excel_cells_expanded[key]:
+                        container.pack(fill="x")
+                        expand_lbl.config(text="▼")
+                    else:
+                        container.pack_forget()
+                        expand_lbl.config(text="▶")
+                return toggle
+
+            toggle_fn = make_toggle(checks_container, expand_lbl, expand_key)
+            tenor_header.bind("<Button-1>", toggle_fn)
+            for child in tenor_header.winfo_children():
+                child.bind("<Button-1>", toggle_fn)
+
+            # Show/hide based on initial state
+            if self._excel_cells_expanded[expand_key]:
+                checks_container.pack(fill="x")
+
+        # Unbind mousewheel on popup close
+        def on_popup_destroy(e):
+            try:
+                canvas.unbind_all("<MouseWheel>")
+            except Exception:
+                pass
+        popup.bind("<Destroy>", on_popup_destroy)
 
     def _update_validation_check(self, check_id, status, alerts=None):
         """Update a validation check badge status.
@@ -1796,7 +2027,7 @@ class DashboardPage(BaseFrame):
                     self._update_validation_check(check_id, True, [])
 
     def _update_recon_validation(self):
-        """Run recon checks for all tenors and update NIBOR Contrib validation icon."""
+        """Run recon checks for all tenors and update NIBOR Contrib and Excel Cells validation."""
         from config import RECON_CELL_MAPPING
 
         if not hasattr(self, 'validation_checks'):
@@ -1815,22 +2046,34 @@ class DashboardPage(BaseFrame):
         # Store full details for the popup display
         self._recon_diff_details = []  # List of dicts with full diff info
 
+        # NEW: Collect ALL Excel cell checks for Excel Cells popup
+        self._excel_cells_details = []  # List of all checks (matched and failed)
+
         # Input fields to check - same as drawer recon
         input_fields = [
             ("NOK ECP", "NOK_ECP", "nok_cm", 2),
             ("EUR ECP", "EUR_RATE", "eur_rate", 2),
             ("USD ECP", "USD_RATE", "usd_rate", 2),
-            ("EURNOK", "EUR_SPOT", "eur_spot", 4),
-            ("EURNOK", "EUR_PIPS", "eur_pips", 2),
-            ("USDNOK", "USD_SPOT", "usd_spot", 4),
-            ("USDNOK", "USD_PIPS", "usd_pips", 2),
+            ("EURNOK Spot", "EUR_SPOT", "eur_spot", 4),
+            ("EURNOK Pips", "EUR_PIPS", "eur_pips", 2),
+            ("USDNOK Spot", "USD_SPOT", "usd_spot", 4),
+            ("USDNOK Pips", "USD_PIPS", "usd_pips", 2),
         ]
+
+        # Output fields
+        output_fields = [
+            ("EUR Implied", "EUR_IMPLIED", "eur_impl", 4),
+            ("USD Implied", "USD_IMPLIED", "usd_impl", 4),
+        ]
+
+        excel_cells_failed = []
 
         for tenor_key in ["1m", "2m", "3m", "6m"]:
             data = getattr(self.app, 'funding_calc_data', {}).get(tenor_key, {})
             if not data:
                 continue
 
+            # Check input fields
             for label, mapping_key, data_key, decimals in input_fields:
                 cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
                 if not cell:
@@ -1840,11 +2083,15 @@ class DashboardPage(BaseFrame):
                 excel_value = read_excel_cell(cell)
 
                 # Compare values
+                matched = False
+                gui_rounded = None
+                excel_rounded = None
                 if gui_value is not None and excel_value is not None:
                     try:
                         gui_rounded = round(float(gui_value), decimals)
                         excel_rounded = round(float(excel_value), decimals)
-                        if gui_rounded != excel_rounded:
+                        matched = (gui_rounded == excel_rounded)
+                        if not matched:
                             self._recon_diff_details.append({
                                 "tenor": tenor_key.upper(),
                                 "component": label,
@@ -1852,8 +2099,54 @@ class DashboardPage(BaseFrame):
                                 "excel_value": excel_rounded,
                                 "decimals": decimals
                             })
+                            excel_cells_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
                     except (ValueError, TypeError):
                         pass
+
+                # Store ALL checks for Excel Cells popup
+                self._excel_cells_details.append({
+                    "tenor": tenor_key.upper(),
+                    "field": label,
+                    "cell": cell,
+                    "gui_value": gui_rounded if gui_rounded is not None else gui_value,
+                    "excel_value": excel_rounded if excel_rounded is not None else excel_value,
+                    "decimals": decimals,
+                    "matched": matched,
+                    "is_input": True
+                })
+
+            # Check output fields
+            for label, mapping_key, data_key, decimals in output_fields:
+                cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
+                if not cell:
+                    continue
+
+                gui_value = data.get(data_key)
+                excel_value = read_excel_cell(cell)
+
+                matched = False
+                gui_rounded = None
+                excel_rounded = None
+                if gui_value is not None and excel_value is not None:
+                    try:
+                        gui_rounded = round(float(gui_value), decimals)
+                        excel_rounded = round(float(excel_value), decimals)
+                        matched = (gui_rounded == excel_rounded)
+                        if not matched:
+                            excel_cells_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
+                    except (ValueError, TypeError):
+                        pass
+
+                self._excel_cells_details.append({
+                    "tenor": tenor_key.upper(),
+                    "field": label,
+                    "cell": cell,
+                    "gui_value": gui_rounded if gui_rounded is not None else gui_value,
+                    "excel_value": excel_rounded if excel_rounded is not None else excel_value,
+                    "decimals": decimals,
+                    "matched": matched,
+                    "is_input": False
+                })
 
         # Update NIBOR Contrib validation icon based on diffs
         if self._recon_diff_details:
@@ -1864,6 +2157,13 @@ class DashboardPage(BaseFrame):
             # Only mark OK if we have data
             if getattr(self.app, 'funding_calc_data', {}):
                 self._update_validation_check("nibor_contrib", True, [])
+
+        # Update Excel Cells validation icon
+        if self._excel_cells_details:
+            if excel_cells_failed:
+                self._update_validation_check("excel_cells", False, excel_cells_failed)
+            else:
+                self._update_validation_check("excel_cells", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
