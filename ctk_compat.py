@@ -594,6 +594,56 @@ if not CTK_AVAILABLE:
                 if kwargs:
                     super().configure(**kwargs)
 
+        class CTkRadioButton(tk.Radiobutton):
+            """Fallback för CTkRadioButton."""
+
+            def __init__(self, master=None, text="", font=None, command=None,
+                         variable=None, value=None,
+                         fg_color=None, hover_color=None, text_color=None,
+                         text_color_disabled=None, corner_radius=None,
+                         border_width_checked=None, border_width_unchecked=None,
+                         border_color=None, state=None, hover=True,
+                         radiobutton_width=None, radiobutton_height=None, **kwargs):
+                kwargs = _TkinterFallback._filter_kwargs(kwargs)
+
+                if text:
+                    kwargs['text'] = text
+                if font:
+                    kwargs['font'] = font
+                if command:
+                    kwargs['command'] = command
+                if variable is not None:
+                    kwargs['variable'] = variable
+                if value is not None:
+                    kwargs['value'] = value
+                if text_color:
+                    color = _TkinterFallback._convert_color(text_color)
+                    if color:
+                        kwargs['fg'] = color
+                if state:
+                    kwargs['state'] = state
+
+                # Remove border for cleaner look
+                kwargs['indicatoron'] = 1
+                kwargs['relief'] = 'flat'
+
+                super().__init__(master, **kwargs)
+
+            def configure(self, **kwargs):
+                if 'text_color' in kwargs:
+                    color = _TkinterFallback._convert_color(kwargs.pop('text_color'))
+                    if color:
+                        kwargs['fg'] = color
+                if 'fg_color' in kwargs:
+                    kwargs.pop('fg_color')  # Ignore - not applicable to radiobutton
+                if 'hover_color' in kwargs:
+                    kwargs.pop('hover_color')  # Ignore
+                if 'border_color' in kwargs:
+                    kwargs.pop('border_color')  # Ignore
+                kwargs = _TkinterFallback._filter_kwargs(kwargs)
+                if kwargs:
+                    super().configure(**kwargs)
+
         class CTkSwitch(tk.Checkbutton):
             """Fallback för CTkSwitch (som checkbox)."""
 
