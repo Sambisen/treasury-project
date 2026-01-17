@@ -299,10 +299,13 @@ class NiborTerminalCTK(ctk.CTk):
         sidebar_container.grid_propagate(False)
 
         # Scrollable sidebar content
-        sidebar = ctk.CTkScrollableFrame(sidebar_container, fg_color=THEME["bg_nav"],
+        sidebar_scroll = ctk.CTkScrollableFrame(sidebar_container, fg_color=THEME["bg_nav"],
                                           scrollbar_button_color=THEME["border"],
                                           scrollbar_button_hover_color=THEME["text_muted"])
-        sidebar.pack(fill="both", expand=True)
+        sidebar_scroll.pack(fill="both", expand=True)
+
+        # Get the correct frame for adding widgets (handles CTk vs Tkinter fallback)
+        sidebar = getattr(sidebar_scroll, 'interior', sidebar_scroll)
 
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
