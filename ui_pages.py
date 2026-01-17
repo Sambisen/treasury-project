@@ -7,12 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime, timedelta
 
-try:
-    import customtkinter as ctk
-    CTK_AVAILABLE = True
-except ImportError:
-    CTK_AVAILABLE = False
-    ctk = None
+from ctk_compat import ctk, CTK_AVAILABLE
 
 from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERTS_BOX_HEIGHT, CTK_CORNER_RADIUS, RADII, get_logger, get_market_structure, get_ticker
 

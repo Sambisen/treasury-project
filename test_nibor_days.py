@@ -14,7 +14,7 @@ pip install customtkinter
 
 from __future__ import annotations
 
-import customtkinter as ctk
+from ctk_compat import ctk, CTK_AVAILABLE
 from dataclasses import dataclass
 from typing import Callable, Optional
 

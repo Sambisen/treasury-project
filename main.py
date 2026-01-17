@@ -10,7 +10,7 @@ from datetime import datetime
 from tkinter import messagebox
 
 import tkinter as tk
-import customtkinter as ctk
+from ctk_compat import ctk, CTK_AVAILABLE
 
 from openpyxl.utils import coordinate_to_tuple
 

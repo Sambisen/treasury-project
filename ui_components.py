@@ -12,12 +12,7 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 
-try:
-    import customtkinter as ctk
-    CTK_AVAILABLE = True
-except ImportError:
-    CTK_AVAILABLE = False
-    ctk = None
+from ctk_compat import ctk, CTK_AVAILABLE
 
 from config import THEME, CURRENT_MODE, CTK_CORNER_RADIUS
 from utils import fmt_ts, LogoPipelineTK
@@ -102,42 +97,38 @@ class NiborButtonTK(tk.Button):
         )
 
 
-# Modern CustomTkinter button
-if CTK_AVAILABLE:
-    class NiborButtonCTK(ctk.CTkButton):
-        """Modern styled button for Nibor Terminal using CustomTkinter."""
+# Modern CustomTkinter button (uses ctk_compat fallback when CTk not installed)
+class NiborButtonCTK(ctk.CTkButton):
+    """Modern styled button for Nibor Terminal using CustomTkinter."""
 
-        def __init__(self, master, text, command=None, variant="default", **kwargs):
-            if variant == "accent" or variant == "primary":
-                fg_color = THEME["accent"]
-                hover_color = THEME["accent_hover"]
-                text_color = THEME["bg_panel"]
-            elif variant == "danger":
-                fg_color = THEME["bad"]
-                hover_color = "#FF5252"
-                text_color = THEME["bg_panel"]
-            else:
-                fg_color = THEME["bg_card_2"]
-                hover_color = THEME["bg_hover"]
-                text_color = THEME["text"]
+    def __init__(self, master, text, command=None, variant="default", **kwargs):
+        if variant == "accent" or variant == "primary":
+            fg_color = THEME["accent"]
+            hover_color = THEME["accent_hover"]
+            text_color = THEME["bg_panel"]
+        elif variant == "danger":
+            fg_color = THEME["bad"]
+            hover_color = "#FF5252"
+            text_color = THEME["bg_panel"]
+        else:
+            fg_color = THEME["bg_card_2"]
+            hover_color = THEME["bg_hover"]
+            text_color = THEME["text"]
 
-            super().__init__(
-                master,
-                text=text,
-                command=command,
-                fg_color=fg_color,
-                hover_color=hover_color,
-                text_color=text_color,
-                corner_radius=CTK_CORNER_RADIUS["button"],
-                font=("Segoe UI Semibold", CURRENT_MODE["body"]),
-                **kwargs
-            )
+        super().__init__(
+            master,
+            text=text,
+            command=command,
+            fg_color=fg_color,
+            hover_color=hover_color,
+            text_color=text_color,
+            corner_radius=CTK_CORNER_RADIUS["button"],
+            font=("Segoe UI Semibold", CURRENT_MODE["body"]),
+            **kwargs
+        )
 
-    # Use CTk version as default
-    OnyxButtonTK = NiborButtonCTK
-else:
-    # Fallback to tk version
-    OnyxButtonTK = NiborButtonTK
+# Use CTk version as default (falls back via ctk_compat)
+OnyxButtonTK = NiborButtonCTK
 
 
 class NavButtonTK(tk.Button):
@@ -575,11 +566,10 @@ class ConnectionStatusIndicator(tk.Frame):
 
 
 # =============================================================================
-# PREMIUM CONNECTION STATUS BAR (CTK VERSION)
+# PREMIUM CONNECTION STATUS BAR (CTK VERSION - uses ctk_compat fallback)
 # =============================================================================
 
-if CTK_AVAILABLE:
-    class PremiumConnectionPanel(ctk.CTkFrame):
+class PremiumConnectionPanel(ctk.CTkFrame):
         """
         Premium connection status panel with Bloomberg and Excel indicators.
         Clean, visible design for the bottom status bar.
@@ -845,325 +835,325 @@ def _darken(c: str, amount: float) -> str:
     return _blend(c, "#000000", amount)
 
 
-if CTK_AVAILABLE:
-    class PremiumCTAButton(ctk.CTkFrame):
-        """
-        Premium CTA button - clean, solid design that looks expensive.
-        Uses CTkButton internally for reliability.
-        """
+# Premium CTA Button (uses ctk_compat fallback when CTk not installed)
+class PremiumCTAButton(ctk.CTkFrame):
+    """
+    Premium CTA button - clean, solid design that looks expensive.
+    Uses CTkButton internally for reliability.
+    """
 
-        def __init__(
+    def __init__(
+        self,
+        master,
+        text: str = "Confirm rates",
+        command=None,
+        width: int = 180,
+        height: int = 44,
+        radius: int = 10,
+        **kwargs,
+    ):
+        super().__init__(master, fg_color="transparent", **kwargs)
+
+        self._text = text
+        self._command = command
+        self._enabled = False  # Start disabled
+        self._loading = False
+
+        # Premium colors
+        self._accent = THEME.get("accent", "#F57C00")
+        self._accent_hover = _darken(self._accent, 0.08)
+        self._accent_pressed = _darken(self._accent, 0.15)
+        self._success = THEME.get("good", "#1E8E3E")
+        self._disabled_bg = "#D1D5DB"
+        self._disabled_text = "#9CA3AF"
+
+        # Main button - solid orange, clean look
+        self._btn = ctk.CTkButton(
             self,
-            master,
-            text: str = "Confirm rates",
-            command=None,
-            width: int = 180,
-            height: int = 44,
-            radius: int = 10,
-            **kwargs,
-        ):
-            super().__init__(master, fg_color="transparent", **kwargs)
+            text=text,
+            command=self._on_click,
+            width=width,
+            height=height,
+            corner_radius=radius,
+            fg_color=self._disabled_bg,
+            hover_color=self._disabled_bg,
+            text_color=self._disabled_text,
+            font=("Segoe UI Semibold", 13),
+            border_width=0,
+        )
+        self._btn.pack()
 
-            self._text = text
-            self._command = command
-            self._enabled = False  # Start disabled
-            self._loading = False
-
-            # Premium colors
-            self._accent = THEME.get("accent", "#F57C00")
-            self._accent_hover = _darken(self._accent, 0.08)
-            self._accent_pressed = _darken(self._accent, 0.15)
-            self._success = THEME.get("good", "#1E8E3E")
-            self._disabled_bg = "#D1D5DB"
-            self._disabled_text = "#9CA3AF"
-
-            # Main button - solid orange, clean look
-            self._btn = ctk.CTkButton(
-                self,
-                text=text,
-                command=self._on_click,
-                width=width,
-                height=height,
-                corner_radius=radius,
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable or disable the button."""
+        self._enabled = bool(enabled)
+        if self._enabled:
+            self._btn.configure(
+                fg_color=self._accent,
+                hover_color=self._accent_hover,
+                text_color="#FFFFFF",
+                cursor="hand2"
+            )
+        else:
+            self._btn.configure(
                 fg_color=self._disabled_bg,
                 hover_color=self._disabled_bg,
                 text_color=self._disabled_text,
-                font=("Segoe UI Semibold", 13),
-                border_width=0,
+                cursor=""
             )
-            self._btn.pack()
 
-        def set_enabled(self, enabled: bool) -> None:
-            """Enable or disable the button."""
-            self._enabled = bool(enabled)
-            if self._enabled:
-                self._btn.configure(
-                    fg_color=self._accent,
-                    hover_color=self._accent_hover,
-                    text_color="#FFFFFF",
-                    cursor="hand2"
-                )
-            else:
-                self._btn.configure(
-                    fg_color=self._disabled_bg,
-                    hover_color=self._disabled_bg,
-                    text_color=self._disabled_text,
-                    cursor=""
-                )
-
-        def set_loading(self, loading: bool, loading_text: str = "Confirming...") -> None:
-            """Set loading state with spinner text."""
-            self._loading = bool(loading)
-            if self._loading:
-                self._btn.configure(
-                    text=loading_text,
-                    fg_color=_blend(self._accent, "#FFFFFF", 0.2),
-                    hover_color=_blend(self._accent, "#FFFFFF", 0.2),
-                )
-            else:
-                self._btn.configure(text=self._text)
-                # Restore proper state
-                self.set_enabled(self._enabled)
-
-        def flash_confirmed(self, confirmed_text: str = "Confirmed") -> None:
-            """Flash green confirmed state briefly."""
+    def set_loading(self, loading: bool, loading_text: str = "Confirming...") -> None:
+        """Set loading state with spinner text."""
+        self._loading = bool(loading)
+        if self._loading:
             self._btn.configure(
-                text=confirmed_text,
-                fg_color=self._success,
-                hover_color=self._success,
-                text_color="#FFFFFF"
+                text=loading_text,
+                fg_color=_blend(self._accent, "#FFFFFF", 0.2),
+                hover_color=_blend(self._accent, "#FFFFFF", 0.2),
             )
+        else:
+            self._btn.configure(text=self._text)
+            # Restore proper state
+            self.set_enabled(self._enabled)
 
-            def _restore():
-                self._btn.configure(text=self._text)
-                self.set_enabled(self._enabled)
+    def flash_confirmed(self, confirmed_text: str = "Confirmed") -> None:
+        """Flash green confirmed state briefly."""
+        self._btn.configure(
+            text=confirmed_text,
+            fg_color=self._success,
+            hover_color=self._success,
+            text_color="#FFFFFF"
+        )
 
-            self.after(1500, _restore)
+        def _restore():
+            self._btn.configure(text=self._text)
+            self.set_enabled(self._enabled)
 
-        def _on_click(self) -> None:
-            """Handle button click."""
-            if self._enabled and not self._loading and callable(self._command):
-                self._command()
+        self.after(1500, _restore)
+
+    def _on_click(self) -> None:
+        """Handle button click."""
+        if self._enabled and not self._loading and callable(self._command):
+            self._command()
 
 
-    class SecondaryActionButton(ctk.CTkFrame):
-        """
-        Secondary button with outlined/soft style for action bars.
-        White/light gray background, 1px border, dark text.
-        """
+class SecondaryActionButton(ctk.CTkFrame):
+    """
+    Secondary button with outlined/soft style for action bars.
+    White/light gray background, 1px border, dark text.
+    """
 
-        def __init__(
+    def __init__(
+        self,
+        master,
+        text: str = "Re-run checks",
+        command=None,
+        width: int = 140,
+        height: int = 44,
+        radius: int = 12,
+        icon_text: str = None,
+        **kwargs,
+    ):
+        super().__init__(master, fg_color="transparent", **kwargs)
+
+        self._btn_width = width
+        self._btn_height = height
+        self._btn_radius = radius
+        self._text = text
+        self._command = command
+        self._icon_text = icon_text
+
+        self._enabled = True
+        self._hover = False
+        self._pressed = False
+
+        # Colors
+        self._bg_normal = THEME.get("bg_card", "#FFFFFF")
+        self._bg_hover = _darken(self._bg_normal, 0.04)
+        self._bg_pressed = _darken(self._bg_normal, 0.08)
+        self._border_color = THEME.get("border", "#E6E6E6")
+        self._text_color = THEME.get("text", "#1F2937")
+        self._text_disabled = THEME.get("muted", "#9CA3AF")
+
+        # Main frame with border
+        self._inner = ctk.CTkFrame(
             self,
-            master,
-            text: str = "Re-run checks",
-            command=None,
-            width: int = 140,
-            height: int = 44,
-            radius: int = 12,
-            icon_text: str = None,
-            **kwargs,
-        ):
-            super().__init__(master, fg_color="transparent", **kwargs)
+            width=self._btn_width,
+            height=self._btn_height,
+            corner_radius=self._btn_radius,
+            fg_color=self._bg_normal,
+            border_color=self._border_color,
+            border_width=1,
+        )
+        self._inner.pack(fill="both", expand=True)
+        self._inner.pack_propagate(False)
 
-            self._btn_width = width
-            self._btn_height = height
-            self._btn_radius = radius
-            self._text = text
-            self._command = command
-            self._icon_text = icon_text
+        # Content frame
+        content = ctk.CTkFrame(self._inner, fg_color="transparent")
+        content.place(relx=0.5, rely=0.5, anchor="center")
 
-            self._enabled = True
-            self._hover = False
-            self._pressed = False
-
-            # Colors
-            self._bg_normal = THEME.get("bg_card", "#FFFFFF")
-            self._bg_hover = _darken(self._bg_normal, 0.04)
-            self._bg_pressed = _darken(self._bg_normal, 0.08)
-            self._border_color = THEME.get("border", "#E6E6E6")
-            self._text_color = THEME.get("text", "#1F2937")
-            self._text_disabled = THEME.get("muted", "#9CA3AF")
-
-            # Main frame with border
-            self._inner = ctk.CTkFrame(
-                self,
-                width=self._btn_width,
-                height=self._btn_height,
-                corner_radius=self._btn_radius,
-                fg_color=self._bg_normal,
-                border_color=self._border_color,
-                border_width=1,
-            )
-            self._inner.pack(fill="both", expand=True)
-            self._inner.pack_propagate(False)
-
-            # Content frame
-            content = ctk.CTkFrame(self._inner, fg_color="transparent")
-            content.place(relx=0.5, rely=0.5, anchor="center")
-
-            # Icon (if provided)
-            if self._icon_text:
-                self._icon_lbl = ctk.CTkLabel(
-                    content,
-                    text=self._icon_text,
-                    font=("Segoe UI", 14),
-                    text_color=self._text_color,
-                    fg_color="transparent",
-                )
-                self._icon_lbl.pack(side="left", padx=(0, 6))
-            else:
-                self._icon_lbl = None
-
-            # Text label
-            self._label = ctk.CTkLabel(
+        # Icon (if provided)
+        if self._icon_text:
+            self._icon_lbl = ctk.CTkLabel(
                 content,
-                text=self._text,
-                font=("Segoe UI Semibold", 12),
+                text=self._icon_text,
+                font=("Segoe UI", 14),
                 text_color=self._text_color,
                 fg_color="transparent",
             )
-            self._label.pack(side="left")
+            self._icon_lbl.pack(side="left", padx=(0, 6))
+        else:
+            self._icon_lbl = None
 
-            # Bindings
-            for widget in (self, self._inner, self._label, content):
-                widget.bind("<Enter>", self._on_enter)
-                widget.bind("<Leave>", self._on_leave)
-                widget.bind("<ButtonPress-1>", self._on_press)
-                widget.bind("<ButtonRelease-1>", self._on_release)
+        # Text label
+        self._label = ctk.CTkLabel(
+            content,
+            text=self._text,
+            font=("Segoe UI Semibold", 12),
+            text_color=self._text_color,
+            fg_color="transparent",
+        )
+        self._label.pack(side="left")
 
-            if self._icon_lbl:
-                self._icon_lbl.bind("<Enter>", self._on_enter)
-                self._icon_lbl.bind("<Leave>", self._on_leave)
-                self._icon_lbl.bind("<ButtonPress-1>", self._on_press)
-                self._icon_lbl.bind("<ButtonRelease-1>", self._on_release)
+        # Bindings
+        for widget in (self, self._inner, self._label, content):
+            widget.bind("<Enter>", self._on_enter)
+            widget.bind("<Leave>", self._on_leave)
+            widget.bind("<ButtonPress-1>", self._on_press)
+            widget.bind("<ButtonRelease-1>", self._on_release)
 
-            self.configure(width=self._btn_width, height=self._btn_height)
+        if self._icon_lbl:
+            self._icon_lbl.bind("<Enter>", self._on_enter)
+            self._icon_lbl.bind("<Leave>", self._on_leave)
+            self._icon_lbl.bind("<ButtonPress-1>", self._on_press)
+            self._icon_lbl.bind("<ButtonRelease-1>", self._on_release)
 
-        def set_enabled(self, enabled: bool) -> None:
-            self._enabled = bool(enabled)
-            color = self._text_color if self._enabled else self._text_disabled
-            self._label.configure(text_color=color)
-            if self._icon_lbl:
-                self._icon_lbl.configure(text_color=color)
-            self._update_bg()
+        self.configure(width=self._btn_width, height=self._btn_height)
 
-        def _on_enter(self, _evt=None) -> None:
-            if not self._enabled:
-                return
-            self._hover = True
-            self._update_bg()
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled = bool(enabled)
+        color = self._text_color if self._enabled else self._text_disabled
+        self._label.configure(text_color=color)
+        if self._icon_lbl:
+            self._icon_lbl.configure(text_color=color)
+        self._update_bg()
 
-        def _on_leave(self, _evt=None) -> None:
-            self._hover = False
-            self._pressed = False
-            self._update_bg()
+    def _on_enter(self, _evt=None) -> None:
+        if not self._enabled:
+            return
+        self._hover = True
+        self._update_bg()
 
-        def _on_press(self, _evt=None) -> None:
-            if not self._enabled:
-                return
-            self._pressed = True
-            self._update_bg()
+    def _on_leave(self, _evt=None) -> None:
+        self._hover = False
+        self._pressed = False
+        self._update_bg()
 
-        def _on_release(self, _evt=None) -> None:
-            if not self._enabled:
-                return
-            was_pressed = self._pressed
-            self._pressed = False
-            self._update_bg()
-            if was_pressed and self._hover and callable(self._command):
-                self._command()
+    def _on_press(self, _evt=None) -> None:
+        if not self._enabled:
+            return
+        self._pressed = True
+        self._update_bg()
 
-        def _update_bg(self) -> None:
-            if not self._enabled:
-                bg = _lighten(self._bg_normal, 0.02)
-            elif self._pressed:
-                bg = self._bg_pressed
-            elif self._hover:
-                bg = self._bg_hover
-            else:
-                bg = self._bg_normal
-            self._inner.configure(fg_color=bg)
+    def _on_release(self, _evt=None) -> None:
+        if not self._enabled:
+            return
+        was_pressed = self._pressed
+        self._pressed = False
+        self._update_bg()
+        if was_pressed and self._hover and callable(self._command):
+            self._command()
+
+    def _update_bg(self) -> None:
+        if not self._enabled:
+            bg = _lighten(self._bg_normal, 0.02)
+        elif self._pressed:
+            bg = self._bg_pressed
+        elif self._hover:
+            bg = self._bg_hover
+        else:
+            bg = self._bg_normal
+        self._inner.configure(fg_color=bg)
 
 
-    class RatesActionBar(ctk.CTkFrame):
-        """
-        Action bar for rates confirmation with metadata and buttons.
-        Left: metadata (last updated, data source)
-        Right: Re-run checks + Confirm rates buttons
-        """
+class RatesActionBar(ctk.CTkFrame):
+    """
+    Action bar for rates confirmation with metadata and buttons.
+    Left: metadata (last updated, data source)
+    Right: Re-run checks + Confirm rates buttons
+    """
 
-        def __init__(
-            self,
+    def __init__(
+        self,
+        master,
+        on_rerun_checks=None,
+        on_confirm_rates=None,
+        **kwargs,
+    ):
+        # Off-white background with border
+        bg_color = _blend(THEME.get("bg_card", "#FFFFFF"), "#000000", 0.02)
+
+        super().__init__(
             master,
-            on_rerun_checks=None,
-            on_confirm_rates=None,
+            fg_color=bg_color,
+            corner_radius=14,
+            border_color=THEME.get("border", "#E6E6E6"),
+            border_width=1,
             **kwargs,
-        ):
-            # Off-white background with border
-            bg_color = _blend(THEME.get("bg_card", "#FFFFFF"), "#000000", 0.02)
+        )
 
-            super().__init__(
-                master,
-                fg_color=bg_color,
-                corner_radius=14,
-                border_color=THEME.get("border", "#E6E6E6"),
-                border_width=1,
-                **kwargs,
-            )
+        self._on_rerun = on_rerun_checks
+        self._on_confirm = on_confirm_rates
+        self._is_ready = False
 
-            self._on_rerun = on_rerun_checks
-            self._on_confirm = on_confirm_rates
-            self._is_ready = False
+        # Buttons container (right-aligned)
+        right = ctk.CTkFrame(self, fg_color="transparent")
+        right.pack(side="right", padx=16, pady=14)
 
-            # Buttons container (right-aligned)
-            right = ctk.CTkFrame(self, fg_color="transparent")
-            right.pack(side="right", padx=16, pady=14)
+        # Re-run checks button (secondary)
+        self.rerun_btn = SecondaryActionButton(
+            right,
+            text="Re-run checks",
+            command=self._handle_rerun,
+            width=140,
+            height=44,
+            radius=12,
+            icon_text="\u21BB",  # ↻ refresh symbol
+        )
+        self.rerun_btn.pack(side="left", padx=(0, 10))
 
-            # Re-run checks button (secondary)
-            self.rerun_btn = SecondaryActionButton(
-                right,
-                text="Re-run checks",
-                command=self._handle_rerun,
-                width=140,
-                height=44,
-                radius=12,
-                icon_text="\u21BB",  # ↻ refresh symbol
-            )
-            self.rerun_btn.pack(side="left", padx=(0, 10))
+        # Confirm rates button (premium)
+        self.confirm_btn = PremiumCTAButton(
+            right,
+            text="Confirm rates",
+            command=self._handle_confirm,
+            width=180,
+            height=44,
+            radius=12,
+        )
+        self.confirm_btn.pack(side="left")
 
-            # Confirm rates button (premium)
-            self.confirm_btn = PremiumCTAButton(
-                right,
-                text="Confirm rates",
-                command=self._handle_confirm,
-                width=180,
-                height=44,
-                radius=12,
-            )
-            self.confirm_btn.pack(side="left")
+        # Start disabled until ready
+        self.confirm_btn.set_enabled(False)
 
-            # Start disabled until ready
-            self.confirm_btn.set_enabled(False)
+    def set_ready(self, ready: bool):
+        """Enable/disable confirm button based on validation state."""
+        self._is_ready = ready
+        self.confirm_btn.set_enabled(ready)
 
-        def set_ready(self, ready: bool):
-            """Enable/disable confirm button based on validation state."""
-            self._is_ready = ready
-            self.confirm_btn.set_enabled(ready)
+    def set_loading(self, loading: bool):
+        """Set loading state on confirm button."""
+        self.confirm_btn.set_loading(loading)
 
-        def set_loading(self, loading: bool):
-            """Set loading state on confirm button."""
-            self.confirm_btn.set_loading(loading)
+    def flash_confirmed(self):
+        """Flash confirmed state on confirm button."""
+        self.confirm_btn.flash_confirmed()
 
-        def flash_confirmed(self):
-            """Flash confirmed state on confirm button."""
-            self.confirm_btn.flash_confirmed()
+    def _handle_rerun(self):
+        """Handle re-run checks button click."""
+        if callable(self._on_rerun):
+            self._on_rerun()
 
-        def _handle_rerun(self):
-            """Handle re-run checks button click."""
-            if callable(self._on_rerun):
-                self._on_rerun()
-
-        def _handle_confirm(self):
-            """Handle confirm rates button click."""
-            if callable(self._on_confirm):
-                self._on_confirm()
+    def _handle_confirm(self):
+        """Handle confirm rates button click."""
+        if callable(self._on_confirm):
+            self._on_confirm()

@@ -6,12 +6,7 @@ import tkinter as tk
 from typing import Optional, Dict, Any, Callable
 from datetime import datetime
 
-try:
-    import customtkinter as ctk
-    CTK_AVAILABLE = True
-except ImportError:
-    CTK_AVAILABLE = False
-    ctk = None
+from ctk_compat import ctk, CTK_AVAILABLE
 
 from ui.theme import COLORS, FONTS, SPACING, RADII, ICONS
 
