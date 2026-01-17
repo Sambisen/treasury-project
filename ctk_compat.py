@@ -380,9 +380,16 @@ if not CTK_AVAILABLE:
                     color = _TkinterFallback._convert_color(text_color)
                     if color:
                         kwargs['fg'] = color
-                if width:
+                # CTk uses pixels for width/height, Tkinter uses characters/lines
+                # Convert pixels to approximate character width (divide by ~8)
+                if width and isinstance(width, (int, float)) and width > 20:
+                    kwargs['width'] = max(5, int(width / 8))
+                elif width:
                     kwargs['width'] = width
-                if height:
+                # Height in Tkinter is in text lines, usually 1-2 is fine
+                if height and isinstance(height, (int, float)) and height > 5:
+                    kwargs['height'] = max(1, int(height / 25))
+                elif height:
                     kwargs['height'] = height
                 if state:
                     kwargs['state'] = state
@@ -390,6 +397,10 @@ if not CTK_AVAILABLE:
                     kwargs['compound'] = compound
                 if anchor:
                     kwargs['anchor'] = anchor
+
+                # Add some padding for better look
+                kwargs.setdefault('padx', 10)
+                kwargs.setdefault('pady', 5)
 
                 # Hantera CTkImage
                 if image:
