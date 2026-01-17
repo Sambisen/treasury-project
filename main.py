@@ -59,8 +59,8 @@ class NiborTerminalCTK(ctk.CTk):
         set_mode("OFFICE")
 
         self.title(f"Nibor Calculation Terminal v{APP_VERSION}")
-        self.geometry("1400x750")
-        self.minsize(1320, 650)
+        self.geometry("1400x850")
+        self.minsize(1320, 800)
         self.configure(fg_color=THEME["bg_main"])
 
         style_ttk(self)
@@ -326,12 +326,12 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=THEME["bg_nav_sel"],
                 text_color=THEME["muted"],
-                font=("Segoe UI", 16),
+                font=("Segoe UI", 13),
                 anchor="w",
                 corner_radius=4,
-                height=44
+                height=36
             )
-            btn.pack(fill="x", padx=10, pady=1)
+            btn.pack(fill="x", padx=8, pady=1)
 
             self._nav_buttons[page_key] = {
                 "btn": btn,
