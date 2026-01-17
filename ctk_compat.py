@@ -126,7 +126,17 @@ if not CTK_AVAILABLE:
                 if fg_color:
                     color = _TkinterFallback._convert_color(fg_color)
                     if color:
-                        self.configure(bg=color)
+                        super().configure(bg=color)
+
+            def configure(self, **kwargs):
+                """Override configure to filter CTk-specific options."""
+                if 'fg_color' in kwargs:
+                    color = _TkinterFallback._convert_color(kwargs.pop('fg_color'))
+                    if color:
+                        kwargs['bg'] = color
+                kwargs = _TkinterFallback._filter_kwargs(kwargs)
+                if kwargs:
+                    super().configure(**kwargs)
 
             def set_appearance_mode(self, mode: str):
                 pass
@@ -140,7 +150,17 @@ if not CTK_AVAILABLE:
                 if fg_color:
                     color = _TkinterFallback._convert_color(fg_color)
                     if color:
-                        self.configure(bg=color)
+                        super().configure(bg=color)
+
+            def configure(self, **kwargs):
+                """Override configure to filter CTk-specific options."""
+                if 'fg_color' in kwargs:
+                    color = _TkinterFallback._convert_color(kwargs.pop('fg_color'))
+                    if color:
+                        kwargs['bg'] = color
+                kwargs = _TkinterFallback._filter_kwargs(kwargs)
+                if kwargs:
+                    super().configure(**kwargs)
 
         # ====================================================================
         # FRAME CLASSES
