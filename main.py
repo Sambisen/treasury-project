@@ -31,7 +31,7 @@ from config import (
     setup_logging, get_logger,
     # New: Fixing time and gate configuration
     FIXING_CONFIGS, DEFAULT_FIXING_TIME, VALIDATION_GATE_TZ,
-    get_fixing_config, get_ticker_suffix, get_gate_time,
+    get_fixing_config, get_ticker_suffix, get_gate_time, get_gate_window,
 )
 
 # Configure CustomTkinter appearance
@@ -194,14 +194,16 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _is_validation_locked(self) -> bool:
         """
-        Check if validation is currently locked based on time gate.
+        Check if validation is currently locked based on time window.
 
         In DEV mode: Always unlocked (returns False)
-        In PROD mode: Locked before gate time (returns True)
+        In PROD mode: Only unlocked within the validation window
 
-        The gate time is determined by the selected fixing time:
-        - 10:30 fixing (F043): Gate at 10:30
-        - 10:00 fixing (F040): Gate at 10:00
+        The validation window is determined by the selected fixing time:
+        - 10:30 fixing (F043): Window 10:30 - 11:30
+        - 10:00 fixing (F040): Window 10:00 - 11:30
+
+        Outside this window (before start OR after end), validation is LOCKED.
         """
         # DEV mode: never locked
         if is_dev_mode():
@@ -216,15 +218,21 @@ class NiborTerminalCTK(ctk.CTk):
             now = datetime.now()
             log.warning("Could not get Stockholm time, using local time")
 
-        # Get gate time based on selected fixing
-        gate_hour, gate_minute = get_gate_time()
-        gate_time = dt_time(gate_hour, gate_minute, 0)
+        # Check if weekend (Saturday=5, Sunday=6)
+        if now.weekday() >= 5:
+            return True  # Locked on weekends
 
-        # Check if current time is before gate
+        # Get validation window based on selected fixing
+        (start_hour, start_min), (end_hour, end_min) = get_gate_window()
+        window_start = dt_time(start_hour, start_min, 0)
+        window_end = dt_time(end_hour, end_min, 0)
+
+        # Check if current time is within the window
         current_time = now.time()
-        is_locked = current_time < gate_time
+        is_within_window = window_start <= current_time <= window_end
 
-        return is_locked
+        # Locked if OUTSIDE the window
+        return not is_within_window
 
     def _check_validation_gate(self):
         """
@@ -260,11 +268,28 @@ class NiborTerminalCTK(ctk.CTk):
                 text="⏳ Running..."
             )
         elif self._validation_locked and is_prod_mode():
-            # Locked in PROD mode
-            gate_hour, gate_minute = get_gate_time()
+            # Locked in PROD mode - show why
+            (start_hour, start_min), (end_hour, end_min) = get_gate_window()
+
+            # Get current Stockholm time to determine if before or after window
+            try:
+                stockholm_tz = ZoneInfo(VALIDATION_GATE_TZ)
+                now = datetime.now(stockholm_tz)
+                current_time = now.time()
+                window_start = dt_time(start_hour, start_min, 0)
+
+                if now.weekday() >= 5:
+                    lock_reason = "Weekend"
+                elif current_time < window_start:
+                    lock_reason = f"Opens {start_hour}:{start_min:02d}"
+                else:
+                    lock_reason = f"Closed after {end_hour}:{end_min:02d}"
+            except Exception:
+                lock_reason = f"Window {start_hour}:{start_min:02d}-{end_hour}:{end_min:02d}"
+
             self.validation_btn.configure(
                 state="disabled",
-                text=f"🔒 Locked until {gate_hour}:{gate_minute:02d} (Stockholm)"
+                text=f"🔒 {lock_reason} (Stockholm)"
             )
         else:
             # Unlocked - ready to run
@@ -297,8 +322,9 @@ class NiborTerminalCTK(ctk.CTk):
         self._last_approved_info = result
         snapshot = result['snapshot']
         date_key = result['date_key']
+        source = result.get('source', 'unknown')
 
-        log.info(f"Loading last approved from {date_key}")
+        log.info(f"Loading last approved from {date_key} (source: {source})")
 
         # Populate cached_market_data from snapshot
         market_data = snapshot.get('market_data', {})
@@ -308,7 +334,7 @@ class NiborTerminalCTK(ctk.CTk):
             for ticker, value in market_data.items():
                 if isinstance(value, dict):
                     self.cached_market_data[ticker] = value
-                else:
+                elif value is not None:
                     self.cached_market_data[ticker] = {'price': value}
             log.info(f"Loaded {len(self.cached_market_data)} market data points from last approved")
 
@@ -318,22 +344,24 @@ class NiborTerminalCTK(ctk.CTk):
         if rates:
             self.funding_calc_data = {}
             for tenor, rate_data in rates.items():
-                self.funding_calc_data[tenor] = {
-                    'funding_rate': rate_data.get('funding'),
-                    'spread': rate_data.get('spread'),
-                    'final_rate': rate_data.get('nibor'),
-                    'eur_impl': rate_data.get('eur_impl'),
-                    'usd_impl': rate_data.get('usd_impl'),
-                    'nok_cm': rate_data.get('nok_cm'),
-                    'weights': weights,
-                }
-            log.info(f"Loaded rates for {list(self.funding_calc_data.keys())} from last approved")
+                if isinstance(rate_data, dict):
+                    self.funding_calc_data[tenor] = {
+                        'funding_rate': rate_data.get('funding'),
+                        'spread': rate_data.get('spread'),
+                        'final_rate': rate_data.get('nibor'),
+                        'eur_impl': rate_data.get('eur_impl'),
+                        'usd_impl': rate_data.get('usd_impl'),
+                        'nok_cm': rate_data.get('nok_cm'),
+                        'weights': weights,
+                    }
+            if self.funding_calc_data:
+                log.info(f"Loaded rates for {list(self.funding_calc_data.keys())} from last approved")
 
         self._showing_last_approved = True
-        self.bbg_ok = True  # Pretend we have data for UI purposes
-        self.excel_ok = True
+        self.bbg_ok = bool(market_data)  # Only true if we have market data
+        self.excel_ok = bool(rates)  # Only true if we have rates
 
-        log.info(f"Last approved data loaded: {date_key}")
+        log.info(f"Last approved data loaded: {date_key} (bbg_ok={self.bbg_ok}, excel_ok={self.excel_ok})")
 
     def _on_fixing_time_change(self, new_value: str):
         """
@@ -415,34 +443,38 @@ class NiborTerminalCTK(ctk.CTk):
         global_header.pack(fill="x", padx=hpad, pady=(8, 0))
 
         # Header content container - left side (env badge + fixing toggle)
-        header_left = ctk.CTkFrame(global_header, fg_color="transparent")
+        header_left = tk.Frame(global_header, bg=THEME["bg_main"])
         header_left.pack(side="left")
 
-        # PROD/DEV Badge
+        # PROD/DEV Badge - use tk.Label for consistent rendering
         env = get_app_env()
         env_color = "#1E8E3E" if env == "PROD" else "#F59E0B"  # Green for PROD, Yellow for DEV
         env_text_color = "white"
 
-        self.env_badge = ctk.CTkLabel(
-            header_left,
+        # Badge container frame for background color
+        badge_frame = tk.Frame(header_left, bg=env_color, padx=2, pady=2)
+        badge_frame.pack(side="left", padx=(0, 15))
+
+        self.env_badge = tk.Label(
+            badge_frame,
             text=f"● {env}",
-            text_color=env_text_color,
-            fg_color=env_color,
+            fg=env_text_color,
+            bg=env_color,
             font=("Segoe UI Semibold", 11),
-            corner_radius=6,
-            padx=10,
-            pady=4
+            padx=8,
+            pady=2
         )
-        self.env_badge.pack(side="left", padx=(0, 15))
+        self.env_badge.pack()
 
         # Fixing Time Toggle
-        fixing_frame = ctk.CTkFrame(header_left, fg_color="transparent")
+        fixing_frame = tk.Frame(header_left, bg=THEME["bg_main"])
         fixing_frame.pack(side="left", padx=(0, 15))
 
-        ctk.CTkLabel(
+        tk.Label(
             fixing_frame,
             text="FIXING:",
-            text_color=THEME["text_muted"],
+            fg=THEME["text_muted"],
+            bg=THEME["bg_main"],
             font=("Segoe UI", 10)
         ).pack(side="left", padx=(0, 8))
 
@@ -450,19 +482,22 @@ class NiborTerminalCTK(ctk.CTk):
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
         self._fixing_time_var = tk.StringVar(value=current_fixing)
 
-        # Radio buttons for fixing time
+        # Radio buttons for fixing time - use tk.Radiobutton for consistency
         for fixing_time, config in FIXING_CONFIGS.items():
-            rb = ctk.CTkRadioButton(
+            rb = tk.Radiobutton(
                 fixing_frame,
                 text=config["label"],
                 variable=self._fixing_time_var,
                 value=fixing_time,
                 command=lambda ft=fixing_time: self._on_fixing_time_change(ft),
                 font=("Segoe UI", 10),
-                text_color=THEME["text"],
-                fg_color=THEME["accent"],
-                hover_color=THEME["accent_hover"],
-                border_color=THEME["border"],
+                fg=THEME["text"],
+                bg=THEME["bg_main"],
+                selectcolor=THEME["bg_main"],
+                activebackground=THEME["bg_main"],
+                activeforeground=THEME["accent"],
+                highlightthickness=0,
+                bd=0
             )
             rb.pack(side="left", padx=(0, 10))
 
@@ -527,19 +562,19 @@ class NiborTerminalCTK(ctk.CTk):
         # DEV WARNING BANNER - Only shown in DEV mode
         # ====================================================================
         if is_dev_mode():
-            self.dev_warning_banner = ctk.CTkFrame(
+            self.dev_warning_banner = tk.Frame(
                 self,
-                fg_color="#FEF3C7",  # Light yellow/amber background
-                corner_radius=0,
+                bg="#FEF3C7",  # Light yellow/amber background
                 height=36
             )
             self.dev_warning_banner.pack(fill="x", padx=hpad, pady=(4, 0))
             self.dev_warning_banner.pack_propagate(False)
 
-            ctk.CTkLabel(
+            tk.Label(
                 self.dev_warning_banner,
                 text="⚠️  DEV MODE – Bloomberg data may be stale before 10:30. Validation results are for testing only.",
-                text_color="#92400E",  # Dark amber text
+                fg="#92400E",  # Dark amber text
+                bg="#FEF3C7",
                 font=("Segoe UI Semibold", 11),
                 anchor="w"
             ).pack(side="left", padx=15, pady=8)
@@ -547,18 +582,18 @@ class NiborTerminalCTK(ctk.CTk):
         # ====================================================================
         # LAST APPROVED INFO BANNER - Shows when displaying last approved data
         # ====================================================================
-        self.last_approved_banner = ctk.CTkFrame(
+        self.last_approved_banner = tk.Frame(
             self,
-            fg_color="#DBEAFE",  # Light blue background
-            corner_radius=0,
+            bg="#DBEAFE",  # Light blue background
             height=36
         )
         # Don't pack yet - will be shown/hidden by _update_last_approved_banner()
 
-        self.last_approved_label = ctk.CTkLabel(
+        self.last_approved_label = tk.Label(
             self.last_approved_banner,
             text="📋 Data shown: Last approved",
-            text_color="#1E40AF",  # Dark blue text
+            fg="#1E40AF",  # Dark blue text
+            bg="#DBEAFE",
             font=("Segoe UI Semibold", 11),
             anchor="w"
         )
@@ -1114,14 +1149,20 @@ class NiborTerminalCTK(ctk.CTk):
             # Show banner with info
             date_key = self._last_approved_info.get('date_key', 'Unknown')
             snapshot = self._last_approved_info.get('snapshot', {})
-            timestamp = snapshot.get('timestamp', '')[:16].replace('T', ' ')
+            timestamp = snapshot.get('timestamp', '')[:16].replace('T', ' ') if snapshot.get('timestamp') else date_key
             env = snapshot.get('env', '')
+            source = self._last_approved_info.get('source', '')
 
             env_str = f" ({env})" if env else ""
+            source_str = f" [{source}]" if source and source != 'confirmed_ok' else ""
             self.last_approved_label.configure(
-                text=f"📋 Last approved: {timestamp}{env_str}  |  Data shown: Last approved run"
+                text=f"📋 Last approved: {timestamp}{env_str}  |  Data shown: Last approved run{source_str}"
             )
-            self.last_approved_banner.pack(fill="x", padx=CURRENT_MODE["hpad"], pady=(4, 0), before=self.body)
+            try:
+                self.last_approved_banner.pack(fill="x", padx=CURRENT_MODE["hpad"], pady=(4, 0), before=self.body)
+            except tk.TclError:
+                # If 'before' fails, just pack normally
+                self.last_approved_banner.pack(fill="x", padx=CURRENT_MODE["hpad"], pady=(4, 0))
         else:
             # Hide banner
             self.last_approved_banner.pack_forget()

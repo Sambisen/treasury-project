@@ -230,15 +230,17 @@ def get_last_approved(env_filter: str = None) -> dict | None:
 
     Search priority:
     1. Most recent with overall_status=="OK" AND confirmed==True AND env==env_filter
-    2. Fallback: Most recent with overall_status=="OK" (regardless of confirmed)
-    3. Fallback: Most recent snapshot with rates data
+    2. Fallback: Most recent with overall_status=="OK" (regardless of confirmed/env)
+    3. Fallback: Most recent snapshot with rates data (for backwards compatibility)
+    4. Fallback: Most recent snapshot with any market_data
 
     Args:
         env_filter: Optional environment filter ("PROD" or "DEV").
                    If None, no environment filtering is applied.
 
     Returns:
-        dict with keys: 'date_key', 'snapshot', or None if no suitable snapshot found
+        dict with keys: 'date_key', 'snapshot', 'source' (describes which priority matched)
+        or None if no suitable snapshot found
     """
     history = load_history()
 
@@ -259,7 +261,7 @@ def get_last_approved(env_filter: str = None) -> dict | None:
         if overall_status == "OK" and confirmed:
             if env_filter is None or entry_env == env_filter:
                 log.info(f"Found confirmed approved snapshot: {date_key} (env={entry_env})")
-                return {'date_key': date_key, 'snapshot': entry}
+                return {'date_key': date_key, 'snapshot': entry, 'source': 'confirmed_ok'}
 
     # Priority 2: Find any OK snapshot (regardless of confirmed)
     for date_key in sorted_dates:
@@ -268,17 +270,26 @@ def get_last_approved(env_filter: str = None) -> dict | None:
 
         if overall_status == "OK":
             log.info(f"Found unconfirmed OK snapshot: {date_key}")
-            return {'date_key': date_key, 'snapshot': entry}
+            return {'date_key': date_key, 'snapshot': entry, 'source': 'unconfirmed_ok'}
 
-    # Priority 3: Find any snapshot with rates data
+    # Priority 3: Find any snapshot with rates data (backwards compat - old snapshots without overall_status)
     for date_key in sorted_dates:
         entry = history[date_key]
         rates = entry.get('rates', {})
 
         # Check if rates has actual data
         if rates and any(rates.get(t, {}).get('nibor') is not None for t in ['1m', '2m', '3m', '6m']):
-            log.info(f"Found snapshot with rates (no status): {date_key}")
-            return {'date_key': date_key, 'snapshot': entry}
+            log.info(f"Found snapshot with rates (no overall_status): {date_key}")
+            return {'date_key': date_key, 'snapshot': entry, 'source': 'has_rates'}
+
+    # Priority 4: Find any snapshot with market_data (even older format)
+    for date_key in sorted_dates:
+        entry = history[date_key]
+        market_data = entry.get('market_data', {})
+
+        if market_data and len(market_data) > 0:
+            log.info(f"Found snapshot with market_data only: {date_key}")
+            return {'date_key': date_key, 'snapshot': entry, 'source': 'has_market_data'}
 
     log.warning("No suitable snapshot found in history")
     return None

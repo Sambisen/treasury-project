@@ -48,10 +48,14 @@ DEVELOPMENT_MODE = True  # Default to TEST mode
 #   - F043 = 10:30 fixing (default)
 #   - F040 = 10:00 fixing
 #
-# The validation gate time is synchronized with the selected fixing time.
+# The validation window is synchronized with the selected fixing time:
+#   - Window opens at gate_start (10:30 or 10:00)
+#   - Window closes at gate_end (11:30 for both)
+#
+# Outside this window, validation is LOCKED in PROD mode.
 FIXING_CONFIGS = {
-    "10:30": {"suffix": "F043", "gate": (10, 30), "label": "10:30 (F043)"},
-    "10:00": {"suffix": "F040", "gate": (10, 0), "label": "10:00 (F040)"},
+    "10:30": {"suffix": "F043", "gate_start": (10, 30), "gate_end": (11, 30), "label": "10:30 (F043)"},
+    "10:00": {"suffix": "F040", "gate_start": (10, 0), "gate_end": (11, 30), "label": "10:00 (F040)"},
 }
 DEFAULT_FIXING_TIME = "10:30"
 VALIDATION_GATE_TZ = "Europe/Stockholm"
@@ -72,10 +76,23 @@ def get_ticker_suffix():
     return get_fixing_config()["suffix"]
 
 def get_gate_time():
-    """Get the validation gate time (hour, minute) based on selected fixing time.
+    """Get the validation gate START time (hour, minute) based on selected fixing time.
     Returns (10, 30) for 10:30 fixing, (10, 0) for 10:00 fixing.
     """
-    return get_fixing_config()["gate"]
+    return get_fixing_config()["gate_start"]
+
+def get_gate_window():
+    """Get the full validation window (start, end) based on selected fixing time.
+
+    Returns:
+        tuple: ((start_hour, start_min), (end_hour, end_min))
+
+    Example:
+        For 10:30 fixing: ((10, 30), (11, 30))
+        For 10:00 fixing: ((10, 0), (11, 30))
+    """
+    config = get_fixing_config()
+    return config["gate_start"], config["gate_end"]
 
 def get_ticker(base_ticker):
     """Convert a base ticker to use the correct suffix for current mode.
