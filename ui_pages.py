@@ -374,7 +374,7 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # VALIDATION CHECKS BAR - 6 check categories with ✓/✗ status
+        # VALIDATION CHECKS BAR - 6 check categories with ✔/✖ status
         # ====================================================================
         tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(20, 0))
 
@@ -405,7 +405,7 @@ class DashboardPage(BaseFrame):
             badge_frame = tk.Frame(checks_bar, bg=THEME["chip"], cursor="hand2")
             badge_frame.pack(side="left", padx=(0, 8))
 
-            # Status icon (✓ or ✗)
+            # Status icon (✔ or ✖)
             status_icon = tk.Label(badge_frame, text="—",
                                    fg=THEME["text_muted"],
                                    bg=THEME["chip"],
@@ -780,12 +780,12 @@ class DashboardPage(BaseFrame):
 
         status = check.get("status")
         if status is True:
-            status_icon = "✓"
+            status_icon = "✔"
             status_text = "ALL CHECKS PASSED"
             status_color = THEME["success"]
             header_bg = "#E8F5E9"
         elif status is False:
-            status_icon = "✗"
+            status_icon = "✖"
             status_text = "VALIDATION FAILED"
             status_color = THEME["danger"]
             header_bg = "#FFEBEE"
@@ -842,7 +842,7 @@ class DashboardPage(BaseFrame):
                     alert_card.pack(fill="x", pady=4, padx=2)
 
                     tk.Label(alert_card,
-                            text=f"✗ {alert}",
+                            text=f"✖ {alert}",
                             font=("Segoe UI", 10),
                             fg=THEME["danger"], bg=THEME["bg_card"],
                             anchor="w", wraplength=480, justify="left").pack(padx=12, pady=10, anchor="w")
@@ -852,7 +852,7 @@ class DashboardPage(BaseFrame):
 
                 if status is True:
                     tk.Label(success_frame,
-                            text="✓ All validation checks passed",
+                            text="✔ All validation checks passed",
                             font=("Segoe UI", 12),
                             fg=THEME["success"], bg=THEME["bg_panel"]).pack(expand=True)
                 else:
@@ -1041,7 +1041,7 @@ class DashboardPage(BaseFrame):
             check_row.pack(fill="x")
 
             # Status icon
-            icon_text = "✓" if matched else "✗"
+            icon_text = "✔" if matched else "✖"
             icon_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=icon_text, font=("Segoe UI", 10),
                     fg=icon_color, bg=row_bg, width=3).pack(side="left", padx=(8, 0), pady=5)
@@ -1102,7 +1102,7 @@ class DashboardPage(BaseFrame):
                                         fg=THEME["danger"], bg="#FFEBEE")
             failed_expand_lbl.pack(side="left", padx=(12, 4), pady=10)
 
-            tk.Label(failed_header, text=f"✗  Failed Checks", font=("Segoe UI Semibold", 11),
+            tk.Label(failed_header, text=f"✖  Failed Checks", font=("Segoe UI Semibold", 11),
                     fg=THEME["danger"], bg="#FFEBEE").pack(side="left", pady=10)
 
             tk.Label(failed_header, text=f"{len(failed_checks)} issues", font=("Segoe UI", 9),
@@ -1147,7 +1147,7 @@ class DashboardPage(BaseFrame):
                                          fg=THEME["success"], bg="#E8F5E9")
             matched_expand_lbl.pack(side="left", padx=(12, 4), pady=10)
 
-            tk.Label(matched_header, text=f"✓  Matched Cells", font=("Segoe UI Semibold", 11),
+            tk.Label(matched_header, text=f"✔  Matched Cells", font=("Segoe UI Semibold", 11),
                     fg=THEME["success"], bg="#E8F5E9").pack(side="left", pady=10)
 
             tk.Label(matched_header, text=f"{len(matched_checks)} passed", font=("Segoe UI", 9),
@@ -1205,12 +1205,12 @@ class DashboardPage(BaseFrame):
 
         if status is True:
             # Green success
-            icon.config(text="✓", fg=THEME["success"])
+            icon.config(text="✔", fg=THEME["success"])
             label.config(fg=THEME["success"])
             bg = "#E8F5E9"
         elif status is False:
             # Red failure
-            icon.config(text="✗", fg=THEME["danger"])
+            icon.config(text="✖", fg=THEME["danger"])
             label.config(fg=THEME["danger"])
             bg = "#FFEBEE"
         else:
@@ -1271,7 +1271,7 @@ class DashboardPage(BaseFrame):
         header_frame.pack(fill="x", padx=0, pady=0)
 
         status_color = THEME["good"] if data.get('all_matched') else THEME["bad"]
-        status_text = "✓ ALL MATCHED" if data.get('all_matched') else "✗ MISMATCH FOUND"
+        status_text = "✔ ALL MATCHED" if data.get('all_matched') else "✖ MISMATCH FOUND"
 
         tk.Label(header_frame,
                 text=f"NIBOR Contribution Match - {data['tenor']}",
@@ -1317,7 +1317,7 @@ class DashboardPage(BaseFrame):
 
             # Status indicator
             match_status = criterion.get('matched', False)
-            status_icon = "✓" if match_status else "✗"
+            status_icon = "✔" if match_status else "✖"
             status_fg = THEME["good"] if match_status else THEME["bad"]
 
             # Header row
@@ -1470,11 +1470,11 @@ class DashboardPage(BaseFrame):
 
             # Pill badge colors
             if is_ok:
-                icon = "✓"
+                icon = "✔"
                 text_color = THEME["good"]  # Green
                 bg_color = "#DCFCE7"    # Light green bg
             else:
-                icon = "✗"
+                icon = "✖"
                 text_color = THEME["bad"]  # Red
                 bg_color = "#FEE2E2"    # Light red bg
 
@@ -1852,9 +1852,9 @@ class DashboardPage(BaseFrame):
                     matched_fg = THEME["success"]  # #1E8E3E
                     if is_ctk_widget:
                         badge.configure(fg_color=matched_bg)
-                        lbl.configure(text="✓ Matched", text_color=matched_fg)
+                        lbl.configure(text="✔ Matched", text_color=matched_fg)
                     else:
-                        lbl.config(text="✓ Matched", fg=matched_fg, bg=matched_bg,
+                        lbl.config(text="✔ Matched", fg=matched_fg, bg=matched_bg,
                                   font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=matched_bg)
@@ -1865,9 +1865,9 @@ class DashboardPage(BaseFrame):
                     failed_fg = THEME["danger"]  # #D93025
                     if is_ctk_widget:
                         badge.configure(fg_color=failed_bg)
-                        lbl.configure(text="✗ Failed", text_color=failed_fg)
+                        lbl.configure(text="✖ Failed", text_color=failed_fg)
                     else:
-                        lbl.config(text="✗ Failed", fg=failed_fg, bg=failed_bg,
+                        lbl.config(text="✖ Failed", fg=failed_fg, bg=failed_bg,
                                   font=("Segoe UI Semibold", 10), padx=14, pady=5)
                         if badge:
                             badge.config(bg=failed_bg)
@@ -3937,7 +3937,7 @@ class HistoryPage(tk.Frame):
                 log.info(f"write_confirmation_to_excel returned: success={success}, msg={msg}")
                 if success:
                     log.info(f"Confirmation stamp written: {msg}")
-                    messagebox.showinfo("Nibor Confirmed", f"✓ NIBOR confirmed and logged!\n\n{msg}")
+                    messagebox.showinfo("Nibor Confirmed", f"✔ NIBOR confirmed and logged!\n\n{msg}")
                 else:
                     log.error(f"Failed to write stamp: {msg}")
                     messagebox.showwarning("Warning", f"Snapshot saved but Excel stamp failed:\n\n{msg}")
@@ -4703,7 +4703,7 @@ class AuditLogPage(tk.Frame):
         'INFO': {'icon': 'ℹ️', 'color': '#3b82f6', 'bg': '#1e3a5f'},
         'WARNING': {'icon': '⚠️', 'color': '#f59e0b', 'bg': '#3d3520'},
         'ERROR': {'icon': '❌', 'color': '#ef4444', 'bg': '#3d1e1e'},
-        'ACTION': {'icon': '✓', 'color': '#4ade80', 'bg': '#1e3d2e'},
+        'ACTION': {'icon': '✔', 'color': '#4ade80', 'bg': '#1e3d2e'},
         'DEBUG': {'icon': '🔧', 'color': '#8b5cf6', 'bg': '#2d1f4e'},
         'SYSTEM': {'icon': '⚙️', 'color': '#6b7280', 'bg': '#2d2d44'},
     }
@@ -4843,7 +4843,7 @@ class AuditLogPage(tk.Frame):
             ("info", "ℹ️ Info:", "#2563EB"),  # Blue
             ("warning", "⚠️ Warnings:", THEME["warning"]),
             ("error", "❌ Errors:", THEME["bad"]),
-            ("action", "✓ Actions:", THEME["good"]),
+            ("action", "✔ Actions:", THEME["good"]),
         ]
 
         for key, label, color in stats_config:
@@ -6119,7 +6119,7 @@ class SettingsPage(tk.Frame):
         for key, value in self._pending_changes.items():
             self.settings.set(key, value)
         self._pending_changes.clear()
-        self._unsaved_label.config(text="✓ Changes applied")
+        self._unsaved_label.config(text="✔ Changes applied")
         self.after(2000, lambda: self._unsaved_label.config(text=""))
 
     def _save_changes(self):
@@ -6128,7 +6128,7 @@ class SettingsPage(tk.Frame):
             self.settings.set(key, value)
         self._pending_changes.clear()
         self.settings.save()
-        self._unsaved_label.config(text="✓ Settings saved")
+        self._unsaved_label.config(text="✔ Settings saved")
         self.after(2000, lambda: self._unsaved_label.config(text=""))
 
         # Update file mode label if it exists
@@ -6164,7 +6164,7 @@ class SettingsPage(tk.Frame):
             self.settings.reset_to_defaults()
             self._pending_changes.clear()
             self._select_category(self._current_category)
-            self._unsaved_label.config(text="✓ Defaults restored")
+            self._unsaved_label.config(text="✔ Defaults restored")
 
     def _import_settings(self):
         """Import settings from file."""
@@ -6177,7 +6177,7 @@ class SettingsPage(tk.Frame):
             from pathlib import Path
             if self.settings.import_settings(Path(filepath)):
                 self._select_category(self._current_category)
-                self._unsaved_label.config(text="✓ Settings imported")
+                self._unsaved_label.config(text="✔ Settings imported")
 
     def _export_settings(self):
         """Export settings to file."""
@@ -6191,7 +6191,7 @@ class SettingsPage(tk.Frame):
         if filepath:
             from pathlib import Path
             if self.settings.export_settings(Path(filepath)):
-                self._unsaved_label.config(text="✓ Settings exported")
+                self._unsaved_label.config(text="✔ Settings exported")
 
     def _open_log_folder(self):
         """Open the log folder."""
