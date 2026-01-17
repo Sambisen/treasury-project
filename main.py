@@ -291,17 +291,23 @@ class NiborTerminalCTK(ctk.CTk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - Simple unified design
+        # COMMAND CENTER SIDEBAR - Simple unified design with scroll
         # ====================================================================
-        sidebar = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=220,
+        sidebar_container = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=220,
                                corner_radius=CTK_CORNER_RADIUS["frame"])
-        sidebar.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        sidebar.grid_propagate(False)
+        sidebar_container.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        sidebar_container.grid_propagate(False)
+
+        # Scrollable sidebar content
+        sidebar = ctk.CTkScrollableFrame(sidebar_container, fg_color=THEME["bg_nav"],
+                                          scrollbar_button_color=THEME["border"],
+                                          scrollbar_button_hover_color=THEME["text_muted"])
+        sidebar.pack(fill="both", expand=True)
 
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=16, pady=(12, 10))
+                    font=("Segoe UI Semibold", 18)).pack(anchor="w", padx=12, pady=(8, 8))
 
         # Navigation buttons - simple CTkButton with icon in text
         self.PAGES_CONFIG = [

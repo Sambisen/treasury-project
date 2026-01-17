@@ -286,6 +286,20 @@ if not CTK_AVAILABLE:
             def _get_inner_frame(self):
                 return self._inner_frame
 
+            # Property to get the frame where widgets should be added
+            @property
+            def interior(self):
+                return self._inner_frame
+
+            # Make this frame act as a proper parent for widgets
+            def nametowidget(self, name):
+                return self._inner_frame.nametowidget(name)
+
+            # Expose inner frame's tk attribute for widget creation
+            @property
+            def _w(self):
+                return self._inner_frame._w
+
         # ====================================================================
         # WIDGET CLASSES
         # ====================================================================
