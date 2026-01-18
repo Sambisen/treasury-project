@@ -182,26 +182,29 @@ class CompactCalculationDrawer(tk.Toplevel):
         )
         indicator.pack(side="left", padx=(0, 6))
 
-        # Name
+        # Name - fixed width for alignment
         tk.Label(
             row,
             text=name,
             font=("Segoe UI", 11),
             fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            bg=COLORS.SURFACE,
+            width=12,
+            anchor="w"
         ).pack(side="left")
 
-        # Weight (always visible)
+        # Weight (always visible) - fixed width for alignment
         tk.Label(
             row,
             text=f"{weight*100:.0f}%",
             font=("Segoe UI", 10),
             fg=COLORS.TEXT_MUTED,
             bg=COLORS.SURFACE,
-            width=5
-        ).pack(side="left", padx=(8, 0))
+            width=4,
+            anchor="e"
+        ).pack(side="left", padx=(4, 0))
 
-        # Value
+        # Value - right aligned
         tk.Label(
             row,
             text=f"{value:.4f}%" if value else "—",
