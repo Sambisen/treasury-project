@@ -46,7 +46,10 @@ class ToolTip:
         widget.bind("<Leave>", self.hide, add="+")
     
     def show(self, event=None):
-        text = self.text_func()
+        try:
+            text = self.text_func()
+        except Exception:
+            text = None
         if text and self.tooltip_window is None:
             x = self.widget.winfo_rootx() + 20
             y = self.widget.winfo_rooty() + 20
@@ -441,8 +444,8 @@ class DashboardPage(BaseFrame):
                 return handler
 
             for w in row_widgets:
-                w.bind("<Enter>", make_hover_enter(row_widgets, hover_bg))
-                w.bind("<Leave>", make_hover_leave(row_widgets, row_bg, THEME["chip"]))
+                w.bind("<Enter>", make_hover_enter(row_widgets, hover_bg), add="+")
+                w.bind("<Leave>", make_hover_leave(row_widgets, row_bg, THEME["chip"]), add="+")
 
             # Subtle row separator
             tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
@@ -2340,17 +2343,21 @@ class DashboardPage(BaseFrame):
 
     def _get_chg_tooltip(self, tenor_key):
         """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
+        # Check if excel engine is available
+        if not hasattr(self.app, 'excel_engine') or self.app.excel_engine is None:
+            return None
+
         try:
             prev_rates = self.app.excel_engine.get_previous_sheet_nibor_rates()
         except Exception:
-            return "Error loading data"
+            return None
 
         if not prev_rates or tenor_key not in prev_rates:
-            return "No previous data"
+            return None
 
         prev_nibor = prev_rates[tenor_key].get('nibor')
         if prev_nibor is None:
-            return "No previous rate"
+            return None
 
         # Get the date from the sheet name
         prev_date = prev_rates.get("_date", "")
