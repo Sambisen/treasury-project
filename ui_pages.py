@@ -462,7 +462,7 @@ class DashboardPage(BaseFrame):
             pill_badge.pack(anchor="center", expand=True)
             pill_label = tk.Label(pill_badge, text="—",
                                   fg=THEME["text_muted"], bg=THEME["chip"],
-                                  font=("Segoe UI", 10), padx=14, pady=5)
+                                  font=("Segoe UI", 12), padx=14, pady=5)
             pill_label.pack()
 
             cells["nibor_contrib"] = pill_label
@@ -542,7 +542,7 @@ class DashboardPage(BaseFrame):
             status_icon = tk.Label(badge_frame, text="—",
                                    fg=THEME["text_muted"],
                                    bg=THEME["chip"],
-                                   font=("Segoe UI", 10))
+                                   font=("Segoe UI", 13))
             status_icon.pack(side="left", padx=(8, 4), pady=6)
 
             # Label
@@ -1176,7 +1176,7 @@ class DashboardPage(BaseFrame):
             # Status icon
             icon_text = "✔" if matched else "✖"
             icon_color = THEME["success"] if matched else THEME["danger"]
-            tk.Label(check_row, text=icon_text, font=("Segoe UI", 10),
+            tk.Label(check_row, text=icon_text, font=("Segoe UI", 13),
                     fg=icon_color, bg=row_bg, width=3).pack(side="left", padx=(8, 0), pady=5)
 
             # Tenor
@@ -1459,7 +1459,7 @@ class DashboardPage(BaseFrame):
 
             tk.Label(header_row,
                     text=f"{status_icon} Kriterium {i}: {criterion.get('name', '')}",
-                    font=("Segoe UI Semibold", 10),
+                    font=("Segoe UI", 12),
                     fg=status_fg, bg=THEME["bg_card"]).pack(side="left")
 
             tk.Label(header_row,
@@ -1690,7 +1690,7 @@ class DashboardPage(BaseFrame):
 
                 badge_label = ctk.CTkLabel(badge, text=f"{icon} {name}",
                                            text_color=text_color,
-                                           font=("Segoe UI Semibold", 10),
+                                           font=("Segoe UI", 12),
                                            cursor="hand2")
                 badge_label.pack(padx=12, pady=6)
             else:
@@ -1700,7 +1700,7 @@ class DashboardPage(BaseFrame):
 
                 badge_label = tk.Label(badge, text=f"{icon} {name}",
                                        fg=text_color, bg=bg_color,
-                                       font=("Segoe UI Semibold", 10),
+                                       font=("Segoe UI", 12),
                                        padx=12, pady=6)
                 badge_label.pack()
 
@@ -2065,7 +2065,7 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="✔ Matched", text_color=matched_fg)
                     else:
                         lbl.config(text="✔ Matched", fg=matched_fg, bg=matched_bg,
-                                  font=("Segoe UI Semibold", 10), padx=14, pady=5)
+                                  font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
                             badge.config(bg=matched_bg)
                     self._stop_blink(lbl)
@@ -2078,7 +2078,7 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="✖ Failed", text_color=failed_fg)
                     else:
                         lbl.config(text="✖ Failed", fg=failed_fg, bg=failed_bg,
-                                  font=("Segoe UI Semibold", 10), padx=14, pady=5)
+                                  font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
                             badge.config(bg=failed_bg)
                     self._start_blink(lbl)
@@ -2093,7 +2093,7 @@ class DashboardPage(BaseFrame):
                         lbl.configure(text="—", text_color=pending_fg)
                     else:
                         lbl.config(text="—", fg=pending_fg, bg=pending_bg,
-                                  font=("Segoe UI", 10), padx=14, pady=5)
+                                  font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
                             badge.config(bg=pending_bg)
                     self._stop_blink(lbl)
