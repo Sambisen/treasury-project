@@ -346,6 +346,12 @@ class DashboardPage(BaseFrame):
             cells["row_bg"] = row_bg
             cells["row_widgets"] = row_widgets  # Store for hover effect
 
+            # Make NIBOR Contribution clickable - opens reconciliation drawer
+            pill_badge.config(cursor="hand2")
+            pill_label.config(cursor="hand2")
+            pill_badge.bind("<Button-1>", lambda e, t=tenor["key"]: self._open_drawer_for_tenor(t))
+            pill_label.bind("<Button-1>", lambda e, t=tenor["key"]: self._open_drawer_for_tenor(t))
+
             # Bind row hover effect to all widgets
             def make_hover_enter(widgets, hbg):
                 def handler(e):
