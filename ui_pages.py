@@ -251,80 +251,79 @@ class DashboardPage(BaseFrame):
 
             # Disabled tenor (1W) - Collapsible row
             if tenor.get("disabled"):
-                # Container for collapsible row (spans all columns)
-                collapse_container = tk.Frame(funding_frame, bg=row_bg)
-                collapse_container.grid(row=row_idx, column=0, columnspan=7, sticky="nsew")
+                # Expand indicator in a small area to the left
+                expand_frame = tk.Frame(funding_frame, bg=row_bg, cursor="hand2")
+                expand_frame.grid(row=row_idx, column=0, sticky="nsew")
 
-                # Collapsed state (default) - compact single row
-                collapsed_row = tk.Frame(collapse_container, bg=row_bg, cursor="hand2")
-                collapsed_row.pack(fill="x", pady=6, padx=16)
-
-                # Expand indicator
                 expand_indicator = tk.Label(
-                    collapsed_row,
+                    expand_frame,
                     text="▶",
                     font=("Segoe UI", 9),
                     fg=THEME["text_light"],
-                    bg=row_bg
+                    bg=row_bg,
+                    cursor="hand2"
                 )
-                expand_indicator.pack(side="left", padx=(0, 8))
+                expand_indicator.pack(side="left", padx=(18, 0), pady=14)
 
-                # Tenor label
-                tk.Label(
-                    collapsed_row,
+                # Tenor label - same style as other tenors (Segoe UI Semibold, 13)
+                tenor_lbl = tk.Label(
+                    expand_frame,
                     text=tenor["label"],
-                    font=("Segoe UI", 11),
+                    font=("Segoe UI Semibold", 13),
                     fg=THEME["text_light"],
-                    bg=row_bg
-                ).pack(side="left")
+                    bg=row_bg,
+                    anchor="w",
+                    cursor="hand2"
+                )
+                tenor_lbl.pack(side="left", padx=(8, 0), pady=14)
+
+                # N/A badge container spans remaining columns
+                badge_container = tk.Frame(funding_frame, bg=row_bg, cursor="hand2")
+                badge_container.grid(row=row_idx, column=1, columnspan=6, sticky="nsew")
 
                 # N/A indicator badge
-                na_badge = tk.Frame(collapsed_row, bg=THEME["chip"])
-                na_badge.pack(side="left", padx=(12, 0))
+                na_badge = tk.Frame(badge_container, bg=THEME["chip"])
+                na_badge.pack(side="left", padx=(16, 0), pady=12)
                 tk.Label(
                     na_badge,
                     text="Not Available",
                     font=("Segoe UI", 9),
                     fg=THEME["text_light"],
                     bg=THEME["chip"],
-                    padx=8,
-                    pady=2
+                    padx=10,
+                    pady=3,
+                    cursor="hand2"
                 ).pack()
 
-                # Expanded state (hidden by default) - full details
-                expanded_row = tk.Frame(collapse_container, bg=THEME["row_hover"])
+                # Expanded state (hidden by default) - spans all columns
+                expanded_row = tk.Frame(funding_frame, bg=THEME["row_hover"])
 
                 # Build expanded content
                 expanded_inner = tk.Frame(expanded_row, bg=THEME["row_hover"])
-                expanded_inner.pack(fill="x", pady=8, padx=16)
+                expanded_inner.pack(fill="x", pady=10, padx=36)
 
-                # Tenor
-                tk.Label(expanded_inner, text=tenor["label"],
-                        fg=THEME["text_light"], bg=THEME["row_hover"],
-                        font=("Segoe UI", 11), width=8, anchor="w").pack(side="left", padx=(20, 16))
-
-                # Info text
                 tk.Label(expanded_inner,
-                        text="1W tenor data is not available for NIBOR calculations",
+                        text="1W tenor is not included in NIBOR calculations. Only 1M, 2M, 3M, and 6M tenors are used.",
                         fg=THEME["text_light"], bg=THEME["row_hover"],
                         font=("Segoe UI", 10)).pack(side="left")
 
                 # Toggle function
-                def toggle_1w(e=None, collapsed=collapsed_row, expanded=expanded_row, indicator=expand_indicator):
-                    if expanded.winfo_manager():
-                        expanded.pack_forget()
+                def toggle_1w(e=None, expanded=expanded_row, indicator=expand_indicator, row=row_idx):
+                    if expanded.winfo_viewable():
+                        expanded.grid_forget()
                         indicator.config(text="▶")
                     else:
-                        expanded.pack(fill="x")
+                        expanded.grid(row=row+1, column=0, columnspan=7, sticky="nsew")
                         indicator.config(text="▼")
 
-                # Bind click to toggle
-                for widget in [collapsed_row, expand_indicator] + list(collapsed_row.winfo_children()):
+                # Bind click to toggle on all clickable elements
+                for widget in [expand_frame, expand_indicator, tenor_lbl, badge_container, na_badge]:
                     widget.bind("<Button-1>", toggle_1w)
-                    widget.config(cursor="hand2") if hasattr(widget, 'config') else None
+                for child in na_badge.winfo_children():
+                    child.bind("<Button-1>", toggle_1w)
 
-                # Subtle row separator
-                tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
+                # Subtle row separator (will be after expanded content if shown)
+                tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+2, column=0, columnspan=7, sticky="ew")
 
                 self.funding_cells[tenor["key"]] = {}
                 continue
