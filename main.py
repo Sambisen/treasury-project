@@ -54,8 +54,7 @@ from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    NiborDaysPage, NokImpliedPage, WeightsPage, NiborMetaDataPage,
-    AuditLogPage, SettingsPage, NiborRoadmapPage
+    WeightsPage, AuditLogPage, NiborRoadmapPage, NokImpliedPage
 )
 
 
@@ -173,9 +172,6 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Ctrl+R = Go to Nibor Recon
         self.bind("<Control-r>", lambda e: self.show_page("nibor_recon"))
-
-        # Ctrl+N = Go to NOK Implied
-        self.bind("<Control-n>", lambda e: self.show_page("nok_implied"))
 
         # Ctrl+comma = Settings
         self.bind("<Control-comma>", lambda e: self._show_settings_dialog())
@@ -886,13 +882,10 @@ class NiborTerminalCTK(ctk.CTk):
         self.PAGES_CONFIG = [
             ("dashboard", "📊", "NIBOR", DashboardPage),
             ("nibor_recon", "✅", "Nibor Recon", ReconPage),
-            ("nok_implied", "📈", "NOK Implied", NokImpliedPage),
             ("weights", "⚖️", "Weights", WeightsPage),
             ("audit_log", "📋", "Audit Log", AuditLogPage),
-            ("nibor_meta", "ℹ️", "Meta Data", NiborMetaDataPage),
             ("rules_logic", "🧮", "Backup Nibor", RulesPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
-            ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
             ("nibor_roadmap", "🗺️", "Nibor Roadmap", NiborRoadmapPage),
         ]
 
@@ -920,6 +913,9 @@ class NiborTerminalCTK(ctk.CTk):
                 "hover_color": THEME["bg_nav_sel"],
                 "active_bg": THEME["bg_nav_sel"]
             }
+
+        # Spacer to maintain Quick Access position (compensates for removed pages)
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=114).pack(fill="x")
 
         # Divider
         ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=12)
@@ -976,6 +972,10 @@ class NiborTerminalCTK(ctk.CTk):
             self._pages[key] = page_instance
             page_instance.grid(row=0, column=0, sticky="nsew")
             page_instance.grid_remove()
+
+        # Hidden NokImpliedPage for calculation logic (populates impl_calc_data)
+        self._nok_implied_calc = NokImpliedPage(self.content, self)
+        self._nok_implied_calc.grid_remove()  # Never shown
 
         # Create validation button in DashboardPage (centered)
         dashboard = self._pages.get("dashboard")
@@ -1355,11 +1355,6 @@ class NiborTerminalCTK(ctk.CTk):
         if key == "nibor_recon" and focus:
             self._pages["nibor_recon"].set_focus_mode(focus)
 
-        # Auto-refresh NOK Implied page when shown (if data is available)
-        if key == "nok_implied":
-            # Delay to ensure page is visible before updating
-            self.after(100, lambda: self._pages["nok_implied"].update())
-
         self.refresh_ui()
 
     def open_history_folder(self):
@@ -1547,11 +1542,11 @@ class NiborTerminalCTK(ctk.CTk):
 
         _ = self.build_recon_rows(view="ALL")
 
-        # Update NokImpliedPage FIRST to populate impl_calc_data
-        if "nok_implied" in self._pages:
+        # Update hidden NokImpliedPage to populate impl_calc_data (used by drawer)
+        if hasattr(self, '_nok_implied_calc'):
             try:
                 log.debug("Updating NokImpliedPage to populate impl_calc_data...")
-                self._pages["nok_implied"].update()
+                self._nok_implied_calc.update()
                 log.debug(f"impl_calc_data populated with {len(getattr(self, 'impl_calc_data', {}))} entries")
             except Exception as e:
                 log.error(f"Error updating NokImpliedPage: {e}")
