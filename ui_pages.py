@@ -1916,9 +1916,15 @@ class DashboardPage(BaseFrame):
 
                 if is_ctk_widget:
                     lbl.configure(cursor="hand2")
+                    if badge:
+                        badge.configure(cursor="hand2")
+                        badge.bind("<Button-1>", lambda e, tk=tenor_key: self._open_drawer_for_tenor(tk))
                 else:
                     lbl.config(cursor="hand2")
-                lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._show_match_popup(tk))
+                    if badge:
+                        badge.config(cursor="hand2")
+                        badge.bind("<Button-1>", lambda e, tk=tenor_key: self._open_drawer_for_tenor(tk))
+                lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._open_drawer_for_tenor(tk))
 
                 if all_matched and match_details['criteria']:
                     # Matched - Green pill with checkmark icon (Nordic Light)
