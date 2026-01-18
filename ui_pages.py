@@ -36,16 +36,36 @@ BaseFrame = ctk.CTkFrame if CTK_AVAILABLE else tk.Frame
 
 
 class ToolTip:
-    """Simple tooltip that shows on hover with 4-decimal precision."""
-    def __init__(self, widget, text_func):
+    """Simple tooltip that shows on hover with delay to prevent flickering."""
+    def __init__(self, widget, text_func, delay=300):
         self.widget = widget
         self.text_func = text_func
         self.tooltip_window = None
+        self._show_id = None
+        self._delay = delay
         # Use add="+" to not replace existing bindings
-        widget.bind("<Enter>", self.show, add="+")
-        widget.bind("<Leave>", self.hide, add="+")
-    
-    def show(self, event=None):
+        widget.bind("<Enter>", self._schedule_show, add="+")
+        widget.bind("<Leave>", self._cancel_and_hide, add="+")
+
+    def _schedule_show(self, event=None):
+        """Schedule tooltip to show after delay."""
+        self._cancel_scheduled()
+        self._show_id = self.widget.after(self._delay, self._do_show)
+
+    def _cancel_scheduled(self):
+        """Cancel any scheduled show."""
+        if self._show_id:
+            self.widget.after_cancel(self._show_id)
+            self._show_id = None
+
+    def _cancel_and_hide(self, event=None):
+        """Cancel scheduled show and hide tooltip."""
+        self._cancel_scheduled()
+        self._do_hide()
+
+    def _do_show(self):
+        """Actually show the tooltip."""
+        self._show_id = None
         try:
             text = self.text_func()
         except Exception:
@@ -68,8 +88,9 @@ class ToolTip:
                 pady=4
             )
             label.pack()
-    
-    def hide(self, event=None):
+
+    def _do_hide(self):
+        """Actually hide the tooltip."""
         if self.tooltip_window:
             self.tooltip_window.destroy()
             self.tooltip_window = None
