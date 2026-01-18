@@ -49,7 +49,7 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
-from ui.components import PremiumEnvBadge, SegmentedControl
+from ui.components import PremiumEnvBadge, SegmentedControl, ConfirmModal
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -366,13 +366,31 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _on_fixing_time_change(self, new_value: str):
         """
-        Handle fixing time radio button change.
-        Saves setting and triggers data refresh with new tickers.
+        Handle fixing time change from segmented control.
+        Shows confirmation for 10:00 (rarely used), then saves and refreshes.
         """
         current = get_setting("fixing_time", DEFAULT_FIXING_TIME)
 
         if new_value == current:
             return
+
+        # Confirm if switching to 10:00 (rarely used)
+        if new_value == "10:00":
+            modal = ConfirmModal(
+                self,
+                title="Change Fixing Time",
+                message="The 10:00 CET fixing is rarely used.\n\nAre you sure you want to switch?",
+                confirm_text="Switch to 10:00",
+                cancel_text="Keep 10:30",
+                variant="default"
+            )
+            confirmed = modal.wait_for_result()
+
+            if not confirmed:
+                # Revert the segmented control back to current value
+                if hasattr(self, 'fixing_control'):
+                    self.fixing_control.set(current)
+                return
 
         # Save new setting
         set_setting("fixing_time", new_value, save=True)
@@ -382,9 +400,7 @@ class NiborTerminalCTK(ctk.CTk):
         self._check_validation_gate()
 
         # Show toast and refresh data
-        config = FIXING_CONFIGS.get(new_value, FIXING_CONFIGS[DEFAULT_FIXING_TIME])
-        suffix = config["suffix"]
-        self.toast.info(f"Fixing time: {new_value} ({suffix}) – Fetching new data...")
+        self.toast.info(f"Fixing time: {new_value} CET – Fetching new data...")
 
         # Trigger refresh with new tickers
         self.refresh_data()
