@@ -54,7 +54,8 @@ from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
-    WeightsPage, AuditLogPage, NiborRoadmapPage, NokImpliedPage
+    WeightsPage, AuditLogPage, NiborRoadmapPage, NokImpliedPage,
+    MetaDataPage
 )
 
 
@@ -887,6 +888,7 @@ class NiborTerminalCTK(ctk.CTk):
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_roadmap", "🗂️", "Nibor Roadmap", NiborRoadmapPage),
             ("audit_log", "📋", "Audit Log", AuditLogPage),
+            ("meta_data", "ℹ️", "Meta Data", MetaDataPage),
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
@@ -915,7 +917,7 @@ class NiborTerminalCTK(ctk.CTk):
             }
 
         # Spacer to maintain Quick Access position (compensates for removed pages)
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=114).pack(fill="x")
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=76).pack(fill="x")
 
         # Divider
         ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=12)
