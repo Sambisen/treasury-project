@@ -263,7 +263,7 @@ class NiborTerminalCTK(ctk.CTk):
 
         def get_tooltip_text():
             (start_h, start_m), (end_h, end_m) = get_gate_window()
-            fixing_time = get_fixing_time_display()
+            fixing_time = get_setting("fixing_time", DEFAULT_FIXING_TIME)
 
             if is_dev_mode():
                 return (
