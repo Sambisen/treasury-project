@@ -647,26 +647,29 @@ class PremiumConnectionPanel(ctk.CTkFrame):
                 side="left", padx=10
             )
 
-            # === TIMESTAMP SECTION ===
-            ctk.CTkLabel(
-                content,
-                text="Sync:",
-                font=("Segoe UI", 9),
-                text_color="#9CA3AF",
-            ).pack(side="left")
-
+            # === TIMESTAMP SECTION (simplified) ===
             self._time_lbl = ctk.CTkLabel(
                 content,
-                text="--:--:--",
-                font=("Consolas", 10),
+                text="--:--",
+                font=("Consolas", 12, "bold"),
                 text_color="#374151",
             )
-            self._time_lbl.pack(side="left", padx=(4, 0))
+            self._time_lbl.pack(side="left")
+
+            self._ago_lbl = ctk.CTkLabel(
+                content,
+                text="",
+                font=("Segoe UI", 9),
+                text_color="#9CA3AF",
+            )
+            self._ago_lbl.pack(side="left", padx=(4, 0))
 
             # Store status for reference
             self._bbg_state = self.DISCONNECTED
             self._excel_state = self.DISCONNECTED
             self._pulse_job = None
+            self._data_time = None
+            self._freshness_job = None
 
             # Create proxy objects for compatibility
             self.bbg = self._BbgProxy(self)
@@ -709,10 +712,42 @@ class PremiumConnectionPanel(ctk.CTkFrame):
             status_label.configure(text=style["text"], text_color=style["dot"])
 
         def set_data_time(self, timestamp=None):
-            """Update last sync timestamp."""
+            """Update last sync timestamp and start freshness updates."""
             if timestamp is None:
                 timestamp = datetime.now()
-            self._time_lbl.configure(text=timestamp.strftime("%H:%M:%S"))
+            self._data_time = timestamp
+            self._time_lbl.configure(text=timestamp.strftime("%H:%M"))
+            self._update_freshness_display()
+
+        def _update_freshness_display(self):
+            """Update relative time indicator (e.g., 'just now', '2m ago')."""
+            # Cancel any existing job
+            if self._freshness_job:
+                self.after_cancel(self._freshness_job)
+                self._freshness_job = None
+
+            if not self._data_time:
+                self._ago_lbl.configure(text="", text_color="#9CA3AF")
+                return
+
+            ago = (datetime.now() - self._data_time).total_seconds()
+
+            if ago < 60:
+                text = "just now"
+                color = "#10B981"  # Green
+            elif ago < 300:  # 5 minutes
+                mins = int(ago // 60)
+                text = f"{mins}m ago"
+                color = "#9CA3AF"  # Gray/muted
+            else:
+                mins = int(ago // 60)
+                text = f"{mins}m ago"
+                color = "#F59E0B"  # Warning amber
+
+            self._ago_lbl.configure(text=text, text_color=color)
+
+            # Schedule next update in 10 seconds
+            self._freshness_job = self.after(10000, self._update_freshness_display)
 
 
 class ConnectionStatusPanel(tk.Frame):

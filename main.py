@@ -257,6 +257,92 @@ class NiborTerminalCTK(ctk.CTk):
         # Schedule next check (every 15 seconds)
         self._gate_timer_id = self.after(15000, self._check_validation_gate)
 
+    def _setup_validation_tooltip(self):
+        """Create tooltip for validation button explaining the gate system."""
+        self._validation_tooltip_window = None
+
+        def get_tooltip_text():
+            (start_h, start_m), (end_h, end_m) = get_gate_window()
+            fixing_time = get_fixing_time_display()
+
+            if is_dev_mode():
+                return (
+                    "DEV Mode\n"
+                    "━━━━━━━━━━━━━━━━━\n"
+                    "Validation always available\n"
+                    "for testing purposes."
+                )
+
+            return (
+                f"NIBOR Validation Window\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"Fixing Time: {fixing_time}\n"
+                f"Window: {start_h}:{start_m:02d} - {end_h}:{end_m:02d} Stockholm\n"
+                f"\n"
+                f"Validation can only run during\n"
+                f"the official NIBOR fixing window\n"
+                f"on business days (Mon-Fri)."
+            )
+
+        def show_tooltip(event=None):
+            if self._validation_tooltip_window is not None:
+                return
+            x = self.validation_btn.winfo_rootx() + 20
+            y = self.validation_btn.winfo_rooty() + self.validation_btn.winfo_height() + 5
+            self._validation_tooltip_window = tk.Toplevel(self)
+            self._validation_tooltip_window.wm_overrideredirect(True)
+            self._validation_tooltip_window.wm_geometry(f"+{x}+{y}")
+            label = tk.Label(
+                self._validation_tooltip_window,
+                text=get_tooltip_text(),
+                background=THEME["bg_card"],
+                foreground=THEME["text"],
+                relief="solid",
+                borderwidth=1,
+                font=("Segoe UI", 10),
+                padx=12,
+                pady=8,
+                justify="left"
+            )
+            label.pack()
+
+        def hide_tooltip(event=None):
+            if self._validation_tooltip_window:
+                self._validation_tooltip_window.destroy()
+                self._validation_tooltip_window = None
+
+        self.validation_btn.bind("<Enter>", show_tooltip, add="+")
+        self.validation_btn.bind("<Leave>", hide_tooltip, add="+")
+
+    def _flash_validation_success(self):
+        """Flash green success state on validation button after successful validation."""
+        if not hasattr(self, 'validation_btn'):
+            return
+
+        from ui.theme import COLORS
+
+        # Store original colors
+        orig_fg = THEME["accent"]
+        orig_hover = THEME["accent_hover"]
+
+        # Flash green with checkmark
+        self.validation_btn.configure(
+            text="✓ Complete",
+            fg_color=COLORS.SUCCESS,
+            hover_color=COLORS.SUCCESS
+        )
+
+        def restore():
+            self.validation_btn.configure(
+                text="▶ Run Calculation & Validation",
+                fg_color=orig_fg,
+                hover_color=orig_hover
+            )
+            self._update_validation_button_state()
+
+        # Restore after 1.5 seconds
+        self.after(1500, restore)
+
     def _update_validation_button_state(self):
         """Update the validation button text and state based on current lock status."""
         if not hasattr(self, 'validation_btn'):
@@ -681,6 +767,9 @@ class NiborTerminalCTK(ctk.CTk):
         )
         self.validation_btn.pack(side="left", padx=(0, 12))
         self.register_update_button(self.validation_btn)
+
+        # Tooltip for validation button explaining the gate
+        self._setup_validation_tooltip()
 
         # ====================================================================
         # MINIMAL CLOCK - No frame, clean floating design
@@ -1288,6 +1377,10 @@ class NiborTerminalCTK(ctk.CTk):
 
         self.set_busy(True, text="⏳ FETCHING...")
 
+        # Show loading state on dashboard
+        if "dashboard" in self._pages:
+            self._pages["dashboard"].set_loading(True)
+
         # No longer showing last approved - we're getting fresh data
         self._showing_last_approved = False
         self._update_last_approved_banner()
@@ -1452,9 +1545,10 @@ class NiborTerminalCTK(ctk.CTk):
         self._update_status_bar()
         self.refresh_ui()
 
-        # Show success toast
+        # Show success toast and flash animation
         if self.bbg_ok and self.excel_ok:
             self.toast.success("Data refreshed successfully")
+            self._flash_validation_success()
         elif self.bbg_ok or self.excel_ok:
             self.toast.warning("Partial data refresh - check connections")
 

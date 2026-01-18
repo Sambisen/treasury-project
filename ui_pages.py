@@ -123,6 +123,7 @@ class DashboardPage(BaseFrame):
         # Outer wrapper for accent border effect (left accent stripe)
         card_wrapper = tk.Frame(content, bg=THEME["accent"])
         card_wrapper.pack(fill="x", pady=(0, 0))
+        self._card_wrapper = card_wrapper  # Store for historical mode styling
 
         # Main card container with white surface
         if CTK_AVAILABLE:
@@ -149,6 +150,8 @@ class DashboardPage(BaseFrame):
         # ----------------------------------------------------------------
         header_row = tk.Frame(card_content, bg=THEME["bg_card"])
         header_row.pack(fill="x", pady=(0, 10))
+        self._header_row = header_row  # Store for historical badge
+        self._historical_badge = None  # Will be created when needed
 
         # Left side: Title with accent underline effect
         title_container = tk.Frame(header_row, bg=THEME["bg_card"])
@@ -1416,11 +1419,56 @@ class DashboardPage(BaseFrame):
 
     def update(self):
         """Update all dashboard elements."""
+        # Update historical mode visual indicator
+        self._update_historical_mode()
+
         # Populate horizontal status bar
         try:
             self._populate_status_badges()
         except Exception as e:
             log.error(f"[Dashboard] Error in _populate_status_badges: {e}")
+
+    def _update_historical_mode(self):
+        """Show/hide historical data indicator based on app state."""
+        from ui.theme import COLORS
+        is_historical = getattr(self.app, '_showing_last_approved', False)
+
+        if is_historical:
+            # Change card accent to warning color (amber)
+            self._card_wrapper.configure(bg=COLORS.WARNING)
+
+            # Show HISTORICAL badge if not already visible
+            if not self._historical_badge:
+                self._historical_badge = tk.Label(
+                    self._header_row,
+                    text="HISTORICAL",
+                    fg=COLORS.WARNING,
+                    bg=COLORS.WARNING_BG,
+                    font=("Segoe UI Semibold", 9),
+                    padx=8, pady=2
+                )
+                self._historical_badge.pack(side="left", padx=(12, 0))
+        else:
+            # Restore normal accent color
+            self._card_wrapper.configure(bg=THEME["accent"])
+
+            # Remove HISTORICAL badge if present
+            if self._historical_badge:
+                self._historical_badge.destroy()
+                self._historical_badge = None
+
+    def set_loading(self, loading: bool):
+        """Show loading state on dashboard cells."""
+        from ui.theme import COLORS
+        for tenor_key in ["1m", "2m", "3m", "6m"]:
+            cells = self.funding_cells.get(tenor_key, {})
+            if loading:
+                # Set all values to "--" with muted color
+                for key in ["funding", "spread", "final", "chg", "nibor_contrib"]:
+                    lbl = cells.get(key)
+                    if lbl:
+                        lbl.configure(text="--", fg=COLORS.TEXT_MUTED)
+            # When loading=False, update() will be called to populate real values
 
         # Update funding rates with Excel validation (cards are in global header, updated by main.py)
         try:
@@ -2527,9 +2575,56 @@ class ReconPage(tk.Frame):
         self.mode_combo.pack(side="right")
         self.mode_combo.bind("<<ComboboxSelected>>", lambda _e: self.on_mode_change())
 
+        # Failures only checkbox
+        self.failures_only_var = tk.BooleanVar(value=True)
+        self.failures_only_chk = ttk.Checkbutton(
+            top, text="Failures only",
+            variable=self.failures_only_var,
+            command=self._on_filter_change
+        )
+        self.failures_only_chk.pack(side="right", padx=(0, 12))
+
+        # Search field
+        self.search_var = tk.StringVar()
+        self.search_entry = tk.Entry(
+            top, textvariable=self.search_var,
+            bg=THEME["bg_card"], fg=THEME["text"],
+            insertbackground=THEME["text"],
+            relief="flat", highlightthickness=1,
+            highlightbackground=THEME["border"],
+            highlightcolor=THEME["accent"],
+            font=("Segoe UI", CURRENT_MODE["body"]),
+            width=20
+        )
+        self.search_entry.pack(side="right", padx=(0, 12))
+        tk.Label(top, text="Search:", fg=THEME["muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["body"])).pack(side="right", padx=(0, 4))
+
+        # Debounce for search
+        self._search_after_id = None
+        self.search_var.trace_add("write", lambda *_: self._debounced_update())
+
         self.table = DataTableTree(self, columns=["CELL", "DESC", "MODEL", "MARKET/FILE", "DIFF", "STATUS"],
                                    col_widths=[110, 330, 170, 170, 140, 90], height=20)
         self.table.pack(fill="both", expand=True, padx=pad, pady=(0, pad))
+
+    def _on_filter_change(self):
+        """Handle filter checkbox change."""
+        self.update()
+
+    def _debounced_update(self):
+        """Debounce search input to avoid excessive updates."""
+        if self._search_after_id:
+            self.after_cancel(self._search_after_id)
+        self._search_after_id = self.after(200, self.update)
+
+    def _matches_search(self, row: dict, query: str) -> bool:
+        """Check if row matches search query (cell name or description)."""
+        if row.get("style") == "section":
+            return True  # Always show section headers
+        values = row.get("values", [])
+        # Search in CELL and DESC columns (first two)
+        return any(query in str(v).lower() for v in values[:2])
 
     def on_mode_change(self):
         self.app.recon_view_mode = self.mode_var.get()
@@ -2545,6 +2640,16 @@ class ReconPage(tk.Frame):
     def update(self):
         self.table.clear()
         rows = self.app.build_recon_rows(view=self.app.recon_view_mode)
+
+        # Apply failures-only filter (in ALL mode when checkbox is checked)
+        if self.failures_only_var.get() and self.app.recon_view_mode == "ALL":
+            rows = [r for r in rows if r.get("style") in ("bad", "warn", "section")]
+
+        # Apply search filter
+        search_q = self.search_var.get().strip().lower()
+        if search_q:
+            rows = [r for r in rows if self._matches_search(r, search_q)]
+
         for r in rows:
             style = r.get("style", "normal")
             if style == "section":
