@@ -162,8 +162,7 @@ class DashboardPage(BaseFrame):
             font=("Segoe UI Semibold", 20)
         ).pack(anchor="w")
 
-        # Dev/Prod badge pill (next to title)
-        self._create_mode_badge(header_row)
+        # Dev/Prod badge REMOVED - now in global header (top left)
 
         # Right side: View History link
         if MATPLOTLIB_AVAILABLE and TrendPopup:

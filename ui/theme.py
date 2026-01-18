@@ -166,26 +166,29 @@ BUTTON_CONFIG = ButtonConfig()
 class EnvBadgeColors:
     """
     Premium environment badge colors with glow effects.
+    Nordic Light theme - light background, colored glow.
     """
 
-    # Badge container (dark pill)
-    BADGE_BG: str = "#121824"
-    BADGE_BORDER: str = "#222B3A"
+    # Badge container (Nordic Light - white pill with subtle border)
+    BADGE_BG: str = "#FFFFFF"
+    BADGE_BORDER: str = "#E6E8EE"
 
     # PROD colors (green)
-    PROD_DOT: str = "#22C55E"
-    PROD_GLOW: str = "#22C55E"
-    PROD_TEXT: str = "#E7ECF3"
+    PROD_DOT: str = "#1E8E3E"
+    PROD_GLOW: str = "#1E8E3E"
+    PROD_TEXT: str = "#1E8E3E"
+    PROD_BG_TINT: str = "#E8F5E9"  # Subtle green tint for badge bg
 
     # DEV colors (amber/orange)
     DEV_DOT: str = "#F59E0B"
     DEV_GLOW: str = "#F59E0B"
-    DEV_TEXT: str = "#E7ECF3"
+    DEV_TEXT: str = "#B45309"
+    DEV_BG_TINT: str = "#FFF8E1"  # Subtle amber tint for badge bg
 
     # Animation
     PULSE_INTERVAL_MS: int = 1500
-    GLOW_OPACITY_MIN: float = 0.3
-    GLOW_OPACITY_MAX: float = 0.8
+    GLOW_OPACITY_MIN: float = 0.2
+    GLOW_OPACITY_MAX: float = 0.6
 
 
 ENV_BADGE_COLORS = EnvBadgeColors()

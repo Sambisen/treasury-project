@@ -382,9 +382,10 @@ class EnvironmentBanner(tk.Frame):
 class PremiumEnvBadge(tk.Frame):
     """
     Premium environment badge with glowing dot and pulse animation.
+    Nordic Light theme - light background with colored accents.
 
     Features:
-    - Dark pill-shaped container with subtle border
+    - Light pill-shaped container with subtle tinted background
     - Colored dot with soft glow effect
     - Pulse animation for PROD (indicates "live")
     - Static dot for DEV
@@ -408,34 +409,36 @@ class PremiumEnvBadge(tk.Frame):
             self._dot_color = ENV_BADGE_COLORS.PROD_DOT
             self._glow_color = ENV_BADGE_COLORS.PROD_GLOW
             self._text_color = ENV_BADGE_COLORS.PROD_TEXT
+            self._bg_tint = ENV_BADGE_COLORS.PROD_BG_TINT
         else:
             self._dot_color = ENV_BADGE_COLORS.DEV_DOT
             self._glow_color = ENV_BADGE_COLORS.DEV_GLOW
             self._text_color = ENV_BADGE_COLORS.DEV_TEXT
+            self._bg_tint = ENV_BADGE_COLORS.DEV_BG_TINT
 
-        # Initialize frame with dark background
+        # Initialize frame with tinted background
         super().__init__(
             parent,
-            bg=ENV_BADGE_COLORS.BADGE_BG,
+            bg=self._bg_tint,
             highlightbackground=ENV_BADGE_COLORS.BADGE_BORDER,
             highlightthickness=1,
             **kwargs
         )
 
         # Inner padding frame
-        inner = tk.Frame(self, bg=ENV_BADGE_COLORS.BADGE_BG)
-        inner.pack(padx=12, pady=8)
+        self._inner = tk.Frame(self, bg=self._bg_tint)
+        self._inner.pack(padx=14, pady=8)
 
         # Canvas for the glowing dot
-        self._dot_size = 12
-        self._glow_size = 24
+        self._dot_size = 10
+        self._glow_size = 22
         canvas_size = self._glow_size + 4
 
         self._canvas = Canvas(
-            inner,
+            self._inner,
             width=canvas_size,
             height=canvas_size,
-            bg=ENV_BADGE_COLORS.BADGE_BG,
+            bg=self._bg_tint,
             highlightthickness=0
         )
         self._canvas.pack(side="left", padx=(0, 10))
@@ -447,7 +450,6 @@ class PremiumEnvBadge(tk.Frame):
         # Create glow layers (will be animated)
         for i in range(3):
             radius = self._glow_size // 2 - (i * 2)
-            # Glow gets more transparent towards the edge
             glow_id = self._canvas.create_oval(
                 center - radius, center - radius,
                 center + radius, center + radius,
@@ -468,10 +470,10 @@ class PremiumEnvBadge(tk.Frame):
 
         # Environment text
         self._label = tk.Label(
-            inner,
+            self._inner,
             text=self._env_text,
             fg=self._text_color,
-            bg=ENV_BADGE_COLORS.BADGE_BG,
+            bg=self._bg_tint,
             font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold")
         )
         self._label.pack(side="left")
@@ -499,7 +501,7 @@ class PremiumEnvBadge(tk.Frame):
     def _blend_with_bg(self, color: str, opacity: float) -> str:
         """Blend a color with the badge background at given opacity."""
         fg_rgb = self._hex_to_rgb(color)
-        bg_rgb = self._hex_to_rgb(ENV_BADGE_COLORS.BADGE_BG)
+        bg_rgb = self._hex_to_rgb(self._bg_tint)
 
         blended = tuple(
             int(fg * opacity + bg * (1 - opacity))
@@ -509,7 +511,7 @@ class PremiumEnvBadge(tk.Frame):
 
     def _draw_static_glow(self):
         """Draw a static glow effect (for DEV)."""
-        opacities = [0.15, 0.25, 0.4]
+        opacities = [0.2, 0.35, 0.5]
         for i, glow_id in enumerate(self._glow_items):
             blended = self._blend_with_bg(self._glow_color, opacities[i])
             self._canvas.itemconfig(glow_id, fill=blended, outline="")
@@ -525,20 +527,20 @@ class PremiumEnvBadge(tk.Frame):
         if self._animation_phase > 2 * math.pi:
             self._animation_phase = 0
 
-        # Calculate current opacity multiplier (0.5 to 1.0)
+        # Calculate current opacity multiplier
         pulse = (math.sin(self._animation_phase) + 1) / 2  # 0 to 1
         min_opacity = ENV_BADGE_COLORS.GLOW_OPACITY_MIN
         max_opacity = ENV_BADGE_COLORS.GLOW_OPACITY_MAX
         opacity_mult = min_opacity + (max_opacity - min_opacity) * pulse
 
         # Update glow layers
-        base_opacities = [0.15, 0.25, 0.4]
+        base_opacities = [0.2, 0.35, 0.5]
         for i, glow_id in enumerate(self._glow_items):
             opacity = base_opacities[i] * opacity_mult
             blended = self._blend_with_bg(self._glow_color, opacity)
             self._canvas.itemconfig(glow_id, fill=blended)
 
-        # Schedule next frame (~60fps would be 16ms, but 50ms is smooth enough)
+        # Schedule next frame
         self._animation_id = self.after(50, self._animate_pulse)
 
     def destroy(self):
@@ -547,26 +549,37 @@ class PremiumEnvBadge(tk.Frame):
             self.after_cancel(self._animation_id)
         super().destroy()
 
+    def _update_colors(self):
+        """Update all widget colors based on current environment."""
+        if self._is_prod:
+            self._dot_color = ENV_BADGE_COLORS.PROD_DOT
+            self._glow_color = ENV_BADGE_COLORS.PROD_GLOW
+            self._text_color = ENV_BADGE_COLORS.PROD_TEXT
+            self._bg_tint = ENV_BADGE_COLORS.PROD_BG_TINT
+        else:
+            self._dot_color = ENV_BADGE_COLORS.DEV_DOT
+            self._glow_color = ENV_BADGE_COLORS.DEV_GLOW
+            self._text_color = ENV_BADGE_COLORS.DEV_TEXT
+            self._bg_tint = ENV_BADGE_COLORS.DEV_BG_TINT
+
+        # Update backgrounds
+        self.configure(bg=self._bg_tint)
+        self._inner.configure(bg=self._bg_tint)
+        self._canvas.configure(bg=self._bg_tint)
+        self._label.configure(bg=self._bg_tint)
+
+        # Update dot and text
+        self._canvas.itemconfig(self._dot_item, fill=self._dot_color)
+        self._label.config(text=self._env_text, fg=self._text_color)
+
     def set_environment(self, environment: str):
         """Update the environment display."""
         was_prod = self._is_prod
         self._is_prod = environment.upper() == "PROD"
         self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
 
-        if self._is_prod:
-            self._dot_color = ENV_BADGE_COLORS.PROD_DOT
-            self._glow_color = ENV_BADGE_COLORS.PROD_GLOW
-            self._text_color = ENV_BADGE_COLORS.PROD_TEXT
-        else:
-            self._dot_color = ENV_BADGE_COLORS.DEV_DOT
-            self._glow_color = ENV_BADGE_COLORS.DEV_GLOW
-            self._text_color = ENV_BADGE_COLORS.DEV_TEXT
-
-        # Update dot color
-        self._canvas.itemconfig(self._dot_item, fill=self._dot_color)
-
-        # Update label
-        self._label.config(text=self._env_text, fg=self._text_color)
+        # Update all colors
+        self._update_colors()
 
         # Handle animation change
         if self._is_prod and not was_prod:

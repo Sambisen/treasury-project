@@ -389,6 +389,30 @@ class NiborTerminalCTK(ctk.CTk):
         # Trigger refresh with new tickers
         self.refresh_data()
 
+    def _toggle_environment(self):
+        """
+        Toggle between DEV and PROD environment.
+        Updates the header badge and reloads data.
+        """
+        current_env = get_app_env()
+        new_dev_mode = current_env == "PROD"  # If PROD, switch to DEV (True)
+        new_env = "DEV" if new_dev_mode else "PROD"
+
+        # Save new setting
+        set_setting("development_mode", new_dev_mode, save=True)
+        log.info(f"Environment changed: {current_env} -> {new_env}")
+
+        # Update badge
+        if hasattr(self, 'env_badge'):
+            self.env_badge.set_environment(new_env)
+
+        # Update validation gate check
+        self._check_validation_gate()
+
+        # Show toast and refresh data
+        self.toast.info(f"Switched to {new_env} mode – Reloading data...")
+        self.refresh_data()
+
     def _shortcut_save_snapshot(self, event=None):
         """Handle Ctrl+S shortcut."""
         if self._current_page == "history" and "history" in self._pages:
@@ -451,6 +475,23 @@ class NiborTerminalCTK(ctk.CTk):
         env = get_app_env()
         self.env_badge = PremiumEnvBadge(header_left, environment=env)
         self.env_badge.pack(side="left", padx=(0, 15))
+
+        # Make badge clickable to toggle environment
+        self.env_badge.bind("<Button-1>", lambda e: self._toggle_environment())
+        self.env_badge.configure(cursor="hand2")
+        # Bind click to all child widgets too
+        for widget in self.env_badge.winfo_children():
+            widget.bind("<Button-1>", lambda e: self._toggle_environment())
+            try:
+                widget.configure(cursor="hand2")
+            except:
+                pass
+            for child in widget.winfo_children():
+                child.bind("<Button-1>", lambda e: self._toggle_environment())
+                try:
+                    child.configure(cursor="hand2")
+                except:
+                    pass
 
         # Fixing Time Toggle
         fixing_frame = tk.Frame(header_left, bg=THEME["bg_main"])
