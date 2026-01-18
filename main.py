@@ -957,6 +957,15 @@ class NiborTerminalCTK(ctk.CTk):
         )
         grss_btn.pack(fill="x", padx=10, pady=1)
 
+        # Credit at bottom of sidebar
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=40).pack(fill="x")
+        ctk.CTkLabel(
+            sidebar,
+            text="Powered by Samba Sjödin",
+            text_color=THEME["text_muted"],
+            font=("Segoe UI", 9)
+        ).pack(side="bottom", pady=(0, 8))
+
         # Subtle separator line
         separator = ctk.CTkFrame(self.body, fg_color=THEME["border"], width=1)
         separator.grid(row=0, column=1, sticky="ns")
