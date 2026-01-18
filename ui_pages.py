@@ -2355,10 +2355,11 @@ class DashboardPage(BaseFrame):
         # Get the date from the sheet name
         prev_date = prev_rates.get("_date", "")
 
+        # Build clear tooltip text
+        lines = [f"Comparing with: {prev_nibor:.2f}%"]
         if prev_date:
-            return f"Prev: {prev_nibor:.2f}%\nSheet: {prev_date}"
-        else:
-            return f"Prev: {prev_nibor:.2f}%"
+            lines.append(f"Date: {prev_date}")
+        return "\n".join(lines)
 
     def _get_funding_tooltip(self, tenor_key):
         """Get Funding Rate breakdown: EUR/USD implied (4 dec), NOK (2 dec)."""
