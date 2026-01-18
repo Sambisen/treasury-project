@@ -1339,20 +1339,23 @@ class NiborTerminalCTK(ctk.CTk):
         for btn_key, btn_data in self._nav_buttons.items():
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
 
-            if btn_key == key:
-                # Active state: accent color, subtle background
-                btn.configure(
-                    text_color=THEME["accent"],
-                    fg_color=THEME["bg_nav_sel"],
-                    font=("Segoe UI Semibold", 16)
-                )
-            else:
-                # Inactive state: muted color, transparent background
-                btn.configure(
-                    text_color=THEME["muted"],
-                    fg_color="transparent",
-                    font=("Segoe UI", 16)
-                )
+            try:
+                if btn_key == key:
+                    # Active state: accent color, subtle background
+                    btn.configure(
+                        text_color=THEME["accent"],
+                        fg_color=THEME["bg_nav_sel"],
+                        font=("Segoe UI Semibold", 13)
+                    )
+                else:
+                    # Inactive state: muted color, transparent background
+                    btn.configure(
+                        text_color=THEME["muted"],
+                        fg_color="transparent",
+                        font=("Segoe UI", 13)
+                    )
+            except Exception as e:
+                log.error(f"Error updating nav button {btn_key}: {e}")
 
         if key == "nibor_recon" and focus:
             self._pages["nibor_recon"].set_focus_mode(focus)
