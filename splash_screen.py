@@ -27,9 +27,9 @@ class SplashScreen(tk.Toplevel):
         # Window setup - borderless, centered
         self.overrideredirect(True)
 
-        # Target size for splash screen
-        self._width = 640
-        self._height = 416
+        # Target size for splash screen (matching image aspect ratio ~1.8:1)
+        self._width = 696
+        self._height = 384
 
         # Center on screen
         screen_w = self.winfo_screenwidth()
@@ -85,25 +85,24 @@ class SplashScreen(tk.Toplevel):
             # Set background image
             self.canvas.create_image(0, 0, anchor="nw", image=self._bg_image)
 
-            # Progress bar position - above the bottom coins
-            # Coins are roughly 15% from bottom, so place bar at ~18% from bottom
-            bar_y = int(self._height * 0.82)
-            bar_height = 6
-            bar_margin = int(self._width * 0.18)  # Margin from sides (between coins)
+            # Progress bar position - near the bottom of the image
+            bar_y = int(self._height * 0.92)
+            bar_height = 4
+            bar_margin = int(self._width * 0.08)  # Small margin from sides
 
-            # Progress bar background (subtle gray)
+            # Progress bar background (subtle dark)
             self.progress_bg = self.canvas.create_rectangle(
                 bar_margin, bar_y,
                 self._width - bar_margin, bar_y + bar_height,
-                fill="#E0E0E0",
+                fill="#1a3a4a",
                 outline=""
             )
 
-            # Progress bar foreground (Swedbank orange)
+            # Progress bar foreground (gold/amber to match the tree)
             self.progress_bar = self.canvas.create_rectangle(
                 bar_margin, bar_y,
                 bar_margin, bar_y + bar_height,  # Start with 0 width
-                fill=SWEDBANK_ORANGE,
+                fill="#D4A853",
                 outline=""
             )
 
