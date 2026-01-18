@@ -292,7 +292,7 @@ class DashboardPage(BaseFrame):
                                   font=("Consolas", 12),
                                   width=20, anchor="center", cursor="hand2", pady=14, padx=18)
             funding_lbl.grid(row=row_idx, column=1, sticky="nsew")
-            funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
+            funding_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t, show_spread=False))
             row_widgets.append(funding_lbl)
             cells["funding"] = funding_lbl
             ToolTip(funding_lbl, lambda t=tenor["key"]: self._get_funding_tooltip(t))
@@ -312,7 +312,7 @@ class DashboardPage(BaseFrame):
                                 font=("Consolas", 18, "bold"),
                                 width=20, anchor="center", cursor="hand2", pady=14, padx=20)
             final_lbl.grid(row=row_idx, column=3, sticky="nsew")
-            final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t))
+            final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t, show_spread=True))
             row_widgets.append(final_lbl)
             cells["final"] = final_lbl
             ToolTip(final_lbl, lambda t=tenor["key"]: self._get_nibor_tooltip(t))
@@ -1388,10 +1388,14 @@ class DashboardPage(BaseFrame):
         # Focus popup
         popup.focus_set()
 
-    def _show_funding_details(self, tenor_key):
+    def _show_funding_details(self, tenor_key, show_spread: bool = True):
         """Show compact calculation drawer for the selected tenor.
 
         Opens a compact popup showing calculation breakdown with collapsible sections.
+
+        Args:
+            tenor_key: The tenor (1m, 2m, 3m, 6m)
+            show_spread: If True, shows NIBOR (with spread). If False, shows Funding Rate only.
         """
         # Close any existing compact drawer
         if hasattr(self, '_compact_drawer') and self._compact_drawer:
@@ -1415,7 +1419,8 @@ class DashboardPage(BaseFrame):
             self,
             tenor_key,
             data,
-            on_close=lambda: setattr(self, '_compact_drawer', None)
+            on_close=lambda: setattr(self, '_compact_drawer', None),
+            show_spread=show_spread
         )
 
     def _apply_state(self, card, state: str, subtext: str = "—"):

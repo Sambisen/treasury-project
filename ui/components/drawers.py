@@ -21,12 +21,13 @@ class CompactCalculationDrawer(tk.Toplevel):
     - Weights always visible
     """
 
-    def __init__(self, master, tenor_key: str, data: Dict[str, Any], on_close: Callable = None):
+    def __init__(self, master, tenor_key: str, data: Dict[str, Any], on_close: Callable = None, show_spread: bool = True):
         super().__init__(master)
 
         self._tenor_key = tenor_key
         self._data = data
         self._on_close = on_close
+        self._show_spread = show_spread  # True for NIBOR, False for Funding Rate
         self._expanded_sections = {}  # Track which sections are expanded
 
         # Window setup - compact, no decorations
@@ -75,14 +76,21 @@ class CompactCalculationDrawer(tk.Toplevel):
         self._build_footer(container)
 
     def _build_header(self, parent):
-        """Build header with NIBOR title and value."""
+        """Build header with title and value."""
         header = tk.Frame(parent, bg=COLORS.SURFACE)
         header.pack(fill="x", padx=16, pady=12)
 
-        # Title
+        # Title - different for Funding Rate vs NIBOR
+        if self._show_spread:
+            title = f"NIBOR {self._tenor_key.upper()}"
+            display_value = self._data.get("final_rate", 0)
+        else:
+            title = f"Funding Rate {self._tenor_key.upper()}"
+            display_value = self._data.get("funding_rate", 0)
+
         tk.Label(
             header,
-            text=f"NIBOR {self._tenor_key.upper()}",
+            text=title,
             font=("Segoe UI Semibold", 14),
             fg=COLORS.TEXT,
             bg=COLORS.SURFACE
@@ -102,39 +110,39 @@ class CompactCalculationDrawer(tk.Toplevel):
         close_btn.bind("<Enter>", lambda e: close_btn.config(fg=COLORS.TEXT))
         close_btn.bind("<Leave>", lambda e: close_btn.config(fg=COLORS.TEXT_MUTED))
 
-        # NIBOR value (large, accent color)
-        final_rate = self._data.get("final_rate", 0)
+        # Value (large, accent color)
         tk.Label(
             header,
-            text=f"{final_rate:.4f}%",
+            text=f"{display_value:.4f}%" if display_value else "—",
             font=("Consolas", 18, "bold"),
             fg=COLORS.ACCENT,
             bg=COLORS.SURFACE
         ).pack(side="right", padx=(0, 16))
 
     def _build_funding_section(self, parent):
-        """Build Funding Rate + Spread section."""
+        """Build Funding Rate + Spread section (spread only shown for NIBOR)."""
         section = tk.Frame(parent, bg=COLORS.SURFACE)
         section.pack(fill="x", padx=16, pady=10)
 
         funding_rate = self._data.get("funding_rate", 0)
-        spread = self._data.get("spread", 0)
 
         # Funding Rate row
         row1 = tk.Frame(section, bg=COLORS.SURFACE)
         row1.pack(fill="x", pady=2)
         tk.Label(row1, text="Funding Rate", font=("Segoe UI", 11),
                 fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="left")
-        tk.Label(row1, text=f"{funding_rate:.4f}%", font=("Consolas", 11),
+        tk.Label(row1, text=f"{funding_rate:.4f}%" if funding_rate else "—", font=("Consolas", 11),
                 fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="right")
 
-        # Spread row
-        row2 = tk.Frame(section, bg=COLORS.SURFACE)
-        row2.pack(fill="x", pady=2)
-        tk.Label(row2, text="+ Spread", font=("Segoe UI", 11),
-                fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="left")
-        tk.Label(row2, text=f"{spread:.4f}%", font=("Consolas", 11),
-                fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="right")
+        # Spread row - only show for NIBOR (when show_spread=True)
+        if self._show_spread:
+            spread = self._data.get("spread", 0)
+            row2 = tk.Frame(section, bg=COLORS.SURFACE)
+            row2.pack(fill="x", pady=2)
+            tk.Label(row2, text="+ Spread", font=("Segoe UI", 11),
+                    fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="left")
+            tk.Label(row2, text=f"{spread:.4f}%", font=("Consolas", 11),
+                    fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="right")
 
     def _build_components_section(self, parent):
         """Build collapsible components (EUR, USD, NOK)."""
