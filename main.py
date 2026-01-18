@@ -2046,20 +2046,37 @@ def generate_alerts_report():
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
-    from splash_screen import show_splash_then_run
+    from splash_screen import SplashScreen
+    import tkinter as tk
 
-    # Create main application
+    # Create hidden root for splash
+    _splash_root = tk.Tk()
+    _splash_root.withdraw()
+
+    # Show splash immediately
+    splash = SplashScreen(_splash_root)
+    splash.update()
+    splash.set_progress(0, "Starting...")
+
+    # Step 1: Initialize application
+    splash.set_progress(10, "Initializing Application...")
     app = NiborTerminalCTK()
+    app.withdraw()  # Keep hidden until splash is done
 
-    # Show splash screen for 6 seconds while app initializes
-    show_splash_then_run(app, total_duration=6.0)
+    # Step 2: Load Bloomberg connection
+    splash.set_progress(30, "Connecting to Bloomberg...")
+    # Bloomberg is lazy-loaded, just a status update
 
-    # Import fixing history from Excel on startup
+    # Step 3: Load Excel engine
+    splash.set_progress(45, "Loading Excel Engine...")
+    # Excel engine is initialized in app.__init__
+
+    # Step 4: Import fixing history from Excel
+    splash.set_progress(60, "Loading NIBOR History...")
     try:
         from history import import_all_fixings_from_excel
         from pathlib import Path
 
-        # Look for Excel file
         excel_candidates = [
             DATA_DIR / "Nibor history - wide.xlsx",
             DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",
@@ -2077,5 +2094,24 @@ if __name__ == "__main__":
             log.info("[Startup] NIBOR history Excel not found - skipping import")
     except Exception as e:
         log.warning(f"[Startup] Failed to import fixing history: {e}")
+
+    # Step 5: Load NIBOR Days configuration
+    splash.set_progress(75, "Loading NIBOR Days...")
+    # Days config is loaded from config.py
+
+    # Step 6: Build interface
+    splash.set_progress(88, "Building Interface...")
+    # Interface was built in app.__init__
+
+    # Step 7: Finalize
+    splash.set_progress(100, "Ready!")
+
+    # Close splash and show app
+    splash.destroy()
+    _splash_root.destroy()
+
+    app.deiconify()
+    app.lift()
+    app.focus_force()
 
     app.mainloop()
