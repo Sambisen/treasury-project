@@ -183,11 +183,48 @@ class DashboardPage(BaseFrame):
             history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 35))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 20))
+
+        # 1W toggle - small, above the table
+        self._1w_toggle_frame = tk.Frame(card_content, bg=THEME["bg_card"])
+        self._1w_toggle_frame.pack(fill="x", pady=(0, 8), padx=18)
+
+        self._1w_indicator = tk.Label(
+            self._1w_toggle_frame,
+            text="▶",
+            font=("Segoe UI", 9),
+            fg=THEME["text_light"],
+            bg=THEME["bg_card"],
+            cursor="hand2"
+        )
+        self._1w_indicator.pack(side="left")
+
+        self._1w_toggle_label = tk.Label(
+            self._1w_toggle_frame,
+            text="1W",
+            font=("Segoe UI", 10),
+            fg=THEME["text_light"],
+            bg=THEME["bg_card"],
+            cursor="hand2"
+        )
+        self._1w_toggle_label.pack(side="left", padx=(4, 0))
+
+        self._1w_badge = tk.Label(
+            self._1w_toggle_frame,
+            text="Not Available",
+            font=("Segoe UI", 9),
+            fg=THEME["text_light"],
+            bg=THEME["chip"],
+            padx=8,
+            pady=2,
+            cursor="hand2"
+        )
+        self._1w_badge.pack(side="left", padx=(8, 0))
 
         # Table frame for grid layout - FULL WIDTH
         funding_frame = tk.Frame(card_content, bg=THEME["bg_card"])
         funding_frame.pack(fill="x")
+        self._funding_frame = funding_frame  # Store reference for 1W row
 
         # Configure columns to expand proportionally
         col_weights = [1, 2, 1, 2, 1, 0, 2]  # TENOR, FUNDING, SPREAD, NIBOR, CHG, sep, CONTRIB
@@ -235,91 +272,74 @@ class DashboardPage(BaseFrame):
         # DATA ROWS - Nordic Light with row hover effects
         # ================================================================
         self.funding_cells = {}
+
+        # Only active tenors in main table (1W is handled separately above)
         tenors = [
-            {"key": "1w", "label": "1W", "excel_row": None, "excel_col": None, "disabled": True},
-            {"key": "1m", "label": "1M", "excel_row": 30, "excel_col": 27, "disabled": False},
-            {"key": "2m", "label": "2M", "excel_row": 31, "excel_col": 27, "disabled": False},
-            {"key": "3m", "label": "3M", "excel_row": 32, "excel_col": 27, "disabled": False},
-            {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27, "disabled": False}
+            {"key": "1m", "label": "1M", "excel_row": 30, "excel_col": 27},
+            {"key": "2m", "label": "2M", "excel_row": 31, "excel_col": 27},
+            {"key": "3m", "label": "3M", "excel_row": 32, "excel_col": 27},
+            {"key": "6m", "label": "6M", "excel_row": 33, "excel_col": 27}
         ]
 
         row_bg = THEME["bg_card"]         # Card white background
         hover_bg = THEME["row_hover"]     # Subtle hover state
 
+        # Create hidden 1W row (shown when toggle is clicked)
+        self._1w_row_frame = tk.Frame(funding_frame, bg=row_bg)
+        self._1w_row_visible = False
+
+        # 1W row content
+        tk.Label(self._1w_row_frame, text="1W",
+                fg=THEME["text_light"], bg=row_bg,
+                font=("Segoe UI Semibold", 13),
+                width=12, anchor="center", pady=14, padx=18
+        ).grid(row=0, column=0, sticky="nsew")
+
+        for col, val in enumerate(["N/A", "—", "N/A", "—"], start=1):
+            tk.Label(self._1w_row_frame, text=val,
+                    fg=THEME["text_light"], bg=row_bg,
+                    font=("Consolas", 12),
+                    anchor="center", pady=14, padx=16
+            ).grid(row=0, column=col, sticky="nsew")
+
+        # Separator and contribution for 1W
+        tk.Frame(self._1w_row_frame, bg=row_separator_color, width=1).grid(row=0, column=5, sticky="ns", padx=12)
+        tk.Label(self._1w_row_frame, text="—",
+                fg=THEME["text_light"], bg=row_bg,
+                font=("Consolas", 11), anchor="center", pady=14, padx=16
+        ).grid(row=0, column=6, sticky="nsew")
+
+        # Configure 1W row columns
+        for i, w in enumerate(col_weights):
+            self._1w_row_frame.grid_columnconfigure(i, weight=w, uniform="cols" if w > 0 else None)
+
+        # 1W row separator
+        self._1w_separator = tk.Frame(funding_frame, bg=row_separator_color, height=1)
+
+        # Toggle function for 1W
+        def toggle_1w_row(e=None):
+            if self._1w_row_visible:
+                self._1w_row_frame.grid_forget()
+                self._1w_separator.grid_forget()
+                self._1w_indicator.config(text="▶")
+                self._1w_row_visible = False
+            else:
+                self._1w_row_frame.grid(row=2, column=0, columnspan=7, sticky="nsew")
+                self._1w_separator.grid(row=3, column=0, columnspan=7, sticky="ew")
+                self._1w_indicator.config(text="▼")
+                self._1w_row_visible = True
+
+        # Bind toggle to all 1W toggle elements
+        for widget in [self._1w_indicator, self._1w_toggle_label, self._1w_badge]:
+            widget.bind("<Button-1>", toggle_1w_row)
+
+        self.funding_cells["1w"] = {}
+
+        # Start row index after potential 1W row
+        start_row = 4
+
         for i, tenor in enumerate(tenors):
-            row_idx = (i * 2) + 2  # Leave room for separator rows
-
-            # Disabled tenor (1W) - Collapsible row
-            if tenor.get("disabled"):
-                # Tenor label directly in grid - IDENTICAL to other tenors
-                tenor_lbl = tk.Label(funding_frame, text=tenor["label"],
-                        fg=THEME["text_light"], bg=row_bg,
-                        font=("Segoe UI Semibold", 13),
-                        width=12, anchor="center", pady=14, padx=18,
-                        cursor="hand2")
-                tenor_lbl.grid(row=row_idx, column=0, sticky="nsew")
-
-                # Small expand indicator overlaid on the tenor label
-                expand_indicator = tk.Label(
-                    funding_frame,
-                    text="▶",
-                    font=("Segoe UI", 8),
-                    fg=THEME["text_light"],
-                    bg=row_bg,
-                    cursor="hand2"
-                )
-                expand_indicator.place(in_=tenor_lbl, x=4, rely=0.5, anchor="w")
-
-                # N/A badge container spans remaining columns
-                badge_container = tk.Frame(funding_frame, bg=row_bg, cursor="hand2")
-                badge_container.grid(row=row_idx, column=1, columnspan=6, sticky="nsew")
-
-                # N/A indicator badge
-                na_badge = tk.Frame(badge_container, bg=THEME["chip"])
-                na_badge.pack(side="left", padx=(16, 0), pady=12)
-                tk.Label(
-                    na_badge,
-                    text="Not Available",
-                    font=("Segoe UI", 9),
-                    fg=THEME["text_light"],
-                    bg=THEME["chip"],
-                    padx=10,
-                    pady=3,
-                    cursor="hand2"
-                ).pack()
-
-                # Expanded state (hidden by default) - spans all columns
-                expanded_row = tk.Frame(funding_frame, bg=THEME["row_hover"])
-
-                # Build expanded content
-                expanded_inner = tk.Frame(expanded_row, bg=THEME["row_hover"])
-                expanded_inner.pack(fill="x", pady=10, padx=36)
-
-                tk.Label(expanded_inner,
-                        text="1W tenor is not included in NIBOR calculations. Only 1M, 2M, 3M, and 6M tenors are used.",
-                        fg=THEME["text_light"], bg=THEME["row_hover"],
-                        font=("Segoe UI", 10)).pack(side="left")
-
-                # Toggle function
-                def toggle_1w(e=None, expanded=expanded_row, indicator=expand_indicator, row=row_idx):
-                    if expanded.winfo_viewable():
-                        expanded.grid_forget()
-                        indicator.config(text="▶")
-                    else:
-                        expanded.grid(row=row+1, column=0, columnspan=7, sticky="nsew")
-                        indicator.config(text="▼")
-
-                # Bind click to toggle on all clickable elements
-                for widget in [tenor_lbl, expand_indicator, badge_container, na_badge]:
-                    widget.bind("<Button-1>", toggle_1w)
-                for child in na_badge.winfo_children():
-                    child.bind("<Button-1>", toggle_1w)
-
-                # Subtle row separator (will be after expanded content if shown)
-                tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+2, column=0, columnspan=7, sticky="ew")
-
-                self.funding_cells[tenor["key"]] = {}
-                continue
+            row_idx = start_row + (i * 2)  # Leave room for separator rows
 
             # Collect all widgets in this row for hover effect
             row_widgets = []
