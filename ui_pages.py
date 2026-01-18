@@ -183,7 +183,11 @@ class DashboardPage(BaseFrame):
             history_link.bind("<Leave>", lambda e: history_link.config(fg=THEME["accent"]))
 
         # Header separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 20))
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 12))
+
+        # Calculate button container (button added by main.py)
+        self.validation_btn_container = tk.Frame(card_content, bg=THEME["bg_card"])
+        self.validation_btn_container.pack(fill="x", pady=(0, 16))
 
         # 1W toggle - small, above the table
         self._1w_toggle_frame = tk.Frame(card_content, bg=THEME["bg_card"])

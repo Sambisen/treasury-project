@@ -764,25 +764,6 @@ class NiborTerminalCTK(ctk.CTk):
         header_right = ctk.CTkFrame(global_header, fg_color="transparent")
         header_right.pack(side="right")
 
-        # Run Calculation & Validation button
-        self.validation_btn = ctk.CTkButton(
-            header_right,
-            text="▶ Run Calculation & Validation",
-            command=self.refresh_data,
-            fg_color=THEME["accent"],
-            hover_color=THEME["accent_hover"],
-            text_color="white",
-            font=("Segoe UI Semibold", 11),
-            corner_radius=8,
-            width=220,
-            height=32
-        )
-        self.validation_btn.pack(side="left", padx=(0, 12))
-        self.register_update_button(self.validation_btn)
-
-        # Tooltip for validation button explaining the gate
-        self._setup_validation_tooltip()
-
         # ====================================================================
         # MINIMAL CLOCK - No frame, clean floating design
         # ====================================================================
@@ -994,6 +975,27 @@ class NiborTerminalCTK(ctk.CTk):
             self._pages[key] = page_instance
             page_instance.grid(row=0, column=0, sticky="nsew")
             page_instance.grid_remove()
+
+        # Create validation button in DashboardPage (centered)
+        dashboard = self._pages.get("dashboard")
+        if dashboard and hasattr(dashboard, 'validation_btn_container'):
+            self.validation_btn = ctk.CTkButton(
+                dashboard.validation_btn_container,
+                text="▶ Run Calculation & Validation",
+                command=self.refresh_data,
+                fg_color=THEME["accent"],
+                hover_color=THEME["accent_hover"],
+                text_color="white",
+                font=("Segoe UI Semibold", 12),
+                corner_radius=8,
+                width=280,
+                height=38
+            )
+            self.validation_btn.pack(anchor="center")
+            self.register_update_button(self.validation_btn)
+
+            # Tooltip for validation button
+            self._setup_validation_tooltip()
 
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
