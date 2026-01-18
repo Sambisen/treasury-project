@@ -50,7 +50,6 @@ from utils import (
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
 from ui.components import PremiumEnvBadge, SegmentedControl
-from tkinter import messagebox
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -365,6 +364,127 @@ class NiborTerminalCTK(ctk.CTk):
 
         log.info(f"Last approved data loaded: {date_key} (bbg_ok={self.bbg_ok}, excel_ok={self.excel_ok})")
 
+    def _show_confirm_dialog(self, title: str, message: str, on_confirm: callable, on_cancel: callable = None):
+        """
+        Show a premium confirmation dialog with Nordic Light styling.
+        Uses callbacks instead of blocking.
+        """
+        # Create overlay
+        dialog = tk.Toplevel(self)
+        dialog.title("")
+        dialog.configure(bg=THEME["bg_card"])
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # Size and center
+        width, height = 420, 200
+        self.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() - width) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - height) // 2
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+
+        # Remove title bar for cleaner look (optional - comment out if issues)
+        # dialog.overrideredirect(True)
+
+        # Main container with border
+        border_frame = tk.Frame(dialog, bg=THEME["border"])
+        border_frame.pack(fill="both", expand=True, padx=1, pady=1)
+
+        container = tk.Frame(border_frame, bg=THEME["bg_card"])
+        container.pack(fill="both", expand=True)
+
+        # Warning icon and title row
+        header = tk.Frame(container, bg=THEME["bg_card"])
+        header.pack(fill="x", padx=24, pady=(24, 12))
+
+        tk.Label(
+            header,
+            text="⚠",
+            fg=THEME["warning"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI", 20)
+        ).pack(side="left", padx=(0, 12))
+
+        tk.Label(
+            header,
+            text=title,
+            fg=THEME["text"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI Semibold", 14)
+        ).pack(side="left")
+
+        # Message
+        tk.Label(
+            container,
+            text=message,
+            fg=THEME["text_secondary"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI", 11),
+            wraplength=370,
+            justify="left"
+        ).pack(padx=24, pady=(0, 20), anchor="w")
+
+        # Button row
+        btn_frame = tk.Frame(container, bg=THEME["bg_card"])
+        btn_frame.pack(fill="x", padx=24, pady=(0, 24))
+
+        def on_cancel_click():
+            dialog.grab_release()
+            dialog.destroy()
+            if on_cancel:
+                on_cancel()
+
+        def on_confirm_click():
+            dialog.grab_release()
+            dialog.destroy()
+            on_confirm()
+
+        # Cancel button (secondary style)
+        cancel_btn = tk.Frame(btn_frame, bg=THEME["bg_card"], cursor="hand2",
+                              highlightbackground=THEME["border"], highlightthickness=1)
+        cancel_btn.pack(side="right", padx=(8, 0))
+
+        cancel_label = tk.Label(
+            cancel_btn,
+            text="Cancel",
+            fg=THEME["text_secondary"],
+            bg=THEME["bg_card"],
+            font=("Segoe UI Semibold", 11),
+            padx=20,
+            pady=10
+        )
+        cancel_label.pack()
+        cancel_btn.bind("<Button-1>", lambda e: on_cancel_click())
+        cancel_label.bind("<Button-1>", lambda e: on_cancel_click())
+        cancel_btn.bind("<Enter>", lambda e: cancel_btn.configure(bg=THEME["bg_hover"]) or cancel_label.configure(bg=THEME["bg_hover"]))
+        cancel_btn.bind("<Leave>", lambda e: cancel_btn.configure(bg=THEME["bg_card"]) or cancel_label.configure(bg=THEME["bg_card"]))
+
+        # Confirm button (primary style - accent)
+        confirm_btn = tk.Frame(btn_frame, bg=THEME["accent"], cursor="hand2")
+        confirm_btn.pack(side="right")
+
+        confirm_label = tk.Label(
+            confirm_btn,
+            text="Switch to 10:00",
+            fg="white",
+            bg=THEME["accent"],
+            font=("Segoe UI Semibold", 11),
+            padx=20,
+            pady=10
+        )
+        confirm_label.pack()
+        confirm_btn.bind("<Button-1>", lambda e: on_confirm_click())
+        confirm_label.bind("<Button-1>", lambda e: on_confirm_click())
+        confirm_btn.bind("<Enter>", lambda e: confirm_btn.configure(bg=THEME["accent_hover"]) or confirm_label.configure(bg=THEME["accent_hover"]))
+        confirm_btn.bind("<Leave>", lambda e: confirm_btn.configure(bg=THEME["accent"]) or confirm_label.configure(bg=THEME["accent"]))
+
+        # ESC to cancel
+        dialog.bind("<Escape>", lambda e: on_cancel_click())
+
+        # Focus the dialog
+        dialog.focus_set()
+
     def _on_fixing_time_change(self, new_value: str):
         """
         Handle fixing time change from segmented control.
@@ -377,17 +497,28 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Confirm if switching to 10:00 (rarely used)
         if new_value == "10:00":
-            confirmed = messagebox.askyesno(
-                "Change Fixing Time",
-                "The 10:00 CET fixing is rarely used.\n\nAre you sure you want to switch?",
-                icon="warning"
-            )
+            def on_confirm():
+                self._apply_fixing_time_change(new_value)
 
-            if not confirmed:
+            def on_cancel():
                 # Revert the segmented control back to current value
                 if hasattr(self, 'fixing_control'):
-                    self.after(10, lambda: self.fixing_control.set(current))
-                return
+                    self.fixing_control.set(current)
+
+            self._show_confirm_dialog(
+                title="Change Fixing Time",
+                message="The 10:00 CET fixing is rarely used. Are you sure you want to switch?",
+                on_confirm=on_confirm,
+                on_cancel=on_cancel
+            )
+            return
+
+        # Direct change for 10:30 (no confirmation needed)
+        self._apply_fixing_time_change(new_value)
+
+    def _apply_fixing_time_change(self, new_value: str):
+        """Apply the fixing time change after confirmation."""
+        current = get_setting("fixing_time", DEFAULT_FIXING_TIME)
 
         # Save new setting
         set_setting("fixing_time", new_value, save=True)
