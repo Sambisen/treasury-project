@@ -5,12 +5,21 @@ Reusable, themed components for the Nordic Light design system.
 """
 
 from .buttons import (
+    # Pure Tkinter buttons (Nordic Light)
     BaseButton,
     PrimaryButton,
     SecondaryButton,
     GhostButton,
     DangerButton,
     IconButton,
+    # CTkButton-based (Dark Premium)
+    make_ctk_button,
+    set_button_disabled,
+    CTkBaseButton,
+    CTkPrimaryButton,
+    CTkSecondaryButton,
+    CTkDangerButton,
+    CTkGhostButton,
 )
 
 from .cards import (
@@ -93,13 +102,21 @@ from .drawers import (
 )
 
 __all__ = [
-    # Buttons
+    # Buttons (Pure Tkinter - Nordic Light)
     "BaseButton",
     "PrimaryButton",
     "SecondaryButton",
     "GhostButton",
     "DangerButton",
     "IconButton",
+    # Buttons (CTk - Dark Premium)
+    "make_ctk_button",
+    "set_button_disabled",
+    "CTkBaseButton",
+    "CTkPrimaryButton",
+    "CTkSecondaryButton",
+    "CTkDangerButton",
+    "CTkGhostButton",
     # Cards
     "Card",
     "CardHeader",

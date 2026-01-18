@@ -91,6 +91,74 @@ COLORS = Colors()
 
 
 # =============================================================================
+# DARK BUTTON THEME TOKENS
+# =============================================================================
+
+@dataclass(frozen=True)
+class ButtonColors:
+    """
+    Dark theme button colors for premium CTkButton styling.
+    Based on a dark card UI with orange accent.
+    """
+
+    # Background colors
+    BG: str = "#0E1116"           # App background (darkest)
+    CARD: str = "#121824"         # Card/panel background
+    CARD_BORDER: str = "#222B3A"  # Card border
+
+    # Text colors
+    TEXT: str = "#E7ECF3"         # Primary text (light)
+    TEXT_MUTED: str = "#A9B4C2"   # Muted/secondary text
+    TEXT_ON_ACCENT: str = "#0B0D10"  # Dark text on accent buttons
+
+    # Primary (Orange accent)
+    PRIMARY: str = "#F37A1F"
+    PRIMARY_HOVER: str = "#FF8A33"
+    PRIMARY_PRESSED: str = "#D96512"
+
+    # Danger (Red)
+    DANGER: str = "#D93025"
+    DANGER_HOVER: str = "#E24B41"
+    DANGER_PRESSED: str = "#B8261D"
+
+    # Secondary (Outlined/subtle)
+    SECONDARY_BG: str = "#121824"
+    SECONDARY_HOVER: str = "#182033"
+    SECONDARY_PRESSED: str = "#0F1524"
+    SECONDARY_BORDER: str = "#2A364A"
+
+    # Ghost (Transparent)
+    GHOST_HOVER: str = "#182033"
+    GHOST_PRESSED: str = "#0F1524"
+
+    # Disabled state
+    DISABLED_BG: str = "#1A2232"
+    DISABLED_TEXT: str = "#7C8796"
+    DISABLED_BORDER: str = "#2A364A"
+
+
+BUTTON_COLORS = ButtonColors()
+
+
+@dataclass(frozen=True)
+class ButtonConfig:
+    """Button sizing and style configuration."""
+
+    HEIGHT_SM: int = 32
+    HEIGHT_MD: int = 40
+    HEIGHT_LG: int = 48
+
+    CORNER_RADIUS: int = 12
+
+    FONT_FAMILY: str = "Segoe UI"
+    FONT_SIZE: int = 13
+    FONT_SIZE_SM: int = 12
+
+
+BUTTON_CONFIG = ButtonConfig()
+
+
+# =============================================================================
 # TYPOGRAPHY TOKENS
 # =============================================================================
 

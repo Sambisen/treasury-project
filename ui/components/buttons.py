@@ -2,11 +2,22 @@
 Button Components - Nordic Light Design System
 ==============================================
 Themed button components with consistent styling.
+
+Includes:
+- Pure Tkinter buttons (BaseButton, PrimaryButton, etc.) for Nordic Light theme
+- CTkButton-based buttons (CTkPrimaryButton, etc.) for dark premium theme
+- make_ctk_button() factory function for easy button creation
 """
 
 import tkinter as tk
 from typing import Callable, Optional
-from ..theme import COLORS, FONTS, SPACING, RADII
+from ..theme import COLORS, FONTS, SPACING, RADII, BUTTON_COLORS, BUTTON_CONFIG
+
+# Import ctk_compat for CustomTkinter support
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from ctk_compat import ctk, CTK_AVAILABLE
 
 
 class BaseButton(tk.Frame):
@@ -248,3 +259,285 @@ class IconButton(tk.Label):
     def _on_click(self, event=None):
         if self.command:
             self.command()
+
+
+# =============================================================================
+# CTK BUTTON SYSTEM - Dark Premium Theme
+# =============================================================================
+
+def make_ctk_button(
+    parent,
+    text: str,
+    command: Optional[Callable] = None,
+    variant: str = "primary",   # primary | secondary | danger | ghost
+    width: int = 180,
+    height: int = None,
+    size: str = "md",           # sm | md | lg
+    icon: str = None,
+    disabled: bool = False,
+) -> ctk.CTkButton:
+    """
+    Creates a consistent, premium-looking CTkButton with dark theme styling.
+
+    Args:
+        parent: Parent widget
+        text: Button text
+        command: Click callback
+        variant: "primary" (orange), "secondary" (outlined), "danger" (red), "ghost" (transparent)
+        width: Button width in pixels
+        height: Override height (otherwise uses size)
+        size: "sm", "md", or "lg" for predefined heights
+        icon: Optional icon text (e.g., "✓", "↻", "✖")
+        disabled: Start in disabled state
+
+    Returns:
+        Configured CTkButton with press feedback
+    """
+    # Determine height from size
+    if height is None:
+        height = {
+            "sm": BUTTON_CONFIG.HEIGHT_SM,
+            "md": BUTTON_CONFIG.HEIGHT_MD,
+            "lg": BUTTON_CONFIG.HEIGHT_LG,
+        }.get(size, BUTTON_CONFIG.HEIGHT_MD)
+
+    # Build label with optional icon
+    label = f"{icon}  {text}" if icon else text
+
+    # Font weight: bold for primary, normal for others
+    font_weight = "bold" if variant == "primary" else "normal"
+    font = (BUTTON_CONFIG.FONT_FAMILY, BUTTON_CONFIG.FONT_SIZE, font_weight)
+    if size == "sm":
+        font = (BUTTON_CONFIG.FONT_FAMILY, BUTTON_CONFIG.FONT_SIZE_SM, font_weight)
+
+    # Base configuration (secondary style as default)
+    config = dict(
+        master=parent,
+        text=label,
+        command=command,
+        height=height,
+        width=width,
+        corner_radius=BUTTON_CONFIG.CORNER_RADIUS,
+        font=font,
+        text_color=BUTTON_COLORS.TEXT,
+        fg_color=BUTTON_COLORS.SECONDARY_BG,
+        hover_color=BUTTON_COLORS.SECONDARY_HOVER,
+        border_width=1,
+        border_color=BUTTON_COLORS.SECONDARY_BORDER,
+    )
+
+    # Apply variant-specific styling
+    if variant == "primary":
+        config.update(
+            fg_color=BUTTON_COLORS.PRIMARY,
+            hover_color=BUTTON_COLORS.PRIMARY_HOVER,
+            border_width=0,
+            text_color=BUTTON_COLORS.TEXT_ON_ACCENT,
+        )
+    elif variant == "danger":
+        config.update(
+            fg_color=BUTTON_COLORS.DANGER,
+            hover_color=BUTTON_COLORS.DANGER_HOVER,
+            border_width=0,
+            text_color=BUTTON_COLORS.TEXT_ON_ACCENT,
+        )
+    elif variant == "ghost":
+        config.update(
+            fg_color="transparent",
+            hover_color=BUTTON_COLORS.GHOST_HOVER,
+            border_width=0,
+            text_color=BUTTON_COLORS.TEXT,
+        )
+
+    btn = ctk.CTkButton(**config)
+
+    # Store variant for state restoration
+    btn._button_variant = variant
+
+    # Add press feedback for tactile feel
+    def on_press(event):
+        if btn.cget("state") != "disabled":
+            pressed_colors = {
+                "primary": BUTTON_COLORS.PRIMARY_PRESSED,
+                "secondary": BUTTON_COLORS.SECONDARY_PRESSED,
+                "danger": BUTTON_COLORS.DANGER_PRESSED,
+                "ghost": BUTTON_COLORS.GHOST_PRESSED,
+            }
+            btn.configure(fg_color=pressed_colors.get(variant, BUTTON_COLORS.SECONDARY_PRESSED))
+
+    def on_release(event):
+        if btn.cget("state") != "disabled":
+            release_colors = {
+                "primary": BUTTON_COLORS.PRIMARY,
+                "secondary": BUTTON_COLORS.SECONDARY_BG,
+                "danger": BUTTON_COLORS.DANGER,
+                "ghost": "transparent",
+            }
+            btn.configure(fg_color=release_colors.get(variant, BUTTON_COLORS.SECONDARY_BG))
+
+    btn.bind("<ButtonPress-1>", on_press)
+    btn.bind("<ButtonRelease-1>", on_release)
+
+    # Apply disabled state if requested
+    if disabled:
+        set_button_disabled(btn, True)
+
+    return btn
+
+
+def set_button_disabled(btn: ctk.CTkButton, disabled: bool = True):
+    """
+    Set disabled state with premium styling that doesn't look 'washed out'.
+
+    Args:
+        btn: CTkButton to modify
+        disabled: True to disable, False to enable
+    """
+    if disabled:
+        btn.configure(
+            state="disabled",
+            fg_color=BUTTON_COLORS.DISABLED_BG,
+            hover_color=BUTTON_COLORS.DISABLED_BG,
+            text_color=BUTTON_COLORS.DISABLED_TEXT,
+        )
+        # Only set border if button has one
+        try:
+            if btn.cget("border_width") and btn.cget("border_width") > 0:
+                btn.configure(border_color=BUTTON_COLORS.DISABLED_BORDER)
+        except:
+            pass
+    else:
+        btn.configure(state="normal")
+        # Restore original variant colors
+        variant = getattr(btn, "_button_variant", "secondary")
+        if variant == "primary":
+            btn.configure(
+                fg_color=BUTTON_COLORS.PRIMARY,
+                hover_color=BUTTON_COLORS.PRIMARY_HOVER,
+                text_color=BUTTON_COLORS.TEXT_ON_ACCENT,
+            )
+        elif variant == "danger":
+            btn.configure(
+                fg_color=BUTTON_COLORS.DANGER,
+                hover_color=BUTTON_COLORS.DANGER_HOVER,
+                text_color=BUTTON_COLORS.TEXT_ON_ACCENT,
+            )
+        elif variant == "ghost":
+            btn.configure(
+                fg_color="transparent",
+                hover_color=BUTTON_COLORS.GHOST_HOVER,
+                text_color=BUTTON_COLORS.TEXT,
+            )
+        else:  # secondary
+            btn.configure(
+                fg_color=BUTTON_COLORS.SECONDARY_BG,
+                hover_color=BUTTON_COLORS.SECONDARY_HOVER,
+                text_color=BUTTON_COLORS.TEXT,
+                border_color=BUTTON_COLORS.SECONDARY_BORDER,
+            )
+
+
+# =============================================================================
+# CTK BUTTON CLASSES - Object-Oriented Alternative
+# =============================================================================
+
+class CTkBaseButton:
+    """
+    Mixin for CTkButton with press feedback and variant support.
+    Use with make_ctk_button() for simpler API, or subclass for custom behavior.
+    """
+
+    @staticmethod
+    def create(
+        parent,
+        text: str,
+        command: Optional[Callable] = None,
+        variant: str = "primary",
+        **kwargs
+    ) -> ctk.CTkButton:
+        """Factory method - alias for make_ctk_button()."""
+        return make_ctk_button(parent, text, command, variant, **kwargs)
+
+
+class CTkPrimaryButton:
+    """Primary action button (orange fill, dark text)."""
+
+    def __new__(
+        cls,
+        parent,
+        text: str,
+        command: Optional[Callable] = None,
+        width: int = 180,
+        icon: str = None,
+        **kwargs
+    ):
+        return make_ctk_button(
+            parent, text, command,
+            variant="primary",
+            width=width,
+            icon=icon,
+            **kwargs
+        )
+
+
+class CTkSecondaryButton:
+    """Secondary button (outlined, subtle)."""
+
+    def __new__(
+        cls,
+        parent,
+        text: str,
+        command: Optional[Callable] = None,
+        width: int = 180,
+        icon: str = None,
+        **kwargs
+    ):
+        return make_ctk_button(
+            parent, text, command,
+            variant="secondary",
+            width=width,
+            icon=icon,
+            **kwargs
+        )
+
+
+class CTkDangerButton:
+    """Danger/destructive action button (red fill)."""
+
+    def __new__(
+        cls,
+        parent,
+        text: str,
+        command: Optional[Callable] = None,
+        width: int = 160,
+        icon: str = None,
+        **kwargs
+    ):
+        return make_ctk_button(
+            parent, text, command,
+            variant="danger",
+            width=width,
+            icon=icon,
+            **kwargs
+        )
+
+
+class CTkGhostButton:
+    """Ghost/text button (transparent, text only)."""
+
+    def __new__(
+        cls,
+        parent,
+        text: str,
+        command: Optional[Callable] = None,
+        width: int = 140,
+        icon: str = None,
+        **kwargs
+    ):
+        return make_ctk_button(
+            parent, text, command,
+            variant="ghost",
+            width=width,
+            icon=icon,
+            **kwargs
+        )
