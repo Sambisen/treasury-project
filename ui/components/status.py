@@ -627,7 +627,7 @@ class SegmentedControl(tk.Frame):
             **kwargs
         )
 
-        self._options = options
+        self._option_items = options
         self._command = command
         self._current_value = default or (options[0][1] if options else None)
         self._segments: Dict[str, tk.Label] = {}
