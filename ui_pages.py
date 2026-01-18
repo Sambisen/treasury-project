@@ -249,24 +249,79 @@ class DashboardPage(BaseFrame):
         for i, tenor in enumerate(tenors):
             row_idx = (i * 2) + 2  # Leave room for separator rows
 
-            # Disabled tenor (1W)
+            # Disabled tenor (1W) - Collapsible row
             if tenor.get("disabled"):
-                tk.Label(funding_frame, text=tenor["label"],
-                        fg=THEME["text_light"], bg=row_bg,
-                        font=("Segoe UI", 12), width=12, pady=10, padx=16,
-                        anchor="center").grid(row=row_idx, column=0, sticky="nsew")
+                # Container for collapsible row (spans all columns)
+                collapse_container = tk.Frame(funding_frame, bg=row_bg)
+                collapse_container.grid(row=row_idx, column=0, columnspan=7, sticky="nsew")
 
-                # Funding Rate = N/A, Spread = —, Nibor = N/A, Chg = —
-                disabled_values = ["N/A", "—", "N/A", "—"]
-                for col, val in enumerate(disabled_values, start=1):
-                    tk.Label(funding_frame, text=val, fg=THEME["text_light"],
-                            bg=row_bg, font=("Consolas", 12),
-                            anchor="center", pady=10, padx=16).grid(row=row_idx, column=col, sticky="nsew")
+                # Collapsed state (default) - compact single row
+                collapsed_row = tk.Frame(collapse_container, bg=row_bg, cursor="hand2")
+                collapsed_row.pack(fill="x", pady=6, padx=16)
 
-                # Contribution column for disabled row
-                tk.Label(funding_frame, text="—", fg=THEME["text_light"],
-                        bg=row_bg, font=("Consolas", 11),
-                        anchor="center", pady=10, padx=16).grid(row=row_idx, column=6, sticky="nsew")
+                # Expand indicator
+                expand_indicator = tk.Label(
+                    collapsed_row,
+                    text="▶",
+                    font=("Segoe UI", 9),
+                    fg=THEME["text_light"],
+                    bg=row_bg
+                )
+                expand_indicator.pack(side="left", padx=(0, 8))
+
+                # Tenor label
+                tk.Label(
+                    collapsed_row,
+                    text=tenor["label"],
+                    font=("Segoe UI", 11),
+                    fg=THEME["text_light"],
+                    bg=row_bg
+                ).pack(side="left")
+
+                # N/A indicator badge
+                na_badge = tk.Frame(collapsed_row, bg=THEME["chip"])
+                na_badge.pack(side="left", padx=(12, 0))
+                tk.Label(
+                    na_badge,
+                    text="Not Available",
+                    font=("Segoe UI", 9),
+                    fg=THEME["text_light"],
+                    bg=THEME["chip"],
+                    padx=8,
+                    pady=2
+                ).pack()
+
+                # Expanded state (hidden by default) - full details
+                expanded_row = tk.Frame(collapse_container, bg=THEME["row_hover"])
+
+                # Build expanded content
+                expanded_inner = tk.Frame(expanded_row, bg=THEME["row_hover"])
+                expanded_inner.pack(fill="x", pady=8, padx=16)
+
+                # Tenor
+                tk.Label(expanded_inner, text=tenor["label"],
+                        fg=THEME["text_light"], bg=THEME["row_hover"],
+                        font=("Segoe UI", 11), width=8, anchor="w").pack(side="left", padx=(20, 16))
+
+                # Info text
+                tk.Label(expanded_inner,
+                        text="1W tenor data is not available for NIBOR calculations",
+                        fg=THEME["text_light"], bg=THEME["row_hover"],
+                        font=("Segoe UI", 10)).pack(side="left")
+
+                # Toggle function
+                def toggle_1w(e=None, collapsed=collapsed_row, expanded=expanded_row, indicator=expand_indicator):
+                    if expanded.winfo_manager():
+                        expanded.pack_forget()
+                        indicator.config(text="▶")
+                    else:
+                        expanded.pack(fill="x")
+                        indicator.config(text="▼")
+
+                # Bind click to toggle
+                for widget in [collapsed_row, expand_indicator] + list(collapsed_row.winfo_children()):
+                    widget.bind("<Button-1>", toggle_1w)
+                    widget.config(cursor="hand2") if hasattr(widget, 'config') else None
 
                 # Subtle row separator
                 tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")
