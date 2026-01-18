@@ -883,10 +883,10 @@ class NiborTerminalCTK(ctk.CTk):
             ("dashboard", "📊", "NIBOR", DashboardPage),
             ("nibor_recon", "✅", "Nibor Recon", ReconPage),
             ("weights", "⚖️", "Weights", WeightsPage),
-            ("audit_log", "📋", "Audit Log", AuditLogPage),
             ("rules_logic", "🧮", "Backup Nibor", RulesPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
-            ("nibor_roadmap", "🗺️", "Nibor Roadmap", NiborRoadmapPage),
+            ("nibor_roadmap", "🗂️", "Nibor Roadmap", NiborRoadmapPage),
+            ("audit_log", "📋", "Audit Log", AuditLogPage),
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
