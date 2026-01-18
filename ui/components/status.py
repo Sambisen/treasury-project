@@ -8,7 +8,8 @@ import tkinter as tk
 from tkinter import Canvas
 from typing import Optional, Dict
 import math
-from ..theme import COLORS, FONTS, SPACING, ICONS, ENV_BADGE_COLORS, BUTTON_CONFIG
+from ..theme import COLORS, FONTS, SPACING, ICONS, ENV_BADGE_COLORS, BUTTON_CONFIG, SEGMENT_COLORS
+from typing import Callable, List, Tuple
 
 
 class StatusStrip(tk.Frame):
@@ -589,3 +590,140 @@ class PremiumEnvBadge(tk.Frame):
                 self.after_cancel(self._animation_id)
                 self._animation_id = None
             self._draw_static_glow()
+
+
+# =============================================================================
+# SEGMENTED CONTROL
+# =============================================================================
+
+class SegmentedControl(tk.Frame):
+    """
+    Premium segmented control with Nordic Light styling.
+
+    A pill-shaped toggle between options, similar to iOS segmented control.
+
+    Usage:
+        control = SegmentedControl(
+            parent,
+            options=[("10:30 CET", "10:30"), ("10:00 CET", "10:00")],
+            default="10:30",
+            command=on_change
+        )
+    """
+
+    def __init__(
+        self,
+        parent,
+        options: List[Tuple[str, str]],  # List of (label, value) tuples
+        default: str = None,
+        command: Optional[Callable[[str], None]] = None,
+        **kwargs
+    ):
+        super().__init__(
+            parent,
+            bg=SEGMENT_COLORS.BG,
+            highlightbackground=SEGMENT_COLORS.BORDER,
+            highlightthickness=1,
+            **kwargs
+        )
+
+        self._options = options
+        self._command = command
+        self._current_value = default or (options[0][1] if options else None)
+        self._segments: Dict[str, tk.Label] = {}
+
+        # Inner container for segments
+        inner = tk.Frame(self, bg=SEGMENT_COLORS.BG)
+        inner.pack(padx=3, pady=3)
+
+        # Create segments
+        for i, (label, value) in enumerate(options):
+            is_active = value == self._current_value
+
+            segment = tk.Label(
+                inner,
+                text=label,
+                fg=SEGMENT_COLORS.TEXT_ACTIVE if is_active else SEGMENT_COLORS.TEXT,
+                bg=SEGMENT_COLORS.SEGMENT_ACTIVE_BG if is_active else SEGMENT_COLORS.SEGMENT_BG,
+                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold" if is_active else "normal"),
+                padx=14,
+                pady=6,
+                cursor="hand2"
+            )
+            segment.pack(side="left", padx=(0 if i == 0 else 1, 0))
+
+            # Store reference
+            self._segments[value] = segment
+
+            # Bind events
+            segment.bind("<Button-1>", lambda e, v=value: self._on_click(v))
+            segment.bind("<Enter>", lambda e, v=value: self._on_enter(v))
+            segment.bind("<Leave>", lambda e, v=value: self._on_leave(v))
+
+    def _on_click(self, value: str):
+        """Handle segment click."""
+        if value == self._current_value:
+            return
+
+        # Update current value
+        old_value = self._current_value
+        self._current_value = value
+
+        # Update visual state
+        self._update_segment(old_value, active=False)
+        self._update_segment(value, active=True)
+
+        # Call command
+        if self._command:
+            self._command(value)
+
+    def _on_enter(self, value: str):
+        """Handle mouse enter."""
+        if value != self._current_value:
+            segment = self._segments.get(value)
+            if segment:
+                segment.configure(
+                    bg=SEGMENT_COLORS.SEGMENT_HOVER_BG,
+                    fg=SEGMENT_COLORS.TEXT_HOVER
+                )
+
+    def _on_leave(self, value: str):
+        """Handle mouse leave."""
+        if value != self._current_value:
+            segment = self._segments.get(value)
+            if segment:
+                segment.configure(
+                    bg=SEGMENT_COLORS.SEGMENT_BG,
+                    fg=SEGMENT_COLORS.TEXT
+                )
+
+    def _update_segment(self, value: str, active: bool):
+        """Update segment visual state."""
+        segment = self._segments.get(value)
+        if not segment:
+            return
+
+        if active:
+            segment.configure(
+                bg=SEGMENT_COLORS.SEGMENT_ACTIVE_BG,
+                fg=SEGMENT_COLORS.TEXT_ACTIVE,
+                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold")
+            )
+        else:
+            segment.configure(
+                bg=SEGMENT_COLORS.SEGMENT_BG,
+                fg=SEGMENT_COLORS.TEXT,
+                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "normal")
+            )
+
+    def get(self) -> str:
+        """Get current selected value."""
+        return self._current_value
+
+    def set(self, value: str):
+        """Set selected value programmatically."""
+        if value in self._segments and value != self._current_value:
+            old_value = self._current_value
+            self._current_value = value
+            self._update_segment(old_value, active=False)
+            self._update_segment(value, active=True)

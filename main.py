@@ -49,7 +49,7 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
-from ui.components import PremiumEnvBadge
+from ui.components import PremiumEnvBadge, SegmentedControl
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -493,40 +493,30 @@ class NiborTerminalCTK(ctk.CTk):
                 except:
                     pass
 
-        # Fixing Time Toggle
+        # Fixing Time Toggle - Premium Segmented Control
         fixing_frame = tk.Frame(header_left, bg=THEME["bg_main"])
         fixing_frame.pack(side="left", padx=(0, 15))
 
         tk.Label(
             fixing_frame,
-            text="FIXING:",
+            text="FIXING",
             fg=THEME["text_muted"],
             bg=THEME["bg_main"],
             font=("Segoe UI", 10)
-        ).pack(side="left", padx=(0, 8))
+        ).pack(side="left", padx=(0, 10))
 
-        # Radio button variable
+        # Segmented control for fixing time
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
-        self._fixing_time_var = tk.StringVar(value=current_fixing)
-
-        # Radio buttons for fixing time - use tk.Radiobutton for consistency
-        for fixing_time, config in FIXING_CONFIGS.items():
-            rb = tk.Radiobutton(
-                fixing_frame,
-                text=config["label"],
-                variable=self._fixing_time_var,
-                value=fixing_time,
-                command=lambda ft=fixing_time: self._on_fixing_time_change(ft),
-                font=("Segoe UI", 10),
-                fg=THEME["text"],
-                bg=THEME["bg_main"],
-                selectcolor=THEME["bg_main"],
-                activebackground=THEME["bg_main"],
-                activeforeground=THEME["accent"],
-                highlightthickness=0,
-                bd=0
-            )
-            rb.pack(side="left", padx=(0, 10))
+        self.fixing_control = SegmentedControl(
+            fixing_frame,
+            options=[
+                ("10:30 CET", "10:30"),
+                ("10:00 CET", "10:00"),
+            ],
+            default=current_fixing,
+            command=self._on_fixing_time_change
+        )
+        self.fixing_control.pack(side="left")
 
         # Header content container - right side
         header_right = ctk.CTkFrame(global_header, fg_color="transparent")

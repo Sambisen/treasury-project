@@ -77,6 +77,7 @@ from .status import (
     ModeIndicator,
     EnvironmentBanner,
     PremiumEnvBadge,
+    SegmentedControl,
 )
 
 from .inputs import (
@@ -162,6 +163,7 @@ __all__ = [
     "ModeIndicator",
     "EnvironmentBanner",
     "PremiumEnvBadge",
+    "SegmentedControl",
     # Inputs
     "ThemedEntry",
     "ThemedCombobox",

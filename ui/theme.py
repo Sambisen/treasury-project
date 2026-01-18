@@ -194,6 +194,30 @@ class EnvBadgeColors:
 ENV_BADGE_COLORS = EnvBadgeColors()
 
 
+@dataclass(frozen=True)
+class SegmentedControlColors:
+    """
+    Segmented control colors for Nordic Light theme.
+    """
+
+    # Container
+    BG: str = "#FFFFFF"
+    BORDER: str = "#E6E8EE"
+
+    # Segments
+    SEGMENT_BG: str = "#FFFFFF"
+    SEGMENT_ACTIVE_BG: str = "#F57C00"  # Accent orange
+    SEGMENT_HOVER_BG: str = "#F8FAFC"
+
+    # Text
+    TEXT: str = "#334155"
+    TEXT_ACTIVE: str = "#FFFFFF"
+    TEXT_HOVER: str = "#0F172A"
+
+
+SEGMENT_COLORS = SegmentedControlColors()
+
+
 # =============================================================================
 # TYPOGRAPHY TOKENS
 # =============================================================================
