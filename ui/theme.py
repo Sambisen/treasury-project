@@ -159,6 +159,39 @@ BUTTON_CONFIG = ButtonConfig()
 
 
 # =============================================================================
+# ENVIRONMENT BADGE COLORS
+# =============================================================================
+
+@dataclass(frozen=True)
+class EnvBadgeColors:
+    """
+    Premium environment badge colors with glow effects.
+    """
+
+    # Badge container (dark pill)
+    BADGE_BG: str = "#121824"
+    BADGE_BORDER: str = "#222B3A"
+
+    # PROD colors (green)
+    PROD_DOT: str = "#22C55E"
+    PROD_GLOW: str = "#22C55E"
+    PROD_TEXT: str = "#E7ECF3"
+
+    # DEV colors (amber/orange)
+    DEV_DOT: str = "#F59E0B"
+    DEV_GLOW: str = "#F59E0B"
+    DEV_TEXT: str = "#E7ECF3"
+
+    # Animation
+    PULSE_INTERVAL_MS: int = 1500
+    GLOW_OPACITY_MIN: float = 0.3
+    GLOW_OPACITY_MAX: float = 0.8
+
+
+ENV_BADGE_COLORS = EnvBadgeColors()
+
+
+# =============================================================================
 # TYPOGRAPHY TOKENS
 # =============================================================================
 

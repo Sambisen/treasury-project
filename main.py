@@ -49,6 +49,7 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
+from ui.components import PremiumEnvBadge
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -446,25 +447,10 @@ class NiborTerminalCTK(ctk.CTk):
         header_left = tk.Frame(global_header, bg=THEME["bg_main"])
         header_left.pack(side="left")
 
-        # PROD/DEV Badge - use tk.Label for consistent rendering
+        # Premium PROD/DEV Badge with glow and pulse animation
         env = get_app_env()
-        env_color = "#1E8E3E" if env == "PROD" else "#F59E0B"  # Green for PROD, Yellow for DEV
-        env_text_color = "white"
-
-        # Badge container frame for background color
-        badge_frame = tk.Frame(header_left, bg=env_color, padx=2, pady=2)
-        badge_frame.pack(side="left", padx=(0, 15))
-
-        self.env_badge = tk.Label(
-            badge_frame,
-            text=f"● {env}",
-            fg=env_text_color,
-            bg=env_color,
-            font=("Segoe UI Semibold", 11),
-            padx=8,
-            pady=2
-        )
-        self.env_badge.pack()
+        self.env_badge = PremiumEnvBadge(header_left, environment=env)
+        self.env_badge.pack(side="left", padx=(0, 15))
 
         # Fixing Time Toggle
         fixing_frame = tk.Frame(header_left, bg=THEME["bg_main"])

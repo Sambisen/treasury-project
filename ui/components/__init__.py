@@ -76,6 +76,7 @@ from .status import (
     LastUpdatedLabel,
     ModeIndicator,
     EnvironmentBanner,
+    PremiumEnvBadge,
 )
 
 from .inputs import (
@@ -160,6 +161,7 @@ __all__ = [
     "LastUpdatedLabel",
     "ModeIndicator",
     "EnvironmentBanner",
+    "PremiumEnvBadge",
     # Inputs
     "ThemedEntry",
     "ThemedCombobox",

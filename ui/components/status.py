@@ -5,8 +5,10 @@ Status indicators, strips, and connection status displays.
 """
 
 import tkinter as tk
+from tkinter import Canvas
 from typing import Optional, Dict
-from ..theme import COLORS, FONTS, SPACING, ICONS
+import math
+from ..theme import COLORS, FONTS, SPACING, ICONS, ENV_BADGE_COLORS, BUTTON_CONFIG
 
 
 class StatusStrip(tk.Frame):
@@ -371,3 +373,206 @@ class EnvironmentBanner(tk.Frame):
             bg=bg_color,
             font=FONTS.BUTTON
         ).pack(side="left")
+
+
+# =============================================================================
+# PREMIUM ENVIRONMENT BADGE
+# =============================================================================
+
+class PremiumEnvBadge(tk.Frame):
+    """
+    Premium environment badge with glowing dot and pulse animation.
+
+    Features:
+    - Dark pill-shaped container with subtle border
+    - Colored dot with soft glow effect
+    - Pulse animation for PROD (indicates "live")
+    - Static dot for DEV
+
+    Usage:
+        badge = PremiumEnvBadge(parent, environment="PROD")
+        badge.pack()
+    """
+
+    def __init__(
+        self,
+        parent,
+        environment: str = "DEV",
+        **kwargs
+    ):
+        # Determine colors based on environment
+        self._is_prod = environment.upper() == "PROD"
+        self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
+
+        if self._is_prod:
+            self._dot_color = ENV_BADGE_COLORS.PROD_DOT
+            self._glow_color = ENV_BADGE_COLORS.PROD_GLOW
+            self._text_color = ENV_BADGE_COLORS.PROD_TEXT
+        else:
+            self._dot_color = ENV_BADGE_COLORS.DEV_DOT
+            self._glow_color = ENV_BADGE_COLORS.DEV_GLOW
+            self._text_color = ENV_BADGE_COLORS.DEV_TEXT
+
+        # Initialize frame with dark background
+        super().__init__(
+            parent,
+            bg=ENV_BADGE_COLORS.BADGE_BG,
+            highlightbackground=ENV_BADGE_COLORS.BADGE_BORDER,
+            highlightthickness=1,
+            **kwargs
+        )
+
+        # Inner padding frame
+        inner = tk.Frame(self, bg=ENV_BADGE_COLORS.BADGE_BG)
+        inner.pack(padx=12, pady=8)
+
+        # Canvas for the glowing dot
+        self._dot_size = 12
+        self._glow_size = 24
+        canvas_size = self._glow_size + 4
+
+        self._canvas = Canvas(
+            inner,
+            width=canvas_size,
+            height=canvas_size,
+            bg=ENV_BADGE_COLORS.BADGE_BG,
+            highlightthickness=0
+        )
+        self._canvas.pack(side="left", padx=(0, 10))
+
+        # Draw glow layers (multiple circles with decreasing opacity)
+        self._glow_items = []
+        center = canvas_size // 2
+
+        # Create glow layers (will be animated)
+        for i in range(3):
+            radius = self._glow_size // 2 - (i * 2)
+            # Glow gets more transparent towards the edge
+            glow_id = self._canvas.create_oval(
+                center - radius, center - radius,
+                center + radius, center + radius,
+                fill="",
+                outline="",
+                width=0
+            )
+            self._glow_items.append(glow_id)
+
+        # Draw the main dot
+        dot_radius = self._dot_size // 2
+        self._dot_item = self._canvas.create_oval(
+            center - dot_radius, center - dot_radius,
+            center + dot_radius, center + dot_radius,
+            fill=self._dot_color,
+            outline=""
+        )
+
+        # Environment text
+        self._label = tk.Label(
+            inner,
+            text=self._env_text,
+            fg=self._text_color,
+            bg=ENV_BADGE_COLORS.BADGE_BG,
+            font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold")
+        )
+        self._label.pack(side="left")
+
+        # Animation state
+        self._animation_phase = 0.0
+        self._animation_id = None
+
+        # Start pulse animation for PROD
+        if self._is_prod:
+            self._start_pulse()
+        else:
+            # Static glow for DEV
+            self._draw_static_glow()
+
+    def _hex_to_rgb(self, hex_color: str) -> tuple:
+        """Convert hex color to RGB tuple."""
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    def _rgb_to_hex(self, r: int, g: int, b: int) -> str:
+        """Convert RGB to hex color."""
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    def _blend_with_bg(self, color: str, opacity: float) -> str:
+        """Blend a color with the badge background at given opacity."""
+        fg_rgb = self._hex_to_rgb(color)
+        bg_rgb = self._hex_to_rgb(ENV_BADGE_COLORS.BADGE_BG)
+
+        blended = tuple(
+            int(fg * opacity + bg * (1 - opacity))
+            for fg, bg in zip(fg_rgb, bg_rgb)
+        )
+        return self._rgb_to_hex(*blended)
+
+    def _draw_static_glow(self):
+        """Draw a static glow effect (for DEV)."""
+        opacities = [0.15, 0.25, 0.4]
+        for i, glow_id in enumerate(self._glow_items):
+            blended = self._blend_with_bg(self._glow_color, opacities[i])
+            self._canvas.itemconfig(glow_id, fill=blended, outline="")
+
+    def _start_pulse(self):
+        """Start the pulse animation for PROD."""
+        self._animate_pulse()
+
+    def _animate_pulse(self):
+        """Animate the glow with a smooth pulse effect."""
+        # Smooth sine wave oscillation
+        self._animation_phase += 0.1
+        if self._animation_phase > 2 * math.pi:
+            self._animation_phase = 0
+
+        # Calculate current opacity multiplier (0.5 to 1.0)
+        pulse = (math.sin(self._animation_phase) + 1) / 2  # 0 to 1
+        min_opacity = ENV_BADGE_COLORS.GLOW_OPACITY_MIN
+        max_opacity = ENV_BADGE_COLORS.GLOW_OPACITY_MAX
+        opacity_mult = min_opacity + (max_opacity - min_opacity) * pulse
+
+        # Update glow layers
+        base_opacities = [0.15, 0.25, 0.4]
+        for i, glow_id in enumerate(self._glow_items):
+            opacity = base_opacities[i] * opacity_mult
+            blended = self._blend_with_bg(self._glow_color, opacity)
+            self._canvas.itemconfig(glow_id, fill=blended)
+
+        # Schedule next frame (~60fps would be 16ms, but 50ms is smooth enough)
+        self._animation_id = self.after(50, self._animate_pulse)
+
+    def destroy(self):
+        """Clean up animation when widget is destroyed."""
+        if self._animation_id:
+            self.after_cancel(self._animation_id)
+        super().destroy()
+
+    def set_environment(self, environment: str):
+        """Update the environment display."""
+        was_prod = self._is_prod
+        self._is_prod = environment.upper() == "PROD"
+        self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
+
+        if self._is_prod:
+            self._dot_color = ENV_BADGE_COLORS.PROD_DOT
+            self._glow_color = ENV_BADGE_COLORS.PROD_GLOW
+            self._text_color = ENV_BADGE_COLORS.PROD_TEXT
+        else:
+            self._dot_color = ENV_BADGE_COLORS.DEV_DOT
+            self._glow_color = ENV_BADGE_COLORS.DEV_GLOW
+            self._text_color = ENV_BADGE_COLORS.DEV_TEXT
+
+        # Update dot color
+        self._canvas.itemconfig(self._dot_item, fill=self._dot_color)
+
+        # Update label
+        self._label.config(text=self._env_text, fg=self._text_color)
+
+        # Handle animation change
+        if self._is_prod and not was_prod:
+            self._start_pulse()
+        elif not self._is_prod and was_prod:
+            if self._animation_id:
+                self.after_cancel(self._animation_id)
+                self._animation_id = None
+            self._draw_static_glow()
