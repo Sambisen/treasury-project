@@ -1,25 +1,43 @@
 """
 Professional splash screen for Nibor Calculation Terminal.
+Light theme with Swedbank branding.
 """
 import tkinter as tk
-from tkinter import ttk
-import threading
+import os
 import time
+
+# Try to import PIL for logo support
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
+
+# Swedbank brand colors
+SWEDBANK_ORANGE = "#FF5F00"
+SWEDBANK_ORANGE_LIGHT = "#FF8533"
+LIGHT_BG = "#FFFFFF"
+LIGHT_BG_SECONDARY = "#F5F5F5"
+TEXT_PRIMARY = "#333333"
+TEXT_SECONDARY = "#666666"
+TEXT_MUTED = "#999999"
+BORDER_COLOR = "#E0E0E0"
 
 
 class SplashScreen(tk.Toplevel):
-    """Professional splash screen with loading progress."""
+    """Professional splash screen with loading progress - Light theme."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         # Window setup - borderless, centered
         self.overrideredirect(True)
-        self.configure(bg="#1a1a2e")
+        self.configure(bg=LIGHT_BG)
 
-        # Size - store as instance variable for use in _build_ui
-        self._width = 500
-        self._height = 320
+        # Size
+        self._width = 520
+        self._height = 340
 
         # Center on screen
         screen_w = self.winfo_screenwidth()
@@ -31,6 +49,9 @@ class SplashScreen(tk.Toplevel):
         # Make it stay on top
         self.attributes("-topmost", True)
 
+        # Store logo reference to prevent garbage collection
+        self._logo_image = None
+
         # Build UI
         self._build_ui()
 
@@ -38,97 +59,129 @@ class SplashScreen(tk.Toplevel):
         self._progress = 0
         self._status_text = "Initializing..."
 
+    def _load_logo(self):
+        """Load the Swedbank logo from assets folder."""
+        if not PIL_AVAILABLE:
+            return None
+
+        # Try to find the logo
+        logo_paths = [
+            os.path.join(os.path.dirname(__file__), "assets", "swedbank_logo.png"),
+            os.path.join(os.path.dirname(__file__), "assets", "logo.png"),
+        ]
+
+        for logo_path in logo_paths:
+            if os.path.exists(logo_path):
+                try:
+                    img = Image.open(logo_path)
+                    # Resize to fit nicely (max height 80px, maintain aspect ratio)
+                    max_height = 80
+                    aspect = img.width / img.height
+                    new_height = min(img.height, max_height)
+                    new_width = int(new_height * aspect)
+                    img = img.resize((new_width, new_height), Image.LANCZOS)
+                    return ImageTk.PhotoImage(img)
+                except Exception:
+                    pass
+        return None
+
     def _build_ui(self):
-        """Build the splash screen UI."""
-        # Main container with gradient-like effect
-        main_frame = tk.Frame(self, bg="#1a1a2e")
-        main_frame.pack(fill="both", expand=True, padx=3, pady=3)
+        """Build the splash screen UI with light theme."""
+        # Main container with subtle shadow effect
+        main_frame = tk.Frame(self, bg=BORDER_COLOR)
+        main_frame.pack(fill="both", expand=True, padx=1, pady=1)
 
-        # Border effect
-        border_frame = tk.Frame(main_frame, bg="#16213e")
-        border_frame.pack(fill="both", expand=True)
+        inner_frame = tk.Frame(main_frame, bg=LIGHT_BG)
+        inner_frame.pack(fill="both", expand=True)
 
-        inner_frame = tk.Frame(border_frame, bg="#1a1a2e")
-        inner_frame.pack(fill="both", expand=True, padx=2, pady=2)
-
-        # Top accent line
-        accent_line = tk.Frame(inner_frame, bg="#e94560", height=3)
+        # Top accent line (Swedbank orange)
+        accent_line = tk.Frame(inner_frame, bg=SWEDBANK_ORANGE, height=4)
         accent_line.pack(fill="x")
 
         # Content area
-        content = tk.Frame(inner_frame, bg="#1a1a2e")
-        content.pack(fill="both", expand=True, padx=40, pady=30)
+        content = tk.Frame(inner_frame, bg=LIGHT_BG)
+        content.pack(fill="both", expand=True, padx=50, pady=30)
 
-        # Logo area (stylized text)
-        logo_frame = tk.Frame(content, bg="#1a1a2e")
-        logo_frame.pack(pady=(20, 10))
+        # Logo area
+        logo_frame = tk.Frame(content, bg=LIGHT_BG)
+        logo_frame.pack(pady=(15, 10))
 
-        # App icon (stylized N)
-        icon_label = tk.Label(
-            logo_frame,
-            text="N",
-            font=("Segoe UI", 48, "bold"),
-            fg="#e94560",
-            bg="#1a1a2e"
-        )
-        icon_label.pack()
+        # Try to load and display the logo
+        self._logo_image = self._load_logo()
+        if self._logo_image:
+            logo_label = tk.Label(
+                logo_frame,
+                image=self._logo_image,
+                bg=LIGHT_BG
+            )
+            logo_label.pack()
+        else:
+            # Fallback: stylized text logo
+            icon_label = tk.Label(
+                logo_frame,
+                text="S",
+                font=("Segoe UI", 48, "bold"),
+                fg=SWEDBANK_ORANGE,
+                bg=LIGHT_BG
+            )
+            icon_label.pack()
 
         # App name
         title_label = tk.Label(
             content,
-            text="NIBOR CALCULATION TERMINAL",
-            font=("Segoe UI", 18, "bold"),
-            fg="#ffffff",
-            bg="#1a1a2e"
+            text="NIBOR TERMINAL",
+            font=("Segoe UI", 22, "bold"),
+            fg=TEXT_PRIMARY,
+            bg=LIGHT_BG
         )
-        title_label.pack(pady=(5, 5))
+        title_label.pack(pady=(15, 5))
 
         # Subtitle
         subtitle_label = tk.Label(
             content,
             text="Treasury Reference Rate System",
-            font=("Segoe UI", 10),
-            fg="#888888",
-            bg="#1a1a2e"
+            font=("Segoe UI", 11),
+            fg=TEXT_SECONDARY,
+            bg=LIGHT_BG
         )
-        subtitle_label.pack(pady=(0, 30))
+        subtitle_label.pack(pady=(0, 35))
 
         # Progress bar frame
-        progress_frame = tk.Frame(content, bg="#1a1a2e")
+        progress_frame = tk.Frame(content, bg=LIGHT_BG)
         progress_frame.pack(fill="x", pady=(10, 5))
 
-        # Custom progress bar
-        self.progress_bg = tk.Frame(progress_frame, bg="#2d2d44", height=6)
+        # Custom progress bar with rounded look
+        self.progress_bg = tk.Frame(progress_frame, bg=LIGHT_BG_SECONDARY, height=8)
         self.progress_bg.pack(fill="x")
 
-        self.progress_bar = tk.Frame(self.progress_bg, bg="#e94560", height=6, width=0)
-        self.progress_bar.place(x=0, y=0, height=6)
+        self.progress_bar = tk.Frame(self.progress_bg, bg=SWEDBANK_ORANGE, height=8, width=0)
+        self.progress_bar.place(x=0, y=0, height=8)
 
         # Status text
         self.status_label = tk.Label(
             content,
             text="Initializing...",
-            font=("Segoe UI", 9),
-            fg="#666666",
-            bg="#1a1a2e"
+            font=("Segoe UI", 10),
+            fg=TEXT_MUTED,
+            bg=LIGHT_BG
         )
-        self.status_label.pack(pady=(10, 0))
+        self.status_label.pack(pady=(12, 0))
 
         # Version info at bottom
-        version_frame = tk.Frame(inner_frame, bg="#1a1a2e")
-        version_frame.pack(side="bottom", fill="x", pady=10)
+        version_frame = tk.Frame(inner_frame, bg=LIGHT_BG)
+        version_frame.pack(side="bottom", fill="x", pady=15)
 
         version_label = tk.Label(
             version_frame,
             text="v1.0.0  |  Swedbank Treasury",
-            font=("Segoe UI", 8),
-            fg="#444444",
-            bg="#1a1a2e"
+            font=("Segoe UI", 9),
+            fg=TEXT_MUTED,
+            bg=LIGHT_BG
         )
         version_label.pack()
 
         # Store reference to progress bar width
-        self._progress_max_width = self._width - 86  # Account for padding
+        self._progress_max_width = self._width - 102  # Account for padding
 
     def set_progress(self, value: int, status: str = None):
         """
@@ -143,7 +196,7 @@ class SplashScreen(tk.Toplevel):
         # Calculate bar width
         bar_width = int((self._progress / 100) * self._progress_max_width)
         self.progress_bar.configure(width=bar_width)
-        self.progress_bar.place(x=0, y=0, height=6, width=bar_width)
+        self.progress_bar.place(x=0, y=0, height=8, width=bar_width)
 
         if status:
             self._status_text = status
