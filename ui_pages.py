@@ -251,35 +251,24 @@ class DashboardPage(BaseFrame):
 
             # Disabled tenor (1W) - Collapsible row
             if tenor.get("disabled"):
-                # Tenor cell container in column 0
-                tenor_cell = tk.Frame(funding_frame, bg=row_bg, cursor="hand2")
-                tenor_cell.grid(row=row_idx, column=0, sticky="nsew")
+                # Tenor label directly in grid - IDENTICAL to other tenors
+                tenor_lbl = tk.Label(funding_frame, text=tenor["label"],
+                        fg=THEME["text_light"], bg=row_bg,
+                        font=("Segoe UI Semibold", 13),
+                        width=12, anchor="center", pady=14, padx=18,
+                        cursor="hand2")
+                tenor_lbl.grid(row=row_idx, column=0, sticky="nsew")
 
-                # Tenor label - EXACT same style as other tenors
-                tenor_lbl = tk.Label(
-                    tenor_cell,
-                    text=tenor["label"],
-                    font=("Segoe UI Semibold", 13),
-                    fg=THEME["text_light"],
-                    bg=row_bg,
-                    width=12,
-                    anchor="center",
-                    pady=14,
-                    padx=18,
-                    cursor="hand2"
-                )
-                tenor_lbl.pack(fill="both", expand=True)
-
-                # Small expand indicator overlaid on the left edge (using place)
+                # Small expand indicator overlaid on the tenor label
                 expand_indicator = tk.Label(
-                    tenor_cell,
+                    funding_frame,
                     text="▶",
                     font=("Segoe UI", 8),
                     fg=THEME["text_light"],
                     bg=row_bg,
                     cursor="hand2"
                 )
-                expand_indicator.place(x=6, rely=0.5, anchor="w")
+                expand_indicator.place(in_=tenor_lbl, x=4, rely=0.5, anchor="w")
 
                 # N/A badge container spans remaining columns
                 badge_container = tk.Frame(funding_frame, bg=row_bg, cursor="hand2")
@@ -321,7 +310,7 @@ class DashboardPage(BaseFrame):
                         indicator.config(text="▼")
 
                 # Bind click to toggle on all clickable elements
-                for widget in [tenor_cell, expand_indicator, tenor_lbl, badge_container, na_badge]:
+                for widget in [tenor_lbl, expand_indicator, badge_container, na_badge]:
                     widget.bind("<Button-1>", toggle_1w)
                 for child in na_badge.winfo_children():
                     child.bind("<Button-1>", toggle_1w)
