@@ -11,6 +11,323 @@ from ctk_compat import ctk, CTK_AVAILABLE
 from ui.theme import COLORS, FONTS, SPACING, RADII, ICONS
 
 
+class CompactCalculationDrawer(tk.Toplevel):
+    """
+    Compact drawer showing NIBOR calculation breakdown with collapsible sections.
+
+    Shows:
+    - NIBOR result with Funding Rate + Spread
+    - Collapsible sections for EUR Implied, USD Implied, NOK ECP
+    - Weights always visible
+    """
+
+    def __init__(self, master, tenor_key: str, data: Dict[str, Any], on_close: Callable = None):
+        super().__init__(master)
+
+        self._tenor_key = tenor_key
+        self._data = data
+        self._on_close = on_close
+        self._expanded_sections = {}  # Track which sections are expanded
+
+        # Window setup - compact, no decorations
+        self.overrideredirect(True)
+        self.configure(bg=COLORS.SURFACE)
+
+        # Build content
+        self._build_ui()
+
+        # Position near the click
+        self._position_drawer()
+
+        # Bind escape to close
+        self.bind("<Escape>", lambda e: self.close())
+
+        # Click outside to close
+        self.bind("<FocusOut>", self._on_focus_out)
+
+    def _build_ui(self):
+        """Build the compact drawer UI."""
+        # Main container with border
+        container = tk.Frame(
+            self,
+            bg=COLORS.SURFACE,
+            highlightthickness=1,
+            highlightbackground=COLORS.BORDER
+        )
+        container.pack(fill="both", expand=True)
+
+        # Header: NIBOR + value
+        self._build_header(container)
+
+        # Separator
+        tk.Frame(container, bg=COLORS.BORDER, height=1).pack(fill="x")
+
+        # Funding Rate + Spread section
+        self._build_funding_section(container)
+
+        # Separator
+        tk.Frame(container, bg=COLORS.BORDER, height=1).pack(fill="x")
+
+        # Collapsible components
+        self._build_components_section(container)
+
+        # Close button at bottom
+        self._build_footer(container)
+
+    def _build_header(self, parent):
+        """Build header with NIBOR title and value."""
+        header = tk.Frame(parent, bg=COLORS.SURFACE)
+        header.pack(fill="x", padx=16, pady=12)
+
+        # Title
+        tk.Label(
+            header,
+            text=f"NIBOR {self._tenor_key.upper()}",
+            font=("Segoe UI Semibold", 14),
+            fg=COLORS.TEXT,
+            bg=COLORS.SURFACE
+        ).pack(side="left")
+
+        # Close button
+        close_btn = tk.Label(
+            header,
+            text="✕",
+            font=("Segoe UI", 12),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.SURFACE,
+            cursor="hand2"
+        )
+        close_btn.pack(side="right")
+        close_btn.bind("<Button-1>", lambda e: self.close())
+        close_btn.bind("<Enter>", lambda e: close_btn.config(fg=COLORS.TEXT))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=COLORS.TEXT_MUTED))
+
+        # NIBOR value (large, accent color)
+        final_rate = self._data.get("final_rate", 0)
+        tk.Label(
+            header,
+            text=f"{final_rate:.4f}%",
+            font=("Consolas", 18, "bold"),
+            fg=COLORS.ACCENT,
+            bg=COLORS.SURFACE
+        ).pack(side="right", padx=(0, 16))
+
+    def _build_funding_section(self, parent):
+        """Build Funding Rate + Spread section."""
+        section = tk.Frame(parent, bg=COLORS.SURFACE)
+        section.pack(fill="x", padx=16, pady=10)
+
+        funding_rate = self._data.get("funding_rate", 0)
+        spread = self._data.get("spread", 0)
+
+        # Funding Rate row
+        row1 = tk.Frame(section, bg=COLORS.SURFACE)
+        row1.pack(fill="x", pady=2)
+        tk.Label(row1, text="Funding Rate", font=("Segoe UI", 11),
+                fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="left")
+        tk.Label(row1, text=f"{funding_rate:.4f}%", font=("Consolas", 11),
+                fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="right")
+
+        # Spread row
+        row2 = tk.Frame(section, bg=COLORS.SURFACE)
+        row2.pack(fill="x", pady=2)
+        tk.Label(row2, text="+ Spread", font=("Segoe UI", 11),
+                fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="left")
+        tk.Label(row2, text=f"{spread:.4f}%", font=("Consolas", 11),
+                fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="right")
+
+    def _build_components_section(self, parent):
+        """Build collapsible components (EUR, USD, NOK)."""
+        section = tk.Frame(parent, bg=COLORS.SURFACE)
+        section.pack(fill="x", padx=16, pady=10)
+
+        weights = self._data.get("weights", {})
+
+        components = [
+            ("EUR Implied", "eur_impl", weights.get("EUR", 0), self._get_eur_details),
+            ("USD Implied", "usd_impl", weights.get("USD", 0), self._get_usd_details),
+            ("NOK ECP", "nok_cm", weights.get("NOK", 0), self._get_nok_details),
+        ]
+
+        for name, data_key, weight, detail_func in components:
+            self._build_collapsible_row(section, name, data_key, weight, detail_func)
+
+    def _build_collapsible_row(self, parent, name: str, data_key: str, weight: float, detail_func: Callable):
+        """Build a single collapsible component row."""
+        value = self._data.get(data_key, 0)
+
+        # Container for row + details
+        container = tk.Frame(parent, bg=COLORS.SURFACE)
+        container.pack(fill="x", pady=2)
+
+        # Main row (clickable)
+        row = tk.Frame(container, bg=COLORS.SURFACE, cursor="hand2")
+        row.pack(fill="x")
+
+        # Expand/collapse indicator
+        indicator = tk.Label(
+            row,
+            text="▶",
+            font=("Segoe UI", 8),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.SURFACE
+        )
+        indicator.pack(side="left", padx=(0, 6))
+
+        # Name
+        tk.Label(
+            row,
+            text=name,
+            font=("Segoe UI", 11),
+            fg=COLORS.TEXT,
+            bg=COLORS.SURFACE
+        ).pack(side="left")
+
+        # Weight (always visible)
+        tk.Label(
+            row,
+            text=f"{weight*100:.0f}%",
+            font=("Segoe UI", 10),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.SURFACE,
+            width=5
+        ).pack(side="left", padx=(8, 0))
+
+        # Value
+        tk.Label(
+            row,
+            text=f"{value:.4f}%" if value else "—",
+            font=("Consolas", 11),
+            fg=COLORS.TEXT,
+            bg=COLORS.SURFACE
+        ).pack(side="right")
+
+        # Details frame (hidden by default)
+        details_frame = tk.Frame(container, bg=COLORS.ROW_ZEBRA)
+
+        # Populate details
+        details = detail_func()
+        for label, val in details:
+            detail_row = tk.Frame(details_frame, bg=COLORS.ROW_ZEBRA)
+            detail_row.pack(fill="x", padx=(20, 8), pady=1)
+            tk.Label(detail_row, text=label, font=("Segoe UI", 10),
+                    fg=COLORS.TEXT_MUTED, bg=COLORS.ROW_ZEBRA).pack(side="left")
+            tk.Label(detail_row, text=val, font=("Consolas", 10),
+                    fg=COLORS.TEXT, bg=COLORS.ROW_ZEBRA).pack(side="right")
+
+        # Add formula at bottom
+        formula = self._get_formula(data_key)
+        if formula:
+            formula_row = tk.Frame(details_frame, bg=COLORS.ROW_ZEBRA)
+            formula_row.pack(fill="x", padx=(20, 8), pady=(4, 6))
+            tk.Label(formula_row, text=formula, font=("Consolas", 9),
+                    fg=COLORS.TEXT_MUTED, bg=COLORS.ROW_ZEBRA).pack(side="left")
+
+        # Toggle function
+        def toggle(e=None):
+            if details_frame.winfo_manager():
+                details_frame.pack_forget()
+                indicator.config(text="▶")
+            else:
+                details_frame.pack(fill="x", pady=(4, 0))
+                indicator.config(text="▼")
+
+        # Bind click to toggle
+        for widget in [row, indicator] + list(row.winfo_children()):
+            widget.bind("<Button-1>", toggle)
+
+    def _get_eur_details(self) -> list:
+        """Get EUR Implied calculation details."""
+        return [
+            ("Spot", f"{self._data.get('eur_spot', 0):.4f}"),
+            ("Pips", f"{self._data.get('eur_pips', 0):.2f}"),
+            ("Days", f"{int(self._data.get('eur_days', 0))}"),
+            ("Rate", f"{self._data.get('eur_rate', 0):.2f}%"),
+        ]
+
+    def _get_usd_details(self) -> list:
+        """Get USD Implied calculation details."""
+        return [
+            ("Spot", f"{self._data.get('usd_spot', 0):.4f}"),
+            ("Pips", f"{self._data.get('usd_pips', 0):.2f}"),
+            ("Days", f"{int(self._data.get('usd_days', 0))}"),
+            ("Rate", f"{self._data.get('usd_rate', 0):.2f}%"),
+        ]
+
+    def _get_nok_details(self) -> list:
+        """Get NOK ECP details."""
+        return [
+            ("ECP Rate", f"{self._data.get('nok_cm', 0):.4f}%"),
+            ("Source", "Bloomberg"),
+        ]
+
+    def _get_formula(self, data_key: str) -> str:
+        """Get formula explanation for a component."""
+        if data_key == "eur_impl":
+            return "= (Spot + Pips/10000) × Days/360"
+        elif data_key == "usd_impl":
+            return "= (Spot + Pips/10000) × Days/360"
+        return ""
+
+    def _build_footer(self, parent):
+        """Build footer with close hint."""
+        footer = tk.Frame(parent, bg=COLORS.CHIP_BG)
+        footer.pack(fill="x", side="bottom")
+
+        tk.Label(
+            footer,
+            text="ESC or click outside to close",
+            font=("Segoe UI", 9),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.CHIP_BG,
+            pady=6
+        ).pack()
+
+    def _position_drawer(self):
+        """Position drawer near the parent window."""
+        self.update_idletasks()
+
+        # Get drawer size
+        width = self.winfo_reqwidth()
+        height = self.winfo_reqheight()
+
+        # Get parent position
+        parent = self.master.winfo_toplevel()
+        parent_x = parent.winfo_rootx()
+        parent_y = parent.winfo_rooty()
+        parent_width = parent.winfo_width()
+        parent_height = parent.winfo_height()
+
+        # Position to the right of center, vertically centered
+        x = parent_x + parent_width // 2 - width // 2
+        y = parent_y + parent_height // 3
+
+        self.geometry(f"+{x}+{y}")
+
+        # Ensure focus for keyboard events
+        self.focus_force()
+
+    def _on_focus_out(self, event):
+        """Handle focus out - close if clicked outside."""
+        # Small delay to check if focus went to a child widget
+        self.after(100, self._check_focus)
+
+    def _check_focus(self):
+        """Check if focus is still within drawer."""
+        try:
+            focused = self.focus_get()
+            if focused is None or not str(focused).startswith(str(self)):
+                self.close()
+        except:
+            pass
+
+    def close(self):
+        """Close the drawer."""
+        if self._on_close:
+            self._on_close()
+        self.destroy()
+
+
 class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
     """
     Right-side drawer panel for displaying calculation details.

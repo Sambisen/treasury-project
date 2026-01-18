@@ -13,7 +13,7 @@ from config import THEME, FONTS, CURRENT_MODE, RULES_DB, MARKET_STRUCTURE, ALERT
 
 log = get_logger("ui_pages")
 from ui_components import OnyxButtonTK, MetricChipTK, DataTableTree, SummaryCard, CollapsibleSection, RatesActionBar
-from ui.components.drawers import CalculationDrawer
+from ui.components.drawers import CalculationDrawer, CompactCalculationDrawer
 from ui.components.cards import MetricCard
 from utils import safe_float
 from calculations import calc_implied_yield
@@ -1383,13 +1383,34 @@ class DashboardPage(BaseFrame):
         popup.focus_set()
 
     def _show_funding_details(self, tenor_key):
-        """Show detailed calculation drawer for the selected tenor.
+        """Show compact calculation drawer for the selected tenor.
 
-        Opens a right-side drawer panel instead of a popup window.
-        The drawer shows calculation details, inputs, steps, and validation checks.
+        Opens a compact popup showing calculation breakdown with collapsible sections.
         """
-        # Open the calculation drawer for this tenor
-        self._open_drawer_for_tenor(tenor_key)
+        # Close any existing compact drawer
+        if hasattr(self, '_compact_drawer') and self._compact_drawer:
+            try:
+                self._compact_drawer.destroy()
+            except:
+                pass
+            self._compact_drawer = None
+
+        # Get calculation data
+        if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
+            self._update_funding_rates_with_validation()
+
+        data = self.app.funding_calc_data.get(tenor_key, {})
+        if not data:
+            log.info(f"[Dashboard] No funding data found for {tenor_key}")
+            return
+
+        # Open the compact calculation drawer
+        self._compact_drawer = CompactCalculationDrawer(
+            self,
+            tenor_key,
+            data,
+            on_close=lambda: setattr(self, '_compact_drawer', None)
+        )
 
     def _apply_state(self, card, state: str, subtext: str = "—"):
         s = (state or "WAIT").upper()
@@ -2269,7 +2290,7 @@ class DashboardPage(BaseFrame):
         if usd_impl is not None:
             lines.append(f"  USD Implied: {usd_impl:.4f}%")
         if nok_cm is not None:
-            lines.append(f"  NOK CM:      {nok_cm:.2f}%")
+            lines.append(f"  NOK ECP:      {nok_cm:.2f}%")
 
         return "\n".join(lines)
 
@@ -3317,7 +3338,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", pady=(5, 0))
 
         self.usd_table_bbg = DataTableTree(sec1_content, columns=[
-            "TENOR", "USD RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK CM"
+            "TENOR", "USD RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK ECP"
         ], col_widths=[50, 70, 70, 70, 80, 80, 80, 70], height=4)
         self.usd_table_bbg.pack(fill="x", pady=(0, 5))
 
@@ -3326,7 +3347,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
         self.eur_table_bbg = DataTableTree(sec1_content, columns=[
-            "TENOR", "EUR RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK CM"
+            "TENOR", "EUR RATE", "BBG DAYS", "EXC DAYS", "PIPS BBG", "PIPS EXC", "IMPLIED", "NOK ECP"
         ], col_widths=[50, 70, 70, 70, 80, 80, 80, 70], height=4)
         self.eur_table_bbg.pack(fill="x", pady=(0, 5))
 
@@ -3335,7 +3356,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
         self.weighted_table_bbg = DataTableTree(sec1_content, columns=[
-            "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK CM", "× 50%", "TOTAL"
+            "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK ECP", "× 50%", "TOTAL"
         ], col_widths=[50, 70, 60, 70, 60, 70, 60, 80], height=4)
         self.weighted_table_bbg.pack(fill="x", pady=(0, 10))
 
@@ -3353,7 +3374,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w", pady=(5, 0))
 
         self.usd_table_exc = DataTableTree(sec2_content, columns=[
-            "TENOR", "USD RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK CM"
+            "TENOR", "USD RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK ECP"
         ], col_widths=[50, 70, 70, 90, 90, 70], height=4)
         self.usd_table_exc.pack(fill="x", pady=(0, 5))
 
@@ -3362,7 +3383,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
         self.eur_table_exc = DataTableTree(sec2_content, columns=[
-            "TENOR", "EUR RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK CM"
+            "TENOR", "EUR RATE", "BBG DAYS", "PIPS BBG", "IMPLIED", "NOK ECP"
         ], col_widths=[50, 70, 70, 90, 90, 70], height=4)
         self.eur_table_exc.pack(fill="x", pady=(0, 5))
 
@@ -3371,7 +3392,7 @@ class NokImpliedPage(tk.Frame):
                  font=("Segoe UI", CURRENT_MODE["small"], "bold")).pack(anchor="w")
 
         self.weighted_table_exc = DataTableTree(sec2_content, columns=[
-            "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK CM", "× 50%", "TOTAL"
+            "TENOR", "USD IMPL", "× 45%", "EUR IMPL", "× 5%", "NOK ECP", "× 50%", "TOTAL"
         ], col_widths=[50, 70, 60, 70, 60, 70, 60, 80], height=4)
         self.weighted_table_exc.pack(fill="x", pady=(0, 10))
 
@@ -3551,9 +3572,9 @@ class NokImpliedPage(tk.Frame):
             pips_bbg_eur = self._get_ticker_val(t["eur_fwd"])
             log.info(f"[NOK Implied] EUR: pips from Bloomberg ({t['eur_fwd']}) = {pips_bbg_eur}")
 
-            # NOK CM (same for both sections)
+            # NOK ECP (same for both sections)
             nok_cm = self._get_ticker_val(t["nok_cm"]) if t["nok_cm"] else None
-            log.info(f"[NOK Implied] NOK CM: {nok_cm}")
+            log.info(f"[NOK Implied] NOK ECP: {nok_cm}")
 
             # ============ SECTION 1: Bloomberg CM + Bloomberg TPSF Days ============
             # USD: Use Bloomberg TPSF days directly (NO adjustment!)
@@ -4413,7 +4434,7 @@ class HistoryPage(tk.Frame):
             row += 1
 
             # Header row
-            impl_headers = ["Tenor", "EUR Implied", "USD Implied", "NOK CM"]
+            impl_headers = ["Tenor", "EUR Implied", "USD Implied", "NOK ECP"]
             for col, h in enumerate(impl_headers, 1):
                 cell = ws.cell(row=row, column=col, value=h)
                 cell.font = header_font
@@ -4720,7 +4741,7 @@ class HistoryPage(tk.Frame):
 
             # Implied rates breakdown
             lines.append("IMPLIED RATES:")
-            lines.append("        EUR Impl  USD Impl  NOK CM")
+            lines.append("        EUR Impl  USD Impl  NOK ECP")
             for tenor in ['1m', '2m', '3m', '6m']:
                 t_data = rates.get(tenor, {})
                 eur_impl = t_data.get('eur_impl')

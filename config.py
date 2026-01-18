@@ -579,10 +579,10 @@ MARKET_STRUCTURE = {
         ("NIBOR6M Index", "NIBOR Fixing 6M"),
     ],
     "NIBOR FIXINGS (MARKET)": [
-        ("NKCM1M SWET Curncy", "NOK CM 1M"),
-        ("NKCM2M SWET Curncy", "NOK CM 2M"),
-        ("NKCM3M SWET Curncy", "NOK CM 3M"),
-        ("NKCM6M SWET Curncy", "NOK CM 6M"),
+        ("NKCM1M SWET Curncy", "NOK ECP 1M"),
+        ("NKCM2M SWET Curncy", "NOK ECP 2M"),
+        ("NKCM3M SWET Curncy", "NOK ECP 3M"),
+        ("NKCM6M SWET Curncy", "NOK ECP 6M"),
     ],
     "USDNOK DAYS (TPSF)": [
         ("NK1W TPSF Curncy", "USDNOK 1W Days"),

@@ -101,6 +101,7 @@ from .app_shell import (
 
 from .drawers import (
     CalculationDrawer,
+    CompactCalculationDrawer,
 )
 
 __all__ = [
@@ -181,4 +182,5 @@ __all__ = [
     "ScrollableFrame",
     # Drawers
     "CalculationDrawer",
+    "CompactCalculationDrawer",
 ]
