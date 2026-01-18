@@ -566,7 +566,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._build_inputs_section()
         self._build_steps_section()
         self._build_checks_section()
-        self._build_output_section()
 
     def _on_frame_configure(self, event=None):
         """Update scroll region when frame size changes."""
@@ -690,14 +689,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._checks_container = tk.Frame(section, bg=COLORS.SURFACE)
         self._checks_container.pack(fill="x", pady=(SPACING.SM, 0))
 
-    def _build_output_section(self):
-        """Build the Output mapping section."""
-        section = self._create_section("Output Mapping")
-        self._output_section = section
-
-        # Container for output mapping
-        self._output_container = tk.Frame(section, bg=COLORS.SURFACE)
-        self._output_container.pack(fill="x", pady=(SPACING.SM, 0))
 
     def _create_section(self, title: str) -> tk.Frame:
         """Create a section container with title."""
@@ -813,7 +804,6 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._update_inputs_section(tenor_key, data)
         self._update_steps_section(data)
         self._update_checks_section(data)
-        self._update_output_section(tenor_key, data)
 
         # Update footer
         self._last_validated.config(text=f"Last validated: {datetime.now().strftime('%H:%M:%S')}")
@@ -1354,6 +1344,16 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         header = tk.Frame(item, bg=COLORS.SURFACE, cursor="hand2")
         header.pack(fill="x", padx=SPACING.SM, pady=SPACING.SM)
 
+        # Expand/collapse indicator
+        expand_indicator = tk.Label(
+            header,
+            text="▶",
+            font=("Segoe UI", 8),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.SURFACE
+        )
+        expand_indicator.pack(side="left", padx=(0, 4))
+
         # Status icon
         icon_text = ICONS.CHECK if matched else ICONS.CROSS
         icon_color = COLORS.SUCCESS if matched else COLORS.DANGER
@@ -1385,10 +1385,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             bg=COLORS.SURFACE
         ).pack(side="right")
 
-        # Details container (initially visible for failed checks)
+        # Details container (collapsed by default - click to expand)
         details = tk.Frame(item, bg=COLORS.ROW_ZEBRA)
-        if not matched:
-            details.pack(fill="x", padx=SPACING.SM, pady=(0, SPACING.SM))
 
         # Observed vs Expected
         if gui_value is not None:
@@ -1428,62 +1426,14 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         def toggle_details(e):
             if details.winfo_manager():
                 details.pack_forget()
+                expand_indicator.config(text="▶")
             else:
                 details.pack(fill="x", padx=SPACING.SM, pady=(0, SPACING.SM))
+                expand_indicator.config(text="▼")
 
         header.bind("<Button-1>", toggle_details)
         for child in header.winfo_children():
             child.bind("<Button-1>", toggle_details)
-
-    def _update_output_section(self, tenor_key: str, data: Dict[str, Any]):
-        """Update the output mapping section."""
-        # Clear existing
-        for widget in self._output_container.winfo_children():
-            widget.destroy()
-
-        final_rate = data.get("final_rate")
-        match_data = data.get("match_data", {})
-        criteria = match_data.get("criteria", [])
-
-        # Output file info
-        info_frame = tk.Frame(self._output_container, bg=COLORS.SURFACE)
-        info_frame.pack(fill="x")
-
-        # Get Excel cell info from criteria
-        excel_cell = None
-        excel_value = None
-        for criterion in criteria:
-            if criterion.get("excel_cell"):
-                excel_cell = criterion.get("excel_cell")
-                excel_value = criterion.get("excel_value")
-                break
-
-        output_info = [
-            ("Tenor key", tenor_key.upper()),
-            ("Output cell", excel_cell or "—"),
-            ("Written value", f"{final_rate:.4f}%" if final_rate else "—"),
-            ("Expected facit", f"{excel_value:.4f}%" if excel_value else "—"),
-        ]
-
-        for label, value in output_info:
-            row = tk.Frame(info_frame, bg=COLORS.SURFACE)
-            row.pack(fill="x", pady=(SPACING.XS, 0))
-
-            tk.Label(
-                row,
-                text=label,
-                font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.SURFACE
-            ).pack(side="left")
-
-            tk.Label(
-                row,
-                text=value,
-                font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT,
-                bg=COLORS.SURFACE
-            ).pack(side="right")
 
     def _copy_summary(self):
         """Copy calculation summary to clipboard."""
