@@ -1071,110 +1071,191 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         ).pack(side="left", fill="x", expand=True)
 
     def _update_inputs_section(self, tenor_key: str, data: Dict[str, Any]):
-        """Update the inputs table with field values and sources."""
+        """Update the inputs section with 3-column layout (EUR, USD, NOK)."""
         # Clear existing
         for widget in self._inputs_container.winfo_children():
             widget.destroy()
 
-        # Column widths for alignment
-        col_widths = (14, 12, 14)  # Field, Value, Source
-
-        # Helper to create a row with 3 columns
-        def add_row(parent, field, value, source, is_header=False, is_separator=False, row_bg=COLORS.SURFACE):
-            row = tk.Frame(parent, bg=row_bg)
-            row.pack(fill="x")
-
-            if is_separator:
-                # Separator label spans full width
-                tk.Label(
-                    row,
-                    text=field,
-                    font=FONTS.TABLE_HEADER,
-                    fg=COLORS.TEXT_MUTED,
-                    bg=COLORS.TABLE_HEADER_BG,
-                    anchor="w",
-                    padx=SPACING.SM,
-                    pady=SPACING.XS
-                ).pack(fill="x", pady=(SPACING.SM, 0))
-            else:
-                # Field column
-                tk.Label(
-                    row,
-                    text=field,
-                    font=FONTS.TABLE_HEADER if is_header else FONTS.BODY_SM,
-                    fg=COLORS.TEXT_MUTED if is_header else COLORS.TEXT,
-                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
-                    width=col_widths[0],
-                    anchor="w",
-                    padx=SPACING.SM,
-                    pady=SPACING.SM if is_header else SPACING.XS
-                ).pack(side="left")
-
-                # Value column (right-aligned)
-                tk.Label(
-                    row,
-                    text=value,
-                    font=FONTS.TABLE_HEADER if is_header else FONTS.TABLE_CELL_MONO,
-                    fg=COLORS.TEXT_MUTED if is_header else COLORS.TEXT,
-                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
-                    width=col_widths[1],
-                    anchor="e" if not is_header else "center",
-                    padx=SPACING.SM,
-                    pady=SPACING.SM if is_header else SPACING.XS
-                ).pack(side="left")
-
-                # Source column
-                tk.Label(
-                    row,
-                    text=source,
-                    font=FONTS.TABLE_HEADER if is_header else FONTS.BODY_SM,
-                    fg=COLORS.TEXT_MUTED,
-                    bg=COLORS.TABLE_HEADER_BG if is_header else row_bg,
-                    width=col_widths[2],
-                    anchor="w" if not is_header else "center",
-                    padx=SPACING.SM,
-                    pady=SPACING.SM if is_header else SPACING.XS
-                ).pack(side="left")
-
-        # Header row
-        add_row(self._inputs_container, "Field", "Value", "Source", is_header=True)
-
-        # Data rows
         weights = data.get("weights", {})
 
-        # Build inputs list
-        inputs = [
-            ("EUR Implied", f"{data.get('eur_impl', 0):.4f}%" if data.get('eur_impl') else "—", "Calculated"),
-            ("USD Implied", f"{data.get('usd_impl', 0):.4f}%" if data.get('usd_impl') else "—", "Calculated"),
-            ("─── Rates ───", None, None),
-            ("EUR", f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—", "Internal Rate"),
-            ("USD", f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—", "Internal Rate"),
-            ("NOK ECP", f"{data.get('nok_cm', 0):.2f}%" if data.get('nok_cm') else "—", "Bloomberg"),
-            ("─── FX Data ───", None, None),
-            ("EUR Spot", f"{data.get('eur_spot', 0):.4f}" if data.get('eur_spot') else "—", "Bloomberg"),
-            ("EUR Pips", f"{data.get('eur_pips', 0):.2f}" if data.get('eur_pips') else "—", "Bloomberg"),
-            ("EUR Days", f"{int(data.get('eur_days', 0))}" if data.get('eur_days') else "—", "Days file"),
-            ("USD Spot", f"{data.get('usd_spot', 0):.4f}" if data.get('usd_spot') else "—", "Bloomberg"),
-            ("USD Pips", f"{data.get('usd_pips', 0):.2f}" if data.get('usd_pips') else "—", "Bloomberg"),
-            ("USD Days", f"{int(data.get('usd_days', 0))}" if data.get('usd_days') else "—", "Days file"),
-            ("─── Weights ───", None, None),
-            ("EUR Weight", f"{weights.get('EUR', 0) * 100:.2f}%", "Weights file"),
-            ("USD Weight", f"{weights.get('USD', 0) * 100:.2f}%", "Weights file"),
-            ("NOK Weight", f"{weights.get('NOK', 0) * 100:.2f}%", "Weights file"),
-            ("─── Config ───", None, None),
-            ("Spread", f"{data.get('spread', 0):.2f}%", "Config"),
-        ]
+        # === 3-COLUMN HEADER: EUR | USD | NOK ===
+        columns_frame = tk.Frame(self._inputs_container, bg=COLORS.SURFACE)
+        columns_frame.pack(fill="x", pady=(0, SPACING.SM))
 
-        data_row_idx = 0
-        for field, value, source in inputs:
-            is_separator = field.startswith("───")
+        # Configure 3 equal columns
+        columns_frame.columnconfigure(0, weight=1, uniform="col")
+        columns_frame.columnconfigure(1, weight=1, uniform="col")
+        columns_frame.columnconfigure(2, weight=1, uniform="col")
 
-            if is_separator:
-                add_row(self._inputs_container, field, "", "", is_separator=True)
-            else:
-                row_bg = COLORS.SURFACE if data_row_idx % 2 == 0 else COLORS.ROW_ZEBRA
-                add_row(self._inputs_container, field, value, source, row_bg=row_bg)
-                data_row_idx += 1
+        # EUR Column
+        eur_col = self._create_currency_column(
+            columns_frame,
+            title="EUR Implied",
+            source="Bloomberg",
+            value=data.get('eur_impl'),
+            weight=weights.get('EUR', 0),
+            details=[
+                ("Spot", f"{data.get('eur_spot', 0):.4f}" if data.get('eur_spot') else "—", "Bloomberg"),
+                ("Pips", f"{data.get('eur_pips', 0):.2f}" if data.get('eur_pips') else "—", "Bloomberg"),
+                ("Rate", f"{data.get('eur_rate', 0):.2f}%" if data.get('eur_rate') else "—", "Internal"),
+                ("Days", f"{int(data.get('eur_days', 0))}" if data.get('eur_days') else "—", "Days file"),
+            ]
+        )
+        eur_col.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
+
+        # USD Column
+        usd_col = self._create_currency_column(
+            columns_frame,
+            title="USD Implied",
+            source="Bloomberg",
+            value=data.get('usd_impl'),
+            weight=weights.get('USD', 0),
+            details=[
+                ("Spot", f"{data.get('usd_spot', 0):.4f}" if data.get('usd_spot') else "—", "Bloomberg"),
+                ("Pips", f"{data.get('usd_pips', 0):.2f}" if data.get('usd_pips') else "—", "Bloomberg"),
+                ("Rate", f"{data.get('usd_rate', 0):.2f}%" if data.get('usd_rate') else "—", "Internal"),
+                ("Days", f"{int(data.get('usd_days', 0))}" if data.get('usd_days') else "—", "Days file"),
+            ]
+        )
+        usd_col.grid(row=0, column=1, sticky="nsew", padx=2)
+
+        # NOK Column
+        nok_col = self._create_currency_column(
+            columns_frame,
+            title="NOK ECP",
+            source="Bloomberg",
+            value=data.get('nok_cm'),
+            weight=weights.get('NOK', 0),
+            details=[]  # NOK has no sub-details
+        )
+        nok_col.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
+
+        # === FUNDING CALCULATION SUMMARY ===
+        calc_frame = tk.Frame(self._inputs_container, bg=COLORS.ROW_ZEBRA)
+        calc_frame.pack(fill="x", pady=(SPACING.SM, 0))
+
+        # Funding Rate row
+        self._add_summary_row(calc_frame, "Funding Rate",
+            f"{data.get('funding_rate', 0):.4f}%" if data.get('funding_rate') else "—")
+
+        # Spread row
+        self._add_summary_row(calc_frame, "+ Spread",
+            f"{data.get('spread', 0):.2f}%", muted=True)
+
+        # Separator
+        tk.Frame(calc_frame, bg=COLORS.BORDER, height=1).pack(fill="x", padx=SPACING.SM)
+
+        # Final NIBOR row
+        self._add_summary_row(calc_frame, f"NIBOR {tenor_key.upper()}",
+            f"{data.get('final_rate', 0):.4f}%" if data.get('final_rate') else "—",
+            bold=True, accent=True)
+
+    def _create_currency_column(self, parent, title: str, source: str, value, weight: float, details: list) -> tk.Frame:
+        """Create a currency column with header, source badge, value, weight, and details."""
+        col = tk.Frame(parent, bg=COLORS.SURFACE, highlightthickness=1, highlightbackground=COLORS.BORDER)
+
+        # Header with title
+        header = tk.Frame(col, bg=COLORS.TABLE_HEADER_BG)
+        header.pack(fill="x")
+
+        tk.Label(
+            header,
+            text=title,
+            font=FONTS.TABLE_HEADER,
+            fg=COLORS.TEXT,
+            bg=COLORS.TABLE_HEADER_BG,
+            pady=SPACING.XS
+        ).pack()
+
+        # Source badge
+        source_badge = tk.Label(
+            header,
+            text=f"░ {source}",
+            font=("Segoe UI", 8),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.TABLE_HEADER_BG,
+            pady=2
+        )
+        source_badge.pack()
+
+        # Main value (large)
+        value_str = f"{value:.4f}%" if value else "—"
+        tk.Label(
+            col,
+            text=value_str,
+            font=("Consolas", 13, "bold"),
+            fg=COLORS.ACCENT,
+            bg=COLORS.SURFACE,
+            pady=SPACING.SM
+        ).pack()
+
+        # Weight (always visible)
+        weight_str = f"{weight * 100:.0f}%"
+        weight_frame = tk.Frame(col, bg=COLORS.CHIP_BG)
+        weight_frame.pack(pady=(0, SPACING.SM))
+        tk.Label(
+            weight_frame,
+            text=f"Weight: {weight_str}",
+            font=("Segoe UI", 9),
+            fg=COLORS.TEXT_MUTED,
+            bg=COLORS.CHIP_BG,
+            padx=SPACING.SM,
+            pady=2
+        ).pack()
+
+        # Details (spot, pips, rate, days)
+        if details:
+            details_frame = tk.Frame(col, bg=COLORS.SURFACE)
+            details_frame.pack(fill="x", padx=SPACING.XS, pady=(0, SPACING.XS))
+
+            for label, val, src in details:
+                row = tk.Frame(details_frame, bg=COLORS.SURFACE)
+                row.pack(fill="x", pady=1)
+
+                tk.Label(
+                    row,
+                    text=label,
+                    font=("Segoe UI", 9),
+                    fg=COLORS.TEXT_MUTED,
+                    bg=COLORS.SURFACE,
+                    anchor="w",
+                    width=5
+                ).pack(side="left")
+
+                tk.Label(
+                    row,
+                    text=val,
+                    font=("Consolas", 9),
+                    fg=COLORS.TEXT,
+                    bg=COLORS.SURFACE,
+                    anchor="e"
+                ).pack(side="right")
+
+        return col
+
+    def _add_summary_row(self, parent, label: str, value: str, muted: bool = False, bold: bool = False, accent: bool = False):
+        """Add a summary row to the calculation frame."""
+        row = tk.Frame(parent, bg=COLORS.ROW_ZEBRA)
+        row.pack(fill="x", padx=SPACING.SM, pady=SPACING.XS)
+
+        label_font = FONTS.TABLE_HEADER if bold else FONTS.BODY_SM
+        value_font = ("Consolas", 12, "bold") if bold else FONTS.TABLE_CELL_MONO
+
+        tk.Label(
+            row,
+            text=label,
+            font=label_font,
+            fg=COLORS.TEXT_MUTED if muted else COLORS.TEXT,
+            bg=COLORS.ROW_ZEBRA
+        ).pack(side="left")
+
+        tk.Label(
+            row,
+            text=value,
+            font=value_font,
+            fg=COLORS.ACCENT if accent else (COLORS.TEXT_MUTED if muted else COLORS.TEXT),
+            bg=COLORS.ROW_ZEBRA
+        ).pack(side="right")
 
     def _update_steps_section(self, data: Dict[str, Any]):
         """Update the calculation steps."""
