@@ -49,7 +49,8 @@ from utils import (
 )
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
-from ui.components import PremiumEnvBadge, SegmentedControl, ConfirmModal
+from ui.components import PremiumEnvBadge, SegmentedControl
+from tkinter import messagebox
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -376,20 +377,16 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Confirm if switching to 10:00 (rarely used)
         if new_value == "10:00":
-            modal = ConfirmModal(
-                self,
-                title="Change Fixing Time",
-                message="The 10:00 CET fixing is rarely used.\n\nAre you sure you want to switch?",
-                confirm_text="Switch to 10:00",
-                cancel_text="Keep 10:30",
-                variant="default"
+            confirmed = messagebox.askyesno(
+                "Change Fixing Time",
+                "The 10:00 CET fixing is rarely used.\n\nAre you sure you want to switch?",
+                icon="warning"
             )
-            confirmed = modal.wait_for_result()
 
             if not confirmed:
                 # Revert the segmented control back to current value
                 if hasattr(self, 'fixing_control'):
-                    self.fixing_control.set(current)
+                    self.after(10, lambda: self.fixing_control.set(current))
                 return
 
         # Save new setting
