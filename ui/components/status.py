@@ -400,11 +400,18 @@ class PremiumEnvBadge(tk.Frame):
         self,
         parent,
         environment: str = "DEV",
+        compact: bool = False,
         **kwargs
     ):
         # Determine colors based on environment
         self._is_prod = environment.upper() == "PROD"
-        self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
+        self._compact = compact
+
+        # Use shorter text in compact mode
+        if compact:
+            self._env_text = "PROD" if self._is_prod else "DEV"
+        else:
+            self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
 
         if self._is_prod:
             self._dot_color = ENV_BADGE_COLORS.PROD_DOT
@@ -426,13 +433,23 @@ class PremiumEnvBadge(tk.Frame):
             **kwargs
         )
 
+        # Sizing based on compact mode
+        if compact:
+            inner_padx, inner_pady = 8, 4
+            dot_size, glow_size = 7, 16
+            dot_padx = 6
+        else:
+            inner_padx, inner_pady = 14, 8
+            dot_size, glow_size = 10, 22
+            dot_padx = 10
+
         # Inner padding frame
         self._inner = tk.Frame(self, bg=self._bg_tint)
-        self._inner.pack(padx=14, pady=8)
+        self._inner.pack(padx=inner_padx, pady=inner_pady)
 
         # Canvas for the glowing dot
-        self._dot_size = 10
-        self._glow_size = 22
+        self._dot_size = dot_size
+        self._glow_size = glow_size
         canvas_size = self._glow_size + 4
 
         self._canvas = Canvas(
@@ -442,7 +459,7 @@ class PremiumEnvBadge(tk.Frame):
             bg=self._bg_tint,
             highlightthickness=0
         )
-        self._canvas.pack(side="left", padx=(0, 10))
+        self._canvas.pack(side="left", padx=(0, dot_padx))
 
         # Draw glow layers (multiple circles with decreasing opacity)
         self._glow_items = []
@@ -470,12 +487,13 @@ class PremiumEnvBadge(tk.Frame):
         )
 
         # Environment text
+        font_size = 9 if compact else 11
         self._label = tk.Label(
             self._inner,
             text=self._env_text,
             fg=self._text_color,
             bg=self._bg_tint,
-            font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold")
+            font=(BUTTON_CONFIG.FONT_FAMILY, font_size, "bold")
         )
         self._label.pack(side="left")
 
@@ -617,6 +635,7 @@ class SegmentedControl(tk.Frame):
         options: List[Tuple[str, str]],  # List of (label, value) tuples
         default: str = None,
         command: Optional[Callable[[str], None]] = None,
+        compact: bool = False,
         **kwargs
     ):
         super().__init__(
@@ -631,10 +650,23 @@ class SegmentedControl(tk.Frame):
         self._command = command
         self._current_value = default or (options[0][1] if options else None)
         self._segments: Dict[str, tk.Label] = {}
+        self._compact = compact
+
+        # Sizing based on compact mode
+        if compact:
+            inner_pad = 2
+            seg_padx, seg_pady = 8, 3
+            font_size = 9
+        else:
+            inner_pad = 3
+            seg_padx, seg_pady = 14, 6
+            font_size = 11
+
+        self._font_size = font_size
 
         # Inner container for segments
         inner = tk.Frame(self, bg=SEGMENT_COLORS.BG)
-        inner.pack(padx=3, pady=3)
+        inner.pack(padx=inner_pad, pady=inner_pad)
 
         # Create segments
         for i, (label, value) in enumerate(options):
@@ -645,9 +677,9 @@ class SegmentedControl(tk.Frame):
                 text=label,
                 fg=SEGMENT_COLORS.TEXT_ACTIVE if is_active else SEGMENT_COLORS.TEXT,
                 bg=SEGMENT_COLORS.SEGMENT_ACTIVE_BG if is_active else SEGMENT_COLORS.SEGMENT_BG,
-                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold" if is_active else "normal"),
-                padx=14,
-                pady=6,
+                font=(BUTTON_CONFIG.FONT_FAMILY, font_size, "bold" if is_active else "normal"),
+                padx=seg_padx,
+                pady=seg_pady,
                 cursor="hand2"
             )
             segment.pack(side="left", padx=(0 if i == 0 else 1, 0))
@@ -707,13 +739,13 @@ class SegmentedControl(tk.Frame):
             segment.configure(
                 bg=SEGMENT_COLORS.SEGMENT_ACTIVE_BG,
                 fg=SEGMENT_COLORS.TEXT_ACTIVE,
-                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "bold")
+                font=(BUTTON_CONFIG.FONT_FAMILY, self._font_size, "bold")
             )
         else:
             segment.configure(
                 bg=SEGMENT_COLORS.SEGMENT_BG,
                 fg=SEGMENT_COLORS.TEXT,
-                font=(BUTTON_CONFIG.FONT_FAMILY, 11, "normal")
+                font=(BUTTON_CONFIG.FONT_FAMILY, self._font_size, "normal")
             )
 
     def get(self) -> str:

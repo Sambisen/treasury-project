@@ -713,10 +713,10 @@ class NiborTerminalCTK(ctk.CTk):
         header_left = tk.Frame(global_header, bg=THEME["bg_main"])
         header_left.pack(side="left")
 
-        # Premium PROD/DEV Badge with glow and pulse animation
+        # Premium PROD/DEV Badge with glow and pulse animation (compact)
         env = get_app_env()
-        self.env_badge = PremiumEnvBadge(header_left, environment=env)
-        self.env_badge.pack(side="left", padx=(0, 15))
+        self.env_badge = PremiumEnvBadge(header_left, environment=env, compact=True)
+        self.env_badge.pack(side="left", padx=(0, 12))
 
         # Make badge clickable to toggle environment
         self.env_badge.bind("<Button-1>", lambda e: self._toggle_environment())
@@ -735,28 +735,29 @@ class NiborTerminalCTK(ctk.CTk):
                 except:
                     pass
 
-        # Fixing Time Toggle - Premium Segmented Control
+        # Fixing Time Toggle - Premium Segmented Control (compact)
         fixing_frame = tk.Frame(header_left, bg=THEME["bg_main"])
-        fixing_frame.pack(side="left", padx=(0, 15))
+        fixing_frame.pack(side="left", padx=(0, 12))
 
         tk.Label(
             fixing_frame,
             text="FIXING",
             fg=THEME["text_muted"],
             bg=THEME["bg_main"],
-            font=("Segoe UI", 10)
-        ).pack(side="left", padx=(0, 10))
+            font=("Segoe UI", 9)
+        ).pack(side="left", padx=(0, 6))
 
-        # Segmented control for fixing time
+        # Segmented control for fixing time (compact)
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
         self.fixing_control = SegmentedControl(
             fixing_frame,
             options=[
-                ("10:30 CET", "10:30"),
-                ("10:00 CET", "10:00"),
+                ("10:30", "10:30"),
+                ("10:00", "10:00"),
             ],
             default=current_fixing,
-            command=self._on_fixing_time_change
+            command=self._on_fixing_time_change,
+            compact=True
         )
         self.fixing_control.pack(side="left")
 
