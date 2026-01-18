@@ -882,7 +882,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Navigation buttons - simple CTkButton with icon in text
         self.PAGES_CONFIG = [
             ("dashboard", "📊", "NIBOR", DashboardPage),
-            ("meta_data", "📌", "Meta Data", MetaDataPage),
+            ("meta_data", "📝", "Meta Data", MetaDataPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_recon", "✅", "Nibor Recon", ReconPage),
             ("weights", "⚖️", "Weights", WeightsPage),
