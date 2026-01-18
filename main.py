@@ -1336,12 +1336,14 @@ class NiborTerminalCTK(ctk.CTk):
         self._pages[key].grid()
 
         # Update navigation button highlighting (simple style)
+        log.info(f"[Nav] Updating buttons for page: {key}, buttons: {list(self._nav_buttons.keys())}")
         for btn_key, btn_data in self._nav_buttons.items():
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
 
             try:
                 if btn_key == key:
                     # Active state: accent color, subtle background
+                    log.info(f"[Nav] Setting {btn_key} to ACTIVE (accent)")
                     btn.configure(
                         text_color=THEME["accent"],
                         fg_color=THEME["bg_nav_sel"],
@@ -1349,6 +1351,7 @@ class NiborTerminalCTK(ctk.CTk):
                     )
                 else:
                     # Inactive state: muted color, transparent background
+                    log.info(f"[Nav] Setting {btn_key} to INACTIVE (muted)")
                     btn.configure(
                         text_color=THEME["muted"],
                         fg_color="transparent",
