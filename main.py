@@ -289,14 +289,26 @@ class NiborTerminalCTK(ctk.CTk):
                 return
             x = self.validation_btn.winfo_rootx() + 20
             y = self.validation_btn.winfo_rooty() + self.validation_btn.winfo_height() + 5
+
+            # Convert colors - handle both CTk tuples and plain strings
+            def get_color(theme_color, fallback):
+                if isinstance(theme_color, (list, tuple)):
+                    return theme_color[0] if theme_color else fallback
+                return theme_color if theme_color else fallback
+
+            bg_color = get_color(THEME.get("bg_card"), "#FFFFFF")
+            fg_color = get_color(THEME.get("text"), "#000000")
+
             self._validation_tooltip_window = tk.Toplevel(self)
             self._validation_tooltip_window.wm_overrideredirect(True)
             self._validation_tooltip_window.wm_geometry(f"+{x}+{y}")
+            self._validation_tooltip_window.configure(bg=bg_color)
+
             label = tk.Label(
                 self._validation_tooltip_window,
                 text=get_tooltip_text(),
-                background=THEME["bg_card"],
-                foreground=THEME["text"],
+                background=bg_color,
+                foreground=fg_color,
                 relief="solid",
                 borderwidth=1,
                 font=("Segoe UI", 10),
