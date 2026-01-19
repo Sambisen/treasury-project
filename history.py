@@ -510,7 +510,7 @@ def save_fixing_for_date(history: dict, date_key: str, fixing_rates: dict, force
 
     # Check if we should save (skip if exists and not forcing)
     if not force and not should_save_fixing(history, date_key):
-        log.info(f"[{mode_str}] SKIP: Fixing already exists for {date_key}")
+        log.debug(f"[{mode_str}] SKIP: Fixing already exists for {date_key}")
         return False
 
     # Create entry if doesn't exist
