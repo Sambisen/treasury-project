@@ -47,6 +47,7 @@ DEVELOPMENT_MODE = True  # Default to TEST mode
 # Bloomberg tickers use different suffixes based on fixing time:
 #   - F043 = 10:30 fixing (default)
 #   - F040 = 10:00 fixing
+#   - F020, F023, F030, F033 = Earlier times (DEV mode testing only)
 #
 # The validation window is synchronized with the selected fixing time:
 #   - Window opens at gate_start (10:30 or 10:00)
@@ -54,8 +55,14 @@ DEVELOPMENT_MODE = True  # Default to TEST mode
 #
 # Outside this window, validation is LOCKED in PROD mode.
 FIXING_CONFIGS = {
-    "10:30": {"suffix": "F043", "gate_start": (10, 30), "gate_end": (11, 30), "label": "10:30 (F043)"},
-    "10:00": {"suffix": "F040", "gate_start": (10, 0), "gate_end": (11, 30), "label": "10:00 (F040)"},
+    # Production fixing times
+    "10:30": {"suffix": "F043", "gate_start": (10, 30), "gate_end": (11, 30), "label": "10:30 (F043)", "dev_only": False},
+    "10:00": {"suffix": "F040", "gate_start": (10, 0), "gate_end": (11, 30), "label": "10:00 (F040)", "dev_only": False},
+    # DEV mode testing times (earlier in the day)
+    "08:00": {"suffix": "F020", "gate_start": (8, 0), "gate_end": (9, 0), "label": "08:00 (F020)", "dev_only": True},
+    "08:30": {"suffix": "F023", "gate_start": (8, 30), "gate_end": (9, 30), "label": "08:30 (F023)", "dev_only": True},
+    "09:00": {"suffix": "F030", "gate_start": (9, 0), "gate_end": (10, 0), "label": "09:00 (F030)", "dev_only": True},
+    "09:30": {"suffix": "F033", "gate_start": (9, 30), "gate_end": (10, 30), "label": "09:30 (F033)", "dev_only": True},
 }
 DEFAULT_FIXING_TIME = "10:30"
 VALIDATION_GATE_TZ = "Europe/Stockholm"

@@ -580,17 +580,57 @@ class NiborTerminalCTK(ctk.CTk):
         # Focus the dialog
         dialog.focus_set()
 
+    def _get_fixing_time_options(self):
+        """Get available fixing time options based on current mode.
+
+        In DEV mode: Show all times including early testing times (08:00, 08:30, 09:00, 09:30)
+        In PROD mode: Only show production times (10:00, 10:30)
+        """
+        options = []
+        for time_key, config in sorted(FIXING_CONFIGS.items()):
+            # In PROD mode, skip dev_only times
+            if config.get("dev_only", False) and not is_dev_mode():
+                continue
+            options.append((time_key, time_key))
+        return options
+
+    def _update_fixing_time_control(self):
+        """Update the fixing time control when switching modes.
+
+        If switching to PROD and current time is dev-only, reset to default.
+        """
+        if not hasattr(self, 'fixing_control'):
+            return
+
+        current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
+        new_options = self._get_fixing_time_options()
+        available_times = [opt[0] for opt in new_options]
+
+        # If current fixing time is not available in new mode, reset to default
+        if current_fixing not in available_times:
+            set_setting("fixing_time", DEFAULT_FIXING_TIME, save=True)
+            current_fixing = DEFAULT_FIXING_TIME
+            log.info(f"Fixing time reset to {DEFAULT_FIXING_TIME} (previous was dev-only)")
+
+        # Update the control options
+        self.fixing_control.update_options(new_options, current_fixing)
+
     def _on_fixing_time_change(self, new_value: str):
         """
         Handle fixing time change from segmented control.
-        Shows confirmation for 10:00 (rarely used), then saves and refreshes.
+        Shows confirmation for 10:00 (rarely used in PROD), then saves and refreshes.
         """
         current = get_setting("fixing_time", DEFAULT_FIXING_TIME)
 
         if new_value == current:
             return
 
-        # Confirm if switching to 10:00 (rarely used)
+        # In DEV mode, no confirmation needed for any time
+        if is_dev_mode():
+            self._apply_fixing_time_change(new_value)
+            return
+
+        # In PROD mode, confirm if switching to 10:00 (rarely used)
         if new_value == "10:00":
             def on_confirm():
                 self._apply_fixing_time_change(new_value)
@@ -608,7 +648,7 @@ class NiborTerminalCTK(ctk.CTk):
             )
             return
 
-        # Direct change for 10:30 (no confirmation needed)
+        # Direct change for other times
         self._apply_fixing_time_change(new_value)
 
     def _apply_fixing_time_change(self, new_value: str):
@@ -644,6 +684,9 @@ class NiborTerminalCTK(ctk.CTk):
         # Update badge
         if hasattr(self, 'env_badge'):
             self.env_badge.set_environment(new_env)
+
+        # Update fixing time control options (DEV has more options)
+        self._update_fixing_time_control()
 
         # Update validation gate check
         self._check_validation_gate()
@@ -744,14 +787,13 @@ class NiborTerminalCTK(ctk.CTk):
         ).pack(side="left", padx=(0, 6))
 
         # Segmented control for fixing time (compact)
+        # In DEV mode, show additional early fixing times for testing
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
+        fixing_options = self._get_fixing_time_options()
         self.fixing_control = SegmentedControl(
             fixing_frame,
-            options=[
-                ("10:30", "10:30"),
-                ("10:00", "10:00"),
-            ],
-            default=current_fixing,
+            options=fixing_options,
+            default=current_fixing if current_fixing in [opt[0] for opt in fixing_options] else DEFAULT_FIXING_TIME,
             command=self._on_fixing_time_change,
             compact=True
         )

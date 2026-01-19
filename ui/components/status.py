@@ -759,3 +759,53 @@ class SegmentedControl(tk.Frame):
             self._current_value = value
             self._update_segment(old_value, active=False)
             self._update_segment(value, active=True)
+
+    def update_options(self, options: List[Tuple[str, str]], default: str = None):
+        """Update the available options dynamically.
+
+        Args:
+            options: List of (label, value) tuples
+            default: Default value to select
+        """
+        # Destroy existing segments
+        for widget in self.winfo_children():
+            widget.destroy()
+        self._segments.clear()
+
+        # Update stored options
+        self._option_items = options
+        self._current_value = default or (options[0][1] if options else None)
+
+        # Sizing based on compact mode
+        if self._compact:
+            inner_pad = 2
+            seg_padx, seg_pady = 8, 3
+        else:
+            inner_pad = 3
+            seg_padx, seg_pady = 14, 6
+
+        # Recreate inner container
+        inner = tk.Frame(self, bg=SEGMENT_COLORS.BG)
+        inner.pack(padx=inner_pad, pady=inner_pad)
+
+        # Recreate segments
+        for i, (label, value) in enumerate(options):
+            is_active = value == self._current_value
+
+            segment = tk.Label(
+                inner,
+                text=label,
+                fg=SEGMENT_COLORS.TEXT_ACTIVE if is_active else SEGMENT_COLORS.TEXT,
+                bg=SEGMENT_COLORS.SEGMENT_ACTIVE_BG if is_active else SEGMENT_COLORS.SEGMENT_BG,
+                font=(BUTTON_CONFIG.FONT_FAMILY, self._font_size, "bold" if is_active else "normal"),
+                padx=seg_padx,
+                pady=seg_pady,
+                cursor="hand2"
+            )
+            segment.pack(side="left", padx=(0 if i == 0 else 1, 0))
+
+            self._segments[value] = segment
+
+            segment.bind("<Button-1>", lambda e, v=value: self._on_click(v))
+            segment.bind("<Enter>", lambda e, v=value: self._on_enter(v))
+            segment.bind("<Leave>", lambda e, v=value: self._on_leave(v))
