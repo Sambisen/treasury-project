@@ -2114,13 +2114,21 @@ if __name__ == "__main__":
 
     # Step 7: Finalize
     splash.set_progress(100, "Ready!")
+    log.info("[Startup] Splash complete, destroying splash...")
 
     # Close splash and show app
     splash.destroy()
+    log.info("[Startup] Splash destroyed")
     _splash_root.destroy()
+    log.info("[Startup] Splash root destroyed")
 
+    log.info("[Startup] Showing main window...")
     app.deiconify()
+    log.info("[Startup] deiconify done")
     app.lift()
+    log.info("[Startup] lift done")
     app.focus_force()
+    log.info("[Startup] focus_force done, starting mainloop...")
 
     app.mainloop()
+    log.info("[Startup] mainloop exited")
