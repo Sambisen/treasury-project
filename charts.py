@@ -462,7 +462,7 @@ class TrendPopup(tk.Toplevel):
         tk.Label(tenor_frame, text="Tenor", fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
 
-        self._tenor_var = tk.StringVar(value="3m")
+        self._tenor_var = tk.StringVar(master=self, value="3m")
         self._tenor_dropdown = ttk.Combobox(tenor_frame, textvariable=self._tenor_var,
                                            values=["1W", "1M", "2M", "3M", "6M"],
                                            state="readonly", width=6, font=("Segoe UI", 10))
@@ -474,8 +474,8 @@ class TrendPopup(tk.Toplevel):
         source_frame = tk.Frame(header_inner, bg=self.LIGHT_CARD)
         source_frame.pack(side="left", padx=20)
 
-        self._show_contrib_var = tk.BooleanVar(value=True)
-        self._show_fixing_var = tk.BooleanVar(value=True)
+        self._show_contrib_var = tk.BooleanVar(master=self, value=True)
+        self._show_fixing_var = tk.BooleanVar(master=self, value=True)
 
         # Swedbank toggle
         self._swedbank_btn = tk.Label(source_frame, text="● Swedbank",
@@ -602,7 +602,7 @@ class TrendPopup(tk.Toplevel):
         range_inner = tk.Frame(range_container, bg="#F1F5F9")
         range_inner.pack()
 
-        self._range_var = tk.StringVar(value="3M")
+        self._range_var = tk.StringVar(master=self, value="3M")
         self._range_btns = {}
         for label in ["1M", "3M", "1Y", "MAX"]:
             btn = tk.Button(range_inner, text=label,
@@ -628,7 +628,7 @@ class TrendPopup(tk.Toplevel):
             '6m': ('#F59E0B', '#FFFBEB')   # Amber
         }
         for tenor in ['1m', '2m', '3m', '6m']:
-            var = tk.BooleanVar(value=(tenor == '3m'))
+            var = tk.BooleanVar(master=self, value=(tenor == '3m'))
             self._tenor_vars[tenor] = var
             fg_color, bg_color = tenor_colors.get(tenor, (self.LIGHT_TEXT, "#F1F5F9"))
 
