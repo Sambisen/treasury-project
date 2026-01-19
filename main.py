@@ -150,9 +150,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Set up window close handler for system tray
         self.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
-        # Only auto-refresh if not showing last approved OR if validation is unlocked
-        if not self._showing_last_approved or not self._is_validation_locked():
-            self.after(250, self.refresh_data)
+        # No auto-refresh - user must click "Run Calculation" button manually
 
     def _setup_keyboard_shortcuts(self):
         """Setup global keyboard shortcuts."""
