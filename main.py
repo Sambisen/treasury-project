@@ -1447,6 +1447,13 @@ class NiborTerminalCTK(ctk.CTk):
             # Hide banner
             self.last_approved_banner.pack_forget()
 
+    def _safe_after(self, delay: int, callback, *args):
+        """Thread-safe wrapper for after() - catches errors during app shutdown."""
+        try:
+            self.after(delay, callback, *args)
+        except RuntimeError:
+            pass  # App is shutting down, ignore
+
     def _worker_refresh_excel_then_bbg(self):
         log.info("===== REFRESH DATA WORKER STARTED =====")
         log.info("Loading Excel data...")
@@ -1457,15 +1464,15 @@ class NiborTerminalCTK(ctk.CTk):
             log.info(f"Excel engine recon_data has {len(self.excel_engine.recon_data)} entries")
         else:
             log.error(f"Excel load FAILED: {excel_msg}")
-        
-        self.after(0, self._apply_excel_result, excel_ok, excel_msg)
+
+        self._safe_after(0, self._apply_excel_result, excel_ok, excel_msg)
 
         # Always call engine.fetch_snapshot - it handles mock mode internally if blpapi unavailable
         # Use dynamic tickers - F043 for both Dev and Prod mode
         self.engine.fetch_snapshot(
             get_all_real_tickers(),
-            lambda d, meta: self.after(0, self._apply_bbg_result, d, meta, None),
-            lambda e: self.after(0, self._apply_bbg_result, {}, {}, str(e)),
+            lambda d, meta: self._safe_after(0, self._apply_bbg_result, d, meta, None),
+            lambda e: self._safe_after(0, self._apply_bbg_result, {}, {}, str(e)),
             fields=["PX_LAST", "CHG_NET_1D", "LAST_UPDATE"]
         )
 
