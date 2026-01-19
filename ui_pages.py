@@ -3547,25 +3547,16 @@ class NokImpliedPage(tk.Frame):
         return {}
 
     def update(self):
-        log.info("========== NOK Implied Page UPDATE STARTED ==========")
-        log.info(f"[NOK Implied Page] cached_excel_data length: {len(self.app.cached_excel_data)}")
-        log.info(f"[NOK Implied Page] cached_market_data length: {len(self.app.cached_market_data or {})}")
-        
+        log.debug("========== NOK Implied Page UPDATE STARTED ==========")
+        log.debug(f"[NOK Implied Page] cached_excel_data length: {len(self.app.cached_excel_data)}")
+        log.debug(f"[NOK Implied Page] cached_market_data length: {len(self.app.cached_market_data or {})}")
+
         # Check if Excel data is loaded
         if not self.app.cached_excel_data or len(self.app.cached_excel_data) < 10:
-            log.info(f"[NOK Implied Page] ❌ Excel data not loaded or insufficient! Skipping update.")
-            log.info(f"[NOK Implied Page] Excel data needs at least 10 cells, currently has: {len(self.app.cached_excel_data)}")
-            # Optionally trigger reload
-            if hasattr(self.app, 'excel_engine'):
-                log.info(f"[NOK Implied Page] Attempting to check Excel engine recon_data...")
-                if self.app.excel_engine.recon_data:
-                    log.info(f"[NOK Implied Page] Excel engine has recon_data with {len(self.app.excel_engine.recon_data)} entries")
-                    log.info(f"[NOK Implied Page] But cached_excel_data is not populated. This is a sync issue.")
-                else:
-                    log.info(f"[NOK Implied Page] Excel engine recon_data is also empty.")
+            log.debug(f"[NOK Implied Page] Excel data not loaded or insufficient! Skipping update.")
             return
-        
-        log.info(f"[NOK Implied Page] [OK] Excel data loaded with {len(self.app.cached_excel_data)} cells")
+
+        log.debug(f"[NOK Implied Page] [OK] Excel data loaded with {len(self.app.cached_excel_data)} cells")
         
         # Clear all tables
         self.usd_table_bbg.clear()
@@ -3583,9 +3574,7 @@ class NokImpliedPage(tk.Frame):
 
         # Get Excel CM rates
         excel_cm = self._get_excel_cm_rates()
-        log.info(f"[NOK Implied Page] Excel CM rates loaded: {excel_cm}")
-        if not excel_cm:
-            log.info(f"[NOK Implied Page] [WARNING] Excel CM rates are empty!")
+        log.debug(f"[NOK Implied Page] Excel CM rates loaded: {excel_cm}")
 
         # Spots - use dynamic tickers (F043 for Dev, F033 for Prod)
         usd_spot = self._get_ticker_val(get_ticker("NOK F033 Curncy"))
@@ -3653,34 +3642,18 @@ class NokImpliedPage(tk.Frame):
             if excel_days is None:
                 excel_days = bbg_days_usd
 
-            log.debug(f"========== TENOR {t['tenor']} ==========")
-            
-            # Get pips directly from Bloomberg market data (FRESH DATA!)
+            # Get pips directly from Bloomberg market data
             pips_bbg_usd = self._get_ticker_val(t["usd_fwd"])
-            log.info(f"[NOK Implied] USD: pips from Bloomberg ({t['usd_fwd']}) = {pips_bbg_usd}")
-            
             pips_bbg_eur = self._get_ticker_val(t["eur_fwd"])
-            log.info(f"[NOK Implied] EUR: pips from Bloomberg ({t['eur_fwd']}) = {pips_bbg_eur}")
 
             # NOK ECP (same for both sections)
             nok_cm = self._get_ticker_val(t["nok_cm"]) if t["nok_cm"] else None
-            log.info(f"[NOK Implied] NOK ECP: {nok_cm}")
 
             # ============ SECTION 1: Bloomberg CM + Bloomberg TPSF Days ============
-            # USD: Use Bloomberg TPSF days directly (NO adjustment!)
             usd_rate_bbg = self._get_ticker_val(t["usd_rate_bbg"]) if t["usd_rate_bbg"] else None
-            log.info(f"[NOK Implied] USD Bloomberg CM Rate: {usd_rate_bbg}")
-            log.info(f"[NOK Implied] USD Spot: {usd_spot}")
-            log.info(f"[NOK Implied] USD BBG TPSF Days: {bbg_days_usd}")
-            log.info(f"[NOK Implied] CALLING calc_implied_yield for USD with BBG DAYS...")
             impl_usd_bbg = calc_implied_yield(usd_spot, pips_bbg_usd, usd_rate_bbg, bbg_days_usd) if bbg_days_usd else None
 
-            # EUR: Use Bloomberg TPSF days directly (NO adjustment!)
             eur_rate_bbg = self._get_ticker_val(t["eur_rate_bbg"]) if t["eur_rate_bbg"] else None
-            log.info(f"[NOK Implied] EUR Bloomberg CM Rate: {eur_rate_bbg}")
-            log.info(f"[NOK Implied] EUR Spot: {eur_spot}")
-            log.info(f"[NOK Implied] EUR BBG TPSF Days: {bbg_days_eur}")
-            log.info(f"[NOK Implied] CALLING calc_implied_yield for EUR with BBG DAYS...")
             impl_eur_bbg = calc_implied_yield(eur_spot, pips_bbg_eur, eur_rate_bbg, bbg_days_eur) if bbg_days_eur else None
 
             # Add rows to Section 1 tables (using BBG TPSF days directly)
