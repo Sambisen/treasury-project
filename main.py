@@ -2132,12 +2132,29 @@ if __name__ == "__main__":
         log.info("[Startup] Splash root destroyed")
 
         log.info("[Startup] Showing main window...")
+
+        # Force window to appear
         app.deiconify()
-        log.info("[Startup] deiconify done")
+        app.update_idletasks()
+
+        # Set window size and position explicitly
+        screen_w = app.winfo_screenwidth()
+        screen_h = app.winfo_screenheight()
+        win_w, win_h = 1400, 900
+        x = (screen_w - win_w) // 2
+        y = (screen_h - win_h) // 2
+        app.geometry(f"{win_w}x{win_h}+{x}+{y}")
+
+        # Force to front
         app.lift()
-        log.info("[Startup] lift done")
+        app.attributes('-topmost', True)
+        app.update()
+        app.attributes('-topmost', False)
         app.focus_force()
-        log.info("[Startup] focus_force done, starting mainloop...")
+
+        log.info(f"[Startup] Window geometry: {app.winfo_geometry()}")
+        log.info(f"[Startup] Window visible: {app.winfo_viewable()}")
+        log.info("[Startup] Starting mainloop...")
 
         app.mainloop()
         log.info("[Startup] mainloop exited")
