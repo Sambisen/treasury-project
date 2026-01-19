@@ -648,9 +648,8 @@ class NiborTerminalCTK(ctk.CTk):
         # Update validation gate check
         self._check_validation_gate()
 
-        # Show toast and refresh data
-        self.toast.info(f"Switched to {new_env} mode – Reloading data...")
-        self.refresh_data()
+        # Show toast (no auto-refresh - user can click button manually)
+        self.toast.info(f"Switched to {new_env} mode – Press Calculate to reload data")
 
     def _shortcut_save_snapshot(self, event=None):
         """Handle Ctrl+S shortcut."""
