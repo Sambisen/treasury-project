@@ -1635,6 +1635,9 @@ class DashboardPage(BaseFrame):
     
     def _populate_status_badges(self):
         """Populate horizontal status bar with current system status."""
+        # Skip if frame doesn't exist (status badges moved to main header)
+        if not hasattr(self, 'status_badges_frame') or not self.status_badges_frame:
+            return
         # Clear existing badges
         for widget in self.status_badges_frame.winfo_children():
             widget.destroy()
