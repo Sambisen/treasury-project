@@ -1615,8 +1615,8 @@ class NiborTerminalCTK(ctk.CTk):
         if self._current_page and self._current_page in self._pages:
             try:
                 self._pages[self._current_page].update()
-            except Exception:
-                pass
+            except Exception as e:
+                log.error(f"Error updating page {self._current_page}: {e}")
 
     def update_days_from_date(self, date_str):
         days_map = self.excel_engine.get_days_for_date(date_str)

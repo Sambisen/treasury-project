@@ -1579,6 +1579,12 @@ class DashboardPage(BaseFrame):
         # Update historical mode visual indicator
         self._update_historical_mode()
 
+        # Update funding rates and calculations
+        try:
+            self._update_funding_rates_with_validation()
+        except Exception as e:
+            log.error(f"[Dashboard] Error in _update_funding_rates_with_validation: {e}")
+
         # Populate horizontal status bar
         try:
             self._populate_status_badges()
