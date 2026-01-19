@@ -2062,6 +2062,7 @@ def generate_alerts_report():
 #  RUN
 # ==============================================================================
 if __name__ == "__main__":
+    import traceback
     from splash_screen import SplashScreen
     import tkinter as tk
 
@@ -2074,68 +2075,78 @@ if __name__ == "__main__":
     splash.update()
     splash.set_progress(0, "Starting...")
 
-    # Step 1: Initialize application
-    splash.set_progress(10, "Initializing Application...")
-    app = NiborTerminalCTK()
-    app.withdraw()  # Keep hidden until splash is done
-
-    # Step 2: Load Bloomberg connection
-    splash.set_progress(30, "Connecting to Bloomberg...")
-    # Bloomberg is lazy-loaded, just a status update
-
-    # Step 3: Load Excel engine
-    splash.set_progress(45, "Loading Excel Engine...")
-    # Excel engine is initialized in app.__init__
-
-    # Step 4: Import fixing history from Excel
-    splash.set_progress(60, "Loading NIBOR History...")
     try:
-        from history import import_all_fixings_from_excel
-        from pathlib import Path
+        # Step 1: Initialize application
+        splash.set_progress(10, "Initializing Application...")
+        app = NiborTerminalCTK()
+        app.withdraw()  # Keep hidden until splash is done
 
-        excel_candidates = [
-            DATA_DIR / "Nibor history - wide.xlsx",
-            DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",
-            Path(__file__).parent / "data" / "Nibor history - wide.xlsx",
-        ]
+        # Step 2: Load Bloomberg connection
+        splash.set_progress(30, "Connecting to Bloomberg...")
+        # Bloomberg is lazy-loaded, just a status update
 
-        for excel_path in excel_candidates:
-            if excel_path.exists():
-                log.info(f"[Startup] Found NIBOR history Excel: {excel_path}")
-                total, saved = import_all_fixings_from_excel(excel_path)
-                if saved > 0:
-                    log.info(f"[Startup] Imported {saved} new fixing entries from Excel")
-                break
-        else:
-            log.info("[Startup] NIBOR history Excel not found - skipping import")
+        # Step 3: Load Excel engine
+        splash.set_progress(45, "Loading Excel Engine...")
+        # Excel engine is initialized in app.__init__
+
+        # Step 4: Import fixing history from Excel
+        splash.set_progress(60, "Loading NIBOR History...")
+        try:
+            from history import import_all_fixings_from_excel
+            from pathlib import Path
+
+            excel_candidates = [
+                DATA_DIR / "Nibor history - wide.xlsx",
+                DATA_DIR / "Referensräntor" / "Nibor" / "Nibor history - wide.xlsx",
+                Path(__file__).parent / "data" / "Nibor history - wide.xlsx",
+            ]
+
+            for excel_path in excel_candidates:
+                if excel_path.exists():
+                    log.info(f"[Startup] Found NIBOR history Excel: {excel_path}")
+                    total, saved = import_all_fixings_from_excel(excel_path)
+                    if saved > 0:
+                        log.info(f"[Startup] Imported {saved} new fixing entries from Excel")
+                    break
+            else:
+                log.info("[Startup] NIBOR history Excel not found - skipping import")
+        except Exception as e:
+            log.warning(f"[Startup] Failed to import fixing history: {e}")
+
+        # Step 5: Load NIBOR Days configuration
+        splash.set_progress(75, "Loading NIBOR Days...")
+        # Days config is loaded from config.py
+
+        # Step 6: Build interface
+        splash.set_progress(88, "Building Interface...")
+        # Interface was built in app.__init__
+
+        # Step 7: Finalize
+        splash.set_progress(100, "Ready!")
+        log.info("[Startup] Splash complete, destroying splash...")
+
+        # Close splash and show app
+        splash.destroy()
+        log.info("[Startup] Splash destroyed")
+        _splash_root.destroy()
+        log.info("[Startup] Splash root destroyed")
+
+        log.info("[Startup] Showing main window...")
+        app.deiconify()
+        log.info("[Startup] deiconify done")
+        app.lift()
+        log.info("[Startup] lift done")
+        app.focus_force()
+        log.info("[Startup] focus_force done, starting mainloop...")
+
+        app.mainloop()
+        log.info("[Startup] mainloop exited")
+
     except Exception as e:
-        log.warning(f"[Startup] Failed to import fixing history: {e}")
-
-    # Step 5: Load NIBOR Days configuration
-    splash.set_progress(75, "Loading NIBOR Days...")
-    # Days config is loaded from config.py
-
-    # Step 6: Build interface
-    splash.set_progress(88, "Building Interface...")
-    # Interface was built in app.__init__
-
-    # Step 7: Finalize
-    splash.set_progress(100, "Ready!")
-    log.info("[Startup] Splash complete, destroying splash...")
-
-    # Close splash and show app
-    splash.destroy()
-    log.info("[Startup] Splash destroyed")
-    _splash_root.destroy()
-    log.info("[Startup] Splash root destroyed")
-
-    log.info("[Startup] Showing main window...")
-    app.deiconify()
-    log.info("[Startup] deiconify done")
-    app.lift()
-    log.info("[Startup] lift done")
-    app.focus_force()
-    log.info("[Startup] focus_force done, starting mainloop...")
-
-    app.mainloop()
-    log.info("[Startup] mainloop exited")
+        print("\n" + "="*60)
+        print("FATAL ERROR - Application failed to start")
+        print("="*60)
+        print(traceback.format_exc())
+        print("="*60)
+        log.exception("Fatal startup error")
+        input("Press Enter to exit...")
