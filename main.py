@@ -660,11 +660,18 @@ class NiborTerminalCTK(ctk.CTk):
         # Update gate check
         self._check_validation_gate()
 
-        # Show toast and refresh data
-        self.toast.info(f"Fixing time: {new_value} CET – Fetching new data...")
+        # Clear cached data - user must click Calculate to fetch new data
+        self.cached_market_data = {}
+        self.cached_excel_data = {}
+        self.current_days_data = {}
+        self.bbg_ok = False
+        self.excel_ok = False
 
-        # Trigger refresh with new tickers
-        self.refresh_data()
+        # Update UI to show empty state
+        self.refresh_ui()
+
+        # Show toast - inform user to click Calculate
+        self.toast.info(f"Fixing time: {new_value} CET – Press Calculate to load data")
 
     def _toggle_environment(self):
         """

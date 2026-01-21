@@ -593,11 +593,11 @@ class DashboardPage(BaseFrame):
                 w.bind("<Enter>", make_hover_enter(badge_frame))
                 w.bind("<Leave>", make_hover_leave(badge_frame, check_id))
 
-        # Summary on right side
+        # Summary on right side - X/Y format with larger text
         self.validation_summary_lbl = tk.Label(checks_bar, text="",
                                                fg=THEME["text_muted"],
                                                bg=THEME["bg_card"],
-                                               font=("Segoe UI", 10))
+                                               font=("Segoe UI Semibold", 13))
         self.validation_summary_lbl.pack(side="right")
 
         # ====================================================================
@@ -2004,25 +2004,21 @@ class DashboardPage(BaseFrame):
         self._update_validation_summary()
 
     def _update_validation_summary(self):
-        """Update the validation summary label."""
+        """Update the validation summary label with X/Y format."""
         total = len(self.validation_checks)
         ok_count = sum(1 for c in self.validation_checks.values() if c["status"] is True)
-        failed_count = sum(1 for c in self.validation_checks.values() if c["status"] is False)
 
-        if failed_count > 0:
+        if ok_count == total:
+            # All passed
             self.validation_summary_lbl.config(
-                text=f"{failed_count} failed",
-                fg=THEME["danger"]
-            )
-        elif ok_count == total:
-            self.validation_summary_lbl.config(
-                text=f"All OK",
+                text=f"{ok_count}/{total}",
                 fg=THEME["success"]
             )
         else:
+            # Some failed
             self.validation_summary_lbl.config(
                 text=f"{ok_count}/{total}",
-                fg=THEME["text_muted"]
+                fg=THEME["danger"]
             )
 
     def _show_match_popup(self, tenor_key):
