@@ -1131,6 +1131,14 @@ class DashboardPage(BaseFrame):
         ecp_failed = [c for c in ecp_checks if not c.get("matched")]
         ecp_passed = [c for c in ecp_checks if c.get("matched")]
 
+        # Professional muted colors
+        FAIL_HEADER_BG = "#F5F5F5"      # Light gray
+        FAIL_HEADER_FG = "#B71C1C"      # Dark red
+        FAIL_BORDER = "#E0E0E0"         # Gray border
+        PASS_HEADER_BG = "#F5F5F5"      # Light gray
+        PASS_HEADER_FG = "#1B5E20"      # Dark green
+        PASS_BORDER = "#E0E0E0"         # Gray border
+
         # Summary bar
         summary_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
         summary_frame.pack(fill="x", pady=(0, 16))
@@ -1151,12 +1159,12 @@ class DashboardPage(BaseFrame):
             tk.Label(summary_inner,
                     text=f"{total_failed} failed",
                     font=("Segoe UI", 11),
-                    fg=THEME["danger"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                    fg="#B71C1C", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         tk.Label(summary_inner,
                 text=f"{total_passed} passed",
                 font=("Segoe UI", 11),
-                fg=THEME["success"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         # Scrollable container
         canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
@@ -1179,28 +1187,30 @@ class DashboardPage(BaseFrame):
             canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
-        # Collapsible state
-        self._excel_cells_expanded = {"cell_failed": True, "cell_passed": False, "ecp_failed": True, "ecp_passed": False}
+        # Collapsible state - ALL collapsed by default
+        self._excel_cells_expanded = {"cell_failed": False, "cell_passed": False, "ecp_failed": False, "ecp_passed": False}
 
-        # Helper to create table header
-        def create_table_header(parent, columns, widths):
+        # Column widths for grid alignment
+        COL_WIDTHS = [6, 5, 16, 6, 12, 3, 12, 10]
+
+        # Helper to create table header with grid
+        def create_table_header(parent, columns):
             header_row = tk.Frame(parent, bg=THEME["table_header_bg"])
             header_row.pack(fill="x")
-            for col, (text, width) in enumerate(zip(columns, widths)):
-                anchor = "e" if col >= 3 else "w"
+            for col, (text, width) in enumerate(zip(columns, COL_WIDTHS)):
                 tk.Label(header_row, text=text, font=("Segoe UI", 10),
                         fg=THEME["text_muted"], bg=THEME["table_header_bg"],
-                        width=width, anchor=anchor).pack(side="left", padx=8, pady=10)
+                        width=width, anchor="center").pack(side="left", padx=4, pady=10)
             tk.Frame(parent, bg=THEME["border"], height=1).pack(fill="x")
 
-        # Helper to create a check row (professional style)
+        # Helper to create a check row with grid alignment
         def create_check_row(parent, check, row_idx, show_diff=True):
             field = check.get("field", "")
             tenor = check.get("tenor", "")
             cell = check.get("cell", "")
             gui_val = check.get("gui_value")
             excel_val = check.get("excel_value")
-            ref_val = check.get("ref_value")  # For ECP checks
+            ref_val = check.get("ref_value")
             decimals = check.get("decimals", 4)
             matched = check.get("matched", False)
 
@@ -1208,85 +1218,86 @@ class DashboardPage(BaseFrame):
             check_row = tk.Frame(parent, bg=row_bg)
             check_row.pack(fill="x")
 
-            # Status indicator (simple circle or dash)
+            # Status
             status_text = "Pass" if matched else "Fail"
-            status_color = THEME["success"] if matched else THEME["danger"]
+            status_color = "#1B5E20" if matched else "#B71C1C"
             tk.Label(check_row, text=status_text, font=("Segoe UI", 10),
-                    fg=status_color, bg=row_bg, width=5, anchor="w").pack(side="left", padx=(12, 4), pady=8)
+                    fg=status_color, bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Tenor
             tk.Label(check_row, text=tenor, font=("Segoe UI", 10),
-                    fg=THEME["text"], bg=row_bg, width=4, anchor="w").pack(side="left", padx=4, pady=8)
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[1], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Field name
             tk.Label(check_row, text=field, font=("Segoe UI", 10),
-                    fg=THEME["text"], bg=row_bg, width=14, anchor="w").pack(side="left", padx=4, pady=8)
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[2], anchor="w").pack(side="left", padx=4, pady=8)
 
             # Cell reference
             tk.Label(check_row, text=cell, font=("Consolas", 10),
-                    fg=THEME["text_muted"], bg=row_bg, width=6, anchor="w").pack(side="left", padx=4, pady=8)
+                    fg=THEME["text_muted"], bg=row_bg, width=COL_WIDTHS[3], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Value 1 (GUI or Internal Rate)
             val1 = gui_val if gui_val is not None else ref_val
             val1_str = f"{val1:.{decimals}f}" if val1 is not None else "—"
             tk.Label(check_row, text=val1_str, font=("Consolas", 10),
-                    fg=THEME["text"], bg=row_bg, width=10, anchor="e").pack(side="left", padx=6, pady=8)
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[4], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Comparison indicator
             if check.get("check_type") == "internal_vs_ecp":
                 cmp_text = ">=" if matched else "<"
             else:
                 cmp_text = "=" if matched else "!="
-            cmp_color = THEME["success"] if matched else THEME["danger"]
+            cmp_color = "#1B5E20" if matched else "#B71C1C"
             tk.Label(check_row, text=cmp_text, font=("Consolas", 10),
-                    fg=cmp_color, bg=row_bg, width=3, anchor="center").pack(side="left", pady=8)
+                    fg=cmp_color, bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Value 2 (Excel or ECP Rate)
             val2 = excel_val
             val2_str = f"{val2:.{decimals}f}" if val2 is not None else "—"
             tk.Label(check_row, text=val2_str, font=("Consolas", 10),
-                    fg=THEME["text"], bg=row_bg, width=10, anchor="e").pack(side="left", padx=6, pady=8)
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[6], anchor="center").pack(side="left", padx=4, pady=8)
 
             # Difference (only for failures with numeric values)
+            diff_str = ""
             if show_diff and not matched and val1 is not None and val2 is not None:
                 try:
                     diff = float(val1) - float(val2)
                     diff_str = f"{diff:+.{decimals}f}"
                 except (ValueError, TypeError):
-                    diff_str = ""
-                tk.Label(check_row, text=diff_str, font=("Consolas", 10),
-                        fg=THEME["danger"], bg=row_bg, width=10, anchor="e").pack(side="right", padx=12, pady=8)
+                    pass
+            tk.Label(check_row, text=diff_str, font=("Consolas", 10),
+                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=4, pady=8)
 
         # Helper to create collapsible section
         def create_section(parent, title, items, section_key, header_bg, header_fg, border_color,
-                          columns, widths, initially_expanded=True):
+                          columns, initially_expanded=False):
             if not items:
                 return
 
             section = tk.Frame(parent, bg=THEME["bg_panel"])
-            section.pack(fill="x", pady=(0, 16))
+            section.pack(fill="x", pady=(0, 12))
 
             # Header
-            header = tk.Frame(section, bg=header_bg, cursor="hand2")
+            header = tk.Frame(section, bg=header_bg, cursor="hand2", highlightthickness=1, highlightbackground=border_color)
             header.pack(fill="x")
 
             expand_lbl = tk.Label(header, text="▼" if initially_expanded else "▶",
                                  font=("Segoe UI", 10), fg=header_fg, bg=header_bg)
             expand_lbl.pack(side="left", padx=(16, 6), pady=12)
 
-            tk.Label(header, text=title, font=("Segoe UI", 12),
+            tk.Label(header, text=title, font=("Segoe UI", 11),
                     fg=header_fg, bg=header_bg).pack(side="left", pady=12)
 
             count_text = f"{len(items)} items"
             tk.Label(header, text=count_text, font=("Segoe UI", 10),
-                    fg=header_fg, bg=header_bg).pack(side="right", padx=16, pady=12)
+                    fg=THEME["text_muted"], bg=header_bg).pack(side="right", padx=16, pady=12)
 
             # Container
             container = tk.Frame(section, bg=THEME["bg_card"],
                                 highlightthickness=1, highlightbackground=border_color)
 
             # Table header
-            create_table_header(container, columns, widths)
+            create_table_header(container, columns)
 
             # Sort by tenor then field
             sorted_items = sorted(items, key=lambda x: (x.get("tenor", ""), x.get("field", "")))
@@ -1314,56 +1325,64 @@ class DashboardPage(BaseFrame):
 
         # Column definitions
         cell_columns = ["Status", "Tenor", "Field", "Cell", "GUI Value", "", "Excel Value", "Diff"]
-        cell_widths = [5, 4, 14, 6, 10, 3, 10, 10]
-        ecp_columns = ["Status", "Tenor", "Field", "Cell", "Internal Rate", "", "ECP Rate", "Diff"]
-        ecp_widths = [5, 4, 14, 6, 10, 3, 10, 10]
+        ecp_columns = ["Status", "Tenor", "Field", "Cell", "Internal", "", "ECP Rate", "Diff"]
 
         # ═══════════════════════════════════════════════════════════════
-        # SECTION 1: CELL CHECKS
+        # DISPLAY ORDER: Failed sections first, then passed sections
+        # If Internal Rates vs ECP has failures, show it first
         # ═══════════════════════════════════════════════════════════════
-        if cell_checks:
-            # Section title
-            tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 14),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 12))
 
-            # Failed checks (expanded)
-            if cell_failed:
-                create_section(scroll_frame, "Failed Checks", cell_failed, "cell_failed",
-                              "#FEF2F2", THEME["danger"], "#FECACA",
-                              cell_columns, cell_widths, initially_expanded=True)
+        # Determine if ECP has failures (show first if so)
+        has_ecp_failures = len(ecp_failed) > 0
+        has_cell_failures = len(cell_failed) > 0
 
-            # Passed checks (collapsed)
-            if cell_passed:
-                create_section(scroll_frame, "Passed Checks", cell_passed, "cell_passed",
-                              "#F0FDF4", THEME["success"], "#BBF7D0",
-                              cell_columns, cell_widths, initially_expanded=False)
-
-        # ═══════════════════════════════════════════════════════════════
-        # SECTION 2: INTERNAL RATES VS ECP
-        # ═══════════════════════════════════════════════════════════════
-        if ecp_checks:
-            # Separator
-            tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(8, 20))
-
-            # Section title
-            tk.Label(scroll_frame, text="Internal Rates vs ECP", font=("Segoe UI", 14),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 8))
-
-            tk.Label(scroll_frame, text="Internal rates must be equal to or greater than ECP rates",
+        # FAILED SECTIONS FIRST
+        if has_ecp_failures:
+            # Internal Rates vs ECP - Failed
+            tk.Label(scroll_frame, text="Internal Rates vs ECP", font=("Segoe UI", 13),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 4))
+            tk.Label(scroll_frame, text="Internal rates must be >= ECP rates",
                     font=("Segoe UI", 10), fg=THEME["text_muted"],
-                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 12))
+                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+            create_section(scroll_frame, "Failed", ecp_failed, "ecp_failed",
+                          FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                          ecp_columns, initially_expanded=False)
 
-            # Failed checks (expanded)
-            if ecp_failed:
-                create_section(scroll_frame, "Failed Checks", ecp_failed, "ecp_failed",
-                              "#FEF2F2", THEME["danger"], "#FECACA",
-                              ecp_columns, ecp_widths, initially_expanded=True)
+        if has_cell_failures:
+            # Cell Checks - Failed
+            if has_ecp_failures:
+                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(4, 16))
+            tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 13),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+            create_section(scroll_frame, "Failed", cell_failed, "cell_failed",
+                          FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                          cell_columns, initially_expanded=False)
 
-            # Passed checks (collapsed)
-            if ecp_passed:
-                create_section(scroll_frame, "Passed Checks", ecp_passed, "ecp_passed",
-                              "#F0FDF4", THEME["success"], "#BBF7D0",
-                              ecp_columns, ecp_widths, initially_expanded=False)
+        # PASSED SECTIONS AFTER
+        if not has_ecp_failures and ecp_checks:
+            # Internal Rates vs ECP - All passed (show header)
+            tk.Label(scroll_frame, text="Internal Rates vs ECP", font=("Segoe UI", 13),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 4))
+            tk.Label(scroll_frame, text="Internal rates must be >= ECP rates",
+                    font=("Segoe UI", 10), fg=THEME["text_muted"],
+                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+        if ecp_passed:
+            create_section(scroll_frame, "Passed", ecp_passed, "ecp_passed",
+                          PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                          ecp_columns, initially_expanded=False)
+
+        if not has_cell_failures and cell_checks:
+            # Cell Checks - All passed (show header)
+            if ecp_checks:
+                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(4, 16))
+            tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 13),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+        if cell_passed:
+            create_section(scroll_frame, "Passed", cell_passed, "cell_passed",
+                          PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                          cell_columns, initially_expanded=False)
 
         # Unbind mousewheel on popup close
         def on_popup_destroy(e):
