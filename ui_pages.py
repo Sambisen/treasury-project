@@ -1123,13 +1123,16 @@ class DashboardPage(BaseFrame):
             return
 
         # Separate checks by category
-        cell_checks = [c for c in self._excel_cells_details if c.get("check_type") != "internal_vs_ecp"]
+        cell_checks = [c for c in self._excel_cells_details if c.get("check_type") == "cell_check"]
         ecp_checks = [c for c in self._excel_cells_details if c.get("check_type") == "internal_vs_ecp"]
+        nore_checks = [c for c in self._excel_cells_details if c.get("check_type") == "nore_vs_swedbank"]
 
         cell_failed = [c for c in cell_checks if not c.get("matched")]
         cell_passed = [c for c in cell_checks if c.get("matched")]
         ecp_failed = [c for c in ecp_checks if not c.get("matched")]
         ecp_passed = [c for c in ecp_checks if c.get("matched")]
+        nore_failed = [c for c in nore_checks if not c.get("matched")]
+        nore_passed = [c for c in nore_checks if c.get("matched")]
 
         # Professional muted colors
         FAIL_HEADER_BG = "#F5F5F5"      # Light gray
@@ -1147,8 +1150,8 @@ class DashboardPage(BaseFrame):
         summary_inner.pack(fill="x", padx=16, pady=12)
 
         total_checks = len(self._excel_cells_details)
-        total_failed = len(cell_failed) + len(ecp_failed)
-        total_passed = len(cell_passed) + len(ecp_passed)
+        total_failed = len(cell_failed) + len(ecp_failed) + len(nore_failed)
+        total_passed = len(cell_passed) + len(ecp_passed) + len(nore_passed)
 
         tk.Label(summary_inner,
                 text=f"Total: {total_checks} checks",
@@ -1188,7 +1191,11 @@ class DashboardPage(BaseFrame):
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         # Collapsible state - ALL collapsed by default
-        self._excel_cells_expanded = {"cell_failed": False, "cell_passed": False, "ecp_failed": False, "ecp_passed": False}
+        self._excel_cells_expanded = {
+            "cell_failed": False, "cell_passed": False,
+            "ecp_failed": False, "ecp_passed": False,
+            "nore_failed": False, "nore_passed": False
+        }
 
         # Column widths for grid alignment
         COL_WIDTHS = [6, 5, 16, 6, 12, 3, 12, 10]
@@ -1326,63 +1333,83 @@ class DashboardPage(BaseFrame):
         # Column definitions
         cell_columns = ["Status", "Tenor", "Field", "Cell", "GUI Value", "", "Excel Value", "Diff"]
         ecp_columns = ["Status", "Tenor", "Field", "Cell", "Internal", "", "ECP Rate", "Diff"]
+        nore_columns = ["Status", "Tenor", "Field", "Cells", "Nore", "", "Swedbank", "Diff"]
 
         # ═══════════════════════════════════════════════════════════════
         # DISPLAY ORDER: Failed sections first, then passed sections
-        # If Internal Rates vs ECP has failures, show it first
+        # Priority: Nore vs Swedbank (if failures) > ECP (if failures) > Cell Checks
         # ═══════════════════════════════════════════════════════════════
 
-        # Determine if ECP has failures (show first if so)
+        has_nore_failures = len(nore_failed) > 0
         has_ecp_failures = len(ecp_failed) > 0
         has_cell_failures = len(cell_failed) > 0
+        section_shown = False
 
-        # FAILED SECTIONS FIRST
-        if has_ecp_failures:
-            # Internal Rates vs ECP - Failed
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 1: Nore Nibor Calculation Model vs Swedbank Estimated Spread
+        # ═══════════════════════════════════════════════════════════════
+        if nore_checks:
+            tk.Label(scroll_frame, text="Nore Nibor Calculation Model vs Swedbank Estimated Spread",
+                    font=("Segoe UI", 13),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 4))
+            tk.Label(scroll_frame, text="Comparing Bloomberg row 6-10 with calculated row 29-33",
+                    font=("Segoe UI", 10), fg=THEME["text_muted"],
+                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
+
+            if nore_failed:
+                create_section(scroll_frame, "Failed", nore_failed, "nore_failed",
+                              FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                              nore_columns, initially_expanded=False)
+            if nore_passed:
+                create_section(scroll_frame, "Passed", nore_passed, "nore_passed",
+                              PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                              nore_columns, initially_expanded=False)
+            section_shown = True
+
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 2: Internal Rates vs ECP
+        # ═══════════════════════════════════════════════════════════════
+        if ecp_checks:
+            if section_shown:
+                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(8, 16))
+
             tk.Label(scroll_frame, text="Internal Rates vs ECP", font=("Segoe UI", 13),
                     fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 4))
             tk.Label(scroll_frame, text="Internal rates must be >= ECP rates",
                     font=("Segoe UI", 10), fg=THEME["text_muted"],
                     bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
-            create_section(scroll_frame, "Failed", ecp_failed, "ecp_failed",
-                          FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
-                          ecp_columns, initially_expanded=False)
 
-        if has_cell_failures:
-            # Cell Checks - Failed
-            if has_ecp_failures:
-                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(4, 16))
+            if ecp_failed:
+                create_section(scroll_frame, "Failed", ecp_failed, "ecp_failed",
+                              FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                              ecp_columns, initially_expanded=False)
+            if ecp_passed:
+                create_section(scroll_frame, "Passed", ecp_passed, "ecp_passed",
+                              PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                              ecp_columns, initially_expanded=False)
+            section_shown = True
+
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 3: Cell Checks (GUI vs Excel)
+        # ═══════════════════════════════════════════════════════════════
+        if cell_checks:
+            if section_shown:
+                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(8, 16))
+
             tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 13),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
-            create_section(scroll_frame, "Failed", cell_failed, "cell_failed",
-                          FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
-                          cell_columns, initially_expanded=False)
-
-        # PASSED SECTIONS AFTER
-        if not has_ecp_failures and ecp_checks:
-            # Internal Rates vs ECP - All passed (show header)
-            tk.Label(scroll_frame, text="Internal Rates vs ECP", font=("Segoe UI", 13),
                     fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 4))
-            tk.Label(scroll_frame, text="Internal rates must be >= ECP rates",
+            tk.Label(scroll_frame, text="GUI calculated values vs Excel values",
                     font=("Segoe UI", 10), fg=THEME["text_muted"],
                     bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
 
-        if ecp_passed:
-            create_section(scroll_frame, "Passed", ecp_passed, "ecp_passed",
-                          PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
-                          ecp_columns, initially_expanded=False)
-
-        if not has_cell_failures and cell_checks:
-            # Cell Checks - All passed (show header)
-            if ecp_checks:
-                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(4, 16))
-            tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 13),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 10))
-
-        if cell_passed:
-            create_section(scroll_frame, "Passed", cell_passed, "cell_passed",
-                          PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
-                          cell_columns, initially_expanded=False)
+            if cell_failed:
+                create_section(scroll_frame, "Failed", cell_failed, "cell_failed",
+                              FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                              cell_columns, initially_expanded=False)
+            if cell_passed:
+                create_section(scroll_frame, "Passed", cell_passed, "cell_passed",
+                              PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                              cell_columns, initially_expanded=False)
 
         # Unbind mousewheel on popup close
         def on_popup_destroy(e):
@@ -2484,6 +2511,83 @@ class DashboardPage(BaseFrame):
                 "matched": matched,
                 "check_type": "internal_vs_ecp"
             })
+
+        # ═══════════════════════════════════════════════════════════════
+        # Nore Nibor Calculation Model vs Swedbank Estimated Spread Calculation Model
+        # Row 6-10 (Nore/Bloomberg) vs Row 29-33 (Swedbank calc model)
+        # From RULES_DB rules 1-105
+        # ═══════════════════════════════════════════════════════════════
+        nore_vs_swedbank_columns = [
+            # (column, field_name, decimals)
+            ("A", "Tenor Date", 0),
+            ("B", "Days", 0),
+            ("C", "Tenor Days", 0),
+            ("D", "EUR Weight", 4),
+            ("E", "USD Weight", 4),
+            ("F", "NOK Weight", 4),
+            ("G", "EUR Days", 0),
+            ("H", "USD Days", 0),
+            ("I", "NOK Days", 0),
+            ("J", "EUR Spot Days", 0),
+            ("K", "NOK ECP Rate", 4),
+            ("L", "NOK ECP Adj", 4),
+            ("N", "EURNOK Spot", 4),
+            ("O", "EURNOK Pips", 2),
+            ("Q", "EUR Implied", 4),
+            ("S", "USDNOK Spot", 4),
+            ("T", "USDNOK Pips", 2),
+            ("V", "USD Implied", 4),
+            ("W", "Weighted Avg", 4),
+            ("AB", "NIBOR Calc", 4),
+            ("AC", "NIBOR Final", 4),
+        ]
+
+        tenor_rows = [
+            ("1W", 6, 29),
+            ("1M", 7, 30),
+            ("2M", 8, 31),
+            ("3M", 9, 32),
+            ("6M", 10, 33),
+        ]
+
+        for col, field_name, decimals in nore_vs_swedbank_columns:
+            for tenor, nore_row, swedbank_row in tenor_rows:
+                nore_cell = f"{col}{nore_row}"
+                swedbank_cell = f"{col}{swedbank_row}"
+
+                nore_val = read_excel_cell(nore_cell)
+                swedbank_val = read_excel_cell(swedbank_cell)
+
+                matched = False
+                nore_rounded = None
+                swedbank_rounded = None
+
+                if nore_val is not None and swedbank_val is not None:
+                    try:
+                        if decimals == 0:
+                            # Integer comparison
+                            nore_rounded = int(float(nore_val)) if nore_val else 0
+                            swedbank_rounded = int(float(swedbank_val)) if swedbank_val else 0
+                            matched = (nore_rounded == swedbank_rounded)
+                        else:
+                            nore_rounded = round(float(nore_val), decimals)
+                            swedbank_rounded = round(float(swedbank_val), decimals)
+                            matched = abs(nore_rounded - swedbank_rounded) < (10 ** -decimals)
+                        if not matched:
+                            excel_cells_failed.append(f"{tenor} {field_name}: {nore_cell}≠{swedbank_cell}")
+                    except (ValueError, TypeError):
+                        pass
+
+                self._excel_cells_details.append({
+                    "tenor": tenor,
+                    "field": field_name,
+                    "cell": f"{nore_cell}:{swedbank_cell}",
+                    "gui_value": nore_rounded,  # Nore value
+                    "excel_value": swedbank_rounded,  # Swedbank value
+                    "decimals": decimals if decimals > 0 else 0,
+                    "matched": matched,
+                    "check_type": "nore_vs_swedbank"
+                })
 
         # Update NIBOR Contrib validation icon based on diffs
         if self._recon_diff_details:
