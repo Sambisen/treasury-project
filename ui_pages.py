@@ -899,7 +899,7 @@ class DashboardPage(BaseFrame):
 
         # Size based on content type
         if check_id == "excel_cells":
-            popup.geometry("1000x800")
+            popup.geometry("700x500")
         else:
             popup.geometry("600x500")
 
@@ -1393,7 +1393,7 @@ class DashboardPage(BaseFrame):
         popup.bind("<Destroy>", on_popup_destroy)
 
     def _show_bloomberg_table(self, popup):
-        """Show Cell Checks (GUI vs Excel) under Bloomberg validation."""
+        """Show Bloomberg Data Check (GUI vs Excel) under Bloomberg validation."""
         content = tk.Frame(popup, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=24, pady=12)
 
@@ -1574,7 +1574,7 @@ class DashboardPage(BaseFrame):
                 child.bind("<Button-1>", toggle)
 
         # Section title
-        tk.Label(scroll_frame, text="Cell Checks", font=("Segoe UI", 11),
+        tk.Label(scroll_frame, text="Bloomberg Data Check", font=("Segoe UI", 11),
                 fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 2))
         tk.Label(scroll_frame, text="GUI calculated values vs Excel values",
                 font=("Segoe UI", 9), fg=THEME["text_muted"],
