@@ -697,6 +697,17 @@ class NiborTerminalCTK(ctk.CTk):
         # Update validation gate check
         self._check_validation_gate()
 
+        # Clear cached data - user must click Calculate to fetch new data
+        self.cached_market_data = {}
+        self.cached_excel_data = {}
+        self.current_days_data = {}
+        self.bbg_ok = False
+        self.excel_ok = False
+
+        # Clear the NIBOR rates table - show empty state
+        if "dashboard" in self._pages:
+            self._pages["dashboard"].set_loading(True)
+
         # Show toast (no auto-refresh - user can click button manually)
         self.toast.info(f"Switched to {new_env} mode – Press Calculate to reload data")
 
