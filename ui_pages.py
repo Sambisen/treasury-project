@@ -3727,7 +3727,7 @@ class BackupNiborPage(tk.Frame):
     TENORS = ["1M", "2M", "3M", "6M"]
 
     def __init__(self, master, app):
-        super().__init__(master, bg=THEME["bg_panel"])
+        super().__init__(master, bg="white")
         self.app = app
         self._all_entries = {}
         self._result_labels = {}
@@ -3740,18 +3740,22 @@ class BackupNiborPage(tk.Frame):
         """Build the calculator UI."""
         pad = 16
 
-        # Main container with scrollable content
-        main_container = tk.Frame(self, bg=THEME["bg_panel"])
-        main_container.pack(fill="both", expand=True, padx=pad, pady=pad)
+        # Center wrapper
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Main container - centered with max width
+        main_container = tk.Frame(self, bg="white")
+        main_container.grid(row=0, column=0, padx=pad, pady=pad)
 
         # ================================================================
         # HEADER
         # ================================================================
-        header = tk.Frame(main_container, bg=THEME["bg_panel"])
-        header.pack(fill="x", pady=(0, 12))
+        header = tk.Frame(main_container, bg="white")
+        header.pack(pady=(0, 12))
 
-        tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg=THEME["bg_panel"],
-                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+        tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg="white",
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack()
 
         # ================================================================
         # SINGLE CARD WITH ALL INPUTS
@@ -3916,9 +3920,9 @@ class BackupNiborPage(tk.Frame):
             nok_e.pack(side="left", padx=2, ipady=2)
             self._all_entries[f"nok_{tenor}_rate"] = nok_e
 
-        # Spread Column (fixed 0.20)
+        # Spread Column (fixed 0.20) - minimal gap from NOK
         spread_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
-        spread_frame.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
+        spread_frame.grid(row=0, column=3, sticky="nsew", padx=(0, 0))
 
         tk.Label(spread_frame, text="SPREAD", fg=THEME["accent"], bg=THEME["bg_card"],
                  font=("Segoe UI Semibold", 12)).pack(anchor="w")
@@ -3950,14 +3954,14 @@ class BackupNiborPage(tk.Frame):
         results_content.pack(fill="x")
 
         results_header = tk.Frame(results_content, bg=THEME["bg_card"])
-        results_header.pack(fill="x")
+        results_header.pack()
 
         tk.Label(results_header, text="NIBOR RESULT", fg=THEME["accent"], bg=THEME["bg_card"],
                  font=("Segoe UI Semibold", 12)).pack(side="left")
 
         # Buttons
         btn_frame = tk.Frame(results_header, bg=THEME["bg_card"])
-        btn_frame.pack(side="right")
+        btn_frame.pack(side="left", padx=(16, 0))
 
         if CTK_AVAILABLE:
             self._calc_btn = ctk.CTkButton(btn_frame, text="CALCULATE", command=self._calculate,
@@ -3972,19 +3976,19 @@ class BackupNiborPage(tk.Frame):
                          corner_radius=4, border_width=1,
                          border_color=THEME["border"]).pack(side="left", padx=(8, 0))
 
-        # Results row
+        # Results row - centered
         results_row = tk.Frame(results_content, bg=THEME["bg_card"])
-        results_row.pack(fill="x", pady=(12, 0))
+        results_row.pack(pady=(12, 0))
 
         for tenor in self.TENORS:
             tenor_frame = tk.Frame(results_row, bg=THEME["bg_card"])
             tenor_frame.pack(side="left", padx=(0, 32))
 
             tk.Label(tenor_frame, text=tenor, fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Segoe UI", 10)).pack(anchor="w")
+                     font=("Segoe UI", 10)).pack()
             lbl = tk.Label(tenor_frame, text="—", fg=THEME["text"], bg=THEME["bg_card"],
                           font=("Consolas", 16, "bold"))
-            lbl.pack(anchor="w")
+            lbl.pack()
             self._result_labels[tenor] = lbl
 
         # Bind validation to all entries
