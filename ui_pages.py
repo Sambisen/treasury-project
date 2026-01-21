@@ -4723,14 +4723,13 @@ class NiborDaysPage(tk.Frame):
         table_container.pack(fill="both", expand=True, padx=self.pad, pady=(0, self.pad))
 
         # Treeview columns
-        self.columns = ("date", "settlement", "1w", "1m", "2m", "3m", "6m", "indicator")
+        self.columns = ("date", "1w", "1m", "2m", "3m", "6m", "indicator")
         self.tree = ttk.Treeview(table_container, columns=self.columns, show="headings",
                                  style="NiborDays.Treeview", selectmode="browse")
 
         # Configure columns with centering
         col_config = [
             ("date", "Fixing Date", 120),
-            ("settlement", "Settlement", 120),
             ("1w", "1W", 70),
             ("1m", "1M", 70),
             ("2m", "2M", 70),
@@ -4813,7 +4812,6 @@ class NiborDaysPage(tk.Frame):
 
             # Format values
             date_val = str(row.get("date", "")) if row.get("date") else "—"
-            settlement_val = str(row.get("settlement", "")) if row.get("settlement") else "—"
 
             def fmt_days(val):
                 try:
@@ -4823,7 +4821,6 @@ class NiborDaysPage(tk.Frame):
 
             values = (
                 date_val,
-                settlement_val,
                 fmt_days(row.get("1w_Days")),
                 fmt_days(row.get("1m_Days")),
                 fmt_days(row.get("2m_Days")),
@@ -5879,8 +5876,7 @@ Always uses ECP (Euro Commercial Paper) rate."""
         self.app = app
         self.pad = CURRENT_MODE["pad"]
         self._card_frames = {}
-        self._drawer = None
-        self._drawer_overlay = None
+        self._drawer_window = None
 
         # Bind ESC to close drawer
         self.winfo_toplevel().bind("<Escape>", self._close_drawer_on_escape, add="+")
@@ -5990,13 +5986,13 @@ Always uses ECP (Euro Commercial Paper) rate."""
         inner = tk.Frame(outer, bg=THEME["bg_card"], cursor="hand2")
         inner.pack(fill="both", expand=True)
 
-        # Content padding
+        # Content padding - centered
         content = tk.Frame(inner, bg=THEME["bg_card"], padx=16, pady=14)
         content.pack(fill="both", expand=True)
 
-        # Header row: icon + title
+        # Header row: icon + title (centered)
         header = tk.Frame(content, bg=THEME["bg_card"])
-        header.pack(fill="x", pady=(0, 4))
+        header.pack(pady=(0, 4))
 
         tk.Label(header, text=data["icon"], fg=THEME["accent"], bg=THEME["bg_card"],
                  font=("Segoe UI", 20)).pack(side="left")
@@ -6004,17 +6000,17 @@ Always uses ECP (Euro Commercial Paper) rate."""
         tk.Label(header, text=data["title"], fg=THEME["text"], bg=THEME["bg_card"],
                  font=("Segoe UI Semibold", 13)).pack(side="left", padx=(8, 0))
 
-        # Time label
+        # Time label (centered)
         tk.Label(content, text=data["time"], fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(anchor="w", pady=(0, 8))
+                 font=("Segoe UI", 10)).pack(pady=(0, 8))
 
-        # Summary lines
+        # Summary lines (centered)
         for line in data["lines"]:
             if line == "":
                 tk.Frame(content, bg=THEME["bg_card"], height=4).pack()
             else:
                 tk.Label(content, text=line, fg=THEME["muted"], bg=THEME["bg_card"],
-                         font=("Segoe UI", 10), anchor="w").pack(anchor="w")
+                         font=("Segoe UI", 10)).pack()
 
         # Store references
         self._card_frames[key] = {"outer": outer, "inner": inner, "content": content}
@@ -6045,34 +6041,48 @@ Always uses ECP (Euro Commercial Paper) rate."""
         self._open_drawer(key)
 
     def _open_drawer(self, key):
-        """Open drawer with full details."""
-        # Close existing drawer if any
-        self._close_drawer()
-
+        """Open drawer with full details in a separate Toplevel window."""
         data = self.DETAILS[key]
 
         # Get root window
         root = self.winfo_toplevel()
-        root_width = root.winfo_width()
-        root_height = root.winfo_height()
+        root.update_idletasks()
 
-        # Create overlay (semi-transparent click-to-close area)
-        self._drawer_overlay = tk.Frame(root, bg="black")
-        self._drawer_overlay.place(x=0, y=0, relwidth=1, relheight=1)
-        self._drawer_overlay.configure(bg=THEME["bg_main"])
-
-        # Make overlay semi-transparent by using a lower opacity color
-        # (Tkinter doesn't support true transparency, so we use a dark color)
-        self._drawer_overlay.bind("<Button-1>", lambda e: self._close_drawer())
-
-        # Drawer panel (right side)
         drawer_width = 480
-        self._drawer = tk.Frame(root, bg=THEME["bg_card"], width=drawer_width)
-        self._drawer.place(x=root_width - drawer_width, y=0, width=drawer_width, relheight=1)
-        self._drawer.pack_propagate(False)
+        drawer_height = root.winfo_height()
+
+        # Position drawer window to the right of main window
+        main_x = root.winfo_x()
+        main_y = root.winfo_y()
+        main_width = root.winfo_width()
+        drawer_x = main_x + main_width + 2  # 2px gap
+
+        # Create or reuse drawer window
+        if not self._drawer_window or not self._drawer_window.winfo_exists():
+            self._drawer_window = tk.Toplevel(root)
+            self._drawer_window.title("Details")
+            self._drawer_window.configure(bg=THEME["bg_card"])
+            self._drawer_window.resizable(False, True)
+            self._drawer_window.protocol("WM_DELETE_WINDOW", self._close_drawer)
+
+            # Bind main window move/resize to update drawer position
+            root.bind("<Configure>", self._on_main_window_configure, add="+")
+        else:
+            # Clear existing content
+            for widget in self._drawer_window.winfo_children():
+                widget.destroy()
+
+        # Position and size the drawer window
+        self._drawer_window.geometry(f"{drawer_width}x{drawer_height}+{drawer_x}+{main_y}")
+        self._drawer_window.deiconify()
+        self._drawer_window.lift()
+
+        # Drawer content container
+        drawer_frame = tk.Frame(self._drawer_window, bg=THEME["bg_card"])
+        drawer_frame.pack(fill="both", expand=True)
 
         # Drawer header
-        header = tk.Frame(self._drawer, bg=THEME["bg_card"])
+        header = tk.Frame(drawer_frame, bg=THEME["bg_card"])
         header.pack(fill="x", padx=24, pady=(20, 16))
 
         # Close button
@@ -6094,10 +6104,10 @@ Always uses ECP (Euro Commercial Paper) rate."""
                  font=("Segoe UI", 10)).pack()
 
         # Separator
-        tk.Frame(self._drawer, bg=THEME["border"], height=1).pack(fill="x", padx=24)
+        tk.Frame(drawer_frame, bg=THEME["border"], height=1).pack(fill="x", padx=24)
 
         # Content
-        content_frame = tk.Frame(self._drawer, bg=THEME["bg_card"])
+        content_frame = tk.Frame(drawer_frame, bg=THEME["bg_card"])
         content_frame.pack(fill="both", expand=True, padx=24, pady=20)
 
         # Display content as formatted text
@@ -6109,21 +6119,29 @@ Always uses ECP (Euro Commercial Paper) rate."""
         text_widget.configure(state="disabled")
 
         # Accent bar on left edge of drawer
-        accent_bar = tk.Frame(self._drawer, bg=THEME["accent"], width=4)
+        accent_bar = tk.Frame(drawer_frame, bg=THEME["accent"], width=4)
         accent_bar.place(x=0, y=0, width=4, relheight=1)
+
+    def _on_main_window_configure(self, event=None):
+        """Keep drawer window positioned next to main window."""
+        if self._drawer_window and self._drawer_window.winfo_exists():
+            root = self.winfo_toplevel()
+            drawer_width = 480
+            main_x = root.winfo_x()
+            main_y = root.winfo_y()
+            main_width = root.winfo_width()
+            main_height = root.winfo_height()
+            drawer_x = main_x + main_width + 2
+            self._drawer_window.geometry(f"{drawer_width}x{main_height}+{drawer_x}+{main_y}")
 
     def _close_drawer(self, event=None):
         """Close the drawer."""
-        if self._drawer_overlay:
-            self._drawer_overlay.destroy()
-            self._drawer_overlay = None
-        if self._drawer:
-            self._drawer.destroy()
-            self._drawer = None
+        if self._drawer_window and self._drawer_window.winfo_exists():
+            self._drawer_window.withdraw()
 
     def _close_drawer_on_escape(self, event=None):
         """Close drawer on ESC key."""
-        if self._drawer:
+        if self._drawer_window and self._drawer_window.winfo_exists():
             self._close_drawer()
 
     def update(self):
