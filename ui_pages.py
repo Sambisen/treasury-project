@@ -949,6 +949,8 @@ class DashboardPage(BaseFrame):
             self._show_bloomberg_table(popup)
         elif check_id == "spreads" and hasattr(self, '_spreads_details'):
             self._show_spreads_table(popup)
+        elif check_id == "days" and hasattr(self, '_days_details'):
+            self._show_days_table(popup)
         else:
             # Standard alerts list for other checks
             alerts = check.get("alerts", [])
@@ -1862,6 +1864,143 @@ class DashboardPage(BaseFrame):
                         fg=THEME["text"], bg=row_bg, width=14, anchor="center").pack(side="left", padx=2, pady=4)
                 tk.Label(row, text="Fail", font=("Segoe UI", 9),
                         fg=FAIL_HEADER_FG, bg=row_bg, width=8, anchor="center").pack(side="left", padx=2, pady=4)
+
+    def _show_days_table(self, popup):
+        """Show Days validation - check C7-C10 against Nibor Days file."""
+        content = tk.Frame(popup, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=24, pady=12)
+
+        if not hasattr(self, '_days_details') or not self._days_details:
+            tk.Label(content,
+                    text="No days data available",
+                    font=("Segoe UI", 12),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=30)
+            return
+
+        days_failed = [d for d in self._days_details if not d.get("matched")]
+        days_passed = [d for d in self._days_details if d.get("matched")]
+
+        # Check if all passed
+        all_passed = len(days_failed) == 0 and len(days_passed) > 0
+
+        if all_passed:
+            # Show success message
+            success_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            success_frame.pack(pady=(0, 16))
+
+            inner = tk.Frame(success_frame, bg=THEME["bg_card"])
+            inner.pack(padx=20, pady=20)
+
+            tk.Label(inner,
+                    text="✔  All tenor days match the Nibor Days file",
+                    font=("Segoe UI", 12),
+                    fg="#1B5E20", bg=THEME["bg_card"]).pack()
+
+            # Show comparison table
+            from datetime import datetime
+            today_str = datetime.now().strftime("%Y-%m-%d")
+
+            tk.Label(content,
+                    text=f"Validation for {today_str}",
+                    font=("Segoe UI", 10),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=(10, 8))
+
+            # Table
+            table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            table.pack()
+
+            # Header
+            header = tk.Frame(table, bg=THEME["table_header_bg"])
+            header.pack(fill="x")
+
+            for text, width in [("Tenor", 8), ("Cell", 8), ("Excel", 10), ("Nibor Days", 12), ("Status", 8)]:
+                tk.Label(header, text=text, font=("Segoe UI", 9),
+                        fg=THEME["text_muted"], bg=THEME["table_header_bg"],
+                        width=width, anchor="center").pack(side="left", padx=4, pady=6)
+
+            tk.Frame(table, bg=THEME["border"], height=1).pack(fill="x")
+
+            # Data rows
+            for i, day in enumerate(self._days_details):
+                row_bg = THEME["bg_card"] if i % 2 == 0 else THEME["row_odd"]
+                row = tk.Frame(table, bg=row_bg)
+                row.pack(fill="x")
+
+                tenor = day.get("tenor", "")
+                cell = day.get("cell", "")
+                excel_val = day.get("excel_value")
+                nibor_val = day.get("nibor_value")
+
+                excel_str = str(excel_val) if excel_val is not None else "—"
+                nibor_str = str(nibor_val) if nibor_val is not None else "—"
+
+                tk.Label(row, text=tenor, font=("Segoe UI", 10),
+                        fg=THEME["text"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=cell, font=("Consolas", 10),
+                        fg=THEME["text_muted"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=excel_str, font=("Consolas", 10),
+                        fg=THEME["text"], bg=row_bg, width=10, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=nibor_str, font=("Consolas", 10),
+                        fg=THEME["text"], bg=row_bg, width=12, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text="OK", font=("Segoe UI", 10),
+                        fg="#1B5E20", bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+        else:
+            # Show failed days
+            FAIL_HEADER_BG = "#F5F5F5"
+            FAIL_HEADER_FG = "#B71C1C"
+
+            from datetime import datetime
+            today_str = datetime.now().strftime("%Y-%m-%d")
+
+            tk.Label(content,
+                    text=f"Days Mismatch for {today_str}",
+                    font=("Segoe UI", 11),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 8))
+
+            # Table
+            table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            table.pack(fill="x")
+
+            # Header
+            header = tk.Frame(table, bg=FAIL_HEADER_BG)
+            header.pack(fill="x")
+
+            for text, width in [("Tenor", 8), ("Cell", 8), ("Excel", 10), ("Nibor Days", 12), ("Status", 8)]:
+                tk.Label(header, text=text, font=("Segoe UI", 9),
+                        fg=THEME["text_muted"], bg=FAIL_HEADER_BG,
+                        width=width, anchor="center").pack(side="left", padx=4, pady=6)
+
+            tk.Frame(table, bg=THEME["border"], height=1).pack(fill="x")
+
+            # Data rows - show all with status
+            for i, day in enumerate(self._days_details):
+                matched = day.get("matched", False)
+                row_bg = THEME["bg_card"] if i % 2 == 0 else THEME["row_odd"]
+                row = tk.Frame(table, bg=row_bg)
+                row.pack(fill="x")
+
+                tenor = day.get("tenor", "")
+                cell = day.get("cell", "")
+                excel_val = day.get("excel_value")
+                nibor_val = day.get("nibor_value")
+
+                excel_str = str(excel_val) if excel_val is not None else "—"
+                nibor_str = str(nibor_val) if nibor_val is not None else "—"
+
+                status_text = "OK" if matched else "Fail"
+                status_color = "#1B5E20" if matched else FAIL_HEADER_FG
+                value_color = THEME["text"] if matched else FAIL_HEADER_FG
+
+                tk.Label(row, text=tenor, font=("Segoe UI", 10),
+                        fg=THEME["text"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=cell, font=("Consolas", 10),
+                        fg=THEME["text_muted"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=excel_str, font=("Consolas", 10),
+                        fg=value_color, bg=row_bg, width=10, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=nibor_str, font=("Consolas", 10),
+                        fg=value_color, bg=row_bg, width=12, anchor="center").pack(side="left", padx=4, pady=6)
+                tk.Label(row, text=status_text, font=("Segoe UI", 10),
+                        fg=status_color, bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
 
     def _update_validation_check(self, check_id, status, alerts=None):
         """Update a validation check badge status.
@@ -3093,6 +3232,68 @@ class DashboardPage(BaseFrame):
             # Only mark OK if we have Excel data
             if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
                 self._update_validation_check("spreads", True, [])
+
+        # ═══════════════════════════════════════════════════════════════
+        # Days validation - check C7-C10 against Nibor Days file for today
+        # ═══════════════════════════════════════════════════════════════
+        self._days_details = []
+        days_failed = []
+
+        # Get today's days from Nibor Days file
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        nibor_days = {}
+        if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+            nibor_days = self.app.excel_engine.get_days_for_date(today_str) or {}
+
+        # Cells to check: C7=1M, C8=2M, C9=3M, C10=6M
+        days_checks = [
+            ("C7", "1M", "1m"),
+            ("C8", "2M", "2m"),
+            ("C9", "3M", "3m"),
+            ("C10", "6M", "6m"),
+        ]
+
+        for cell, tenor_label, tenor_key in days_checks:
+            excel_val = read_excel_cell(cell)
+            nibor_val = nibor_days.get(tenor_key) or nibor_days.get(f"{tenor_key}_Days")
+
+            matched = False
+            excel_days = None
+            nibor_days_val = None
+
+            if excel_val is not None:
+                try:
+                    excel_days = int(float(excel_val))
+                except (ValueError, TypeError):
+                    pass
+
+            if nibor_val is not None:
+                try:
+                    nibor_days_val = int(float(nibor_val))
+                except (ValueError, TypeError):
+                    pass
+
+            if excel_days is not None and nibor_days_val is not None:
+                matched = excel_days == nibor_days_val
+                if not matched:
+                    days_failed.append(f"{tenor_label} ({cell}): Excel={excel_days}, Nibor Days={nibor_days_val}")
+
+            self._days_details.append({
+                "tenor": tenor_label,
+                "cell": cell,
+                "excel_value": excel_days,
+                "nibor_value": nibor_days_val,
+                "matched": matched
+            })
+
+        # Update Days validation icon
+        if days_failed:
+            self._update_validation_check("days", False, days_failed)
+        else:
+            # Only mark OK if we have both Excel and Nibor Days data
+            if nibor_days and hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+                self._update_validation_check("days", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
@@ -4481,6 +4682,161 @@ class NokImpliedPage(tk.Frame):
                     self.summary_cards[tenor_key].set_value(f"{total:.2f}%")
                 else:
                     self.summary_cards[tenor_key].set_value("-")
+
+
+class NiborDaysPage(tk.Frame):
+    """Nibor Days page showing upcoming fixing days with today highlighted."""
+
+    def __init__(self, master, app):
+        super().__init__(master, bg=THEME["bg_panel"])
+        self.app = app
+        self.pad = CURRENT_MODE["pad"]
+        self._build_ui()
+
+    def _build_ui(self):
+        # Header
+        header = tk.Frame(self, bg=THEME["bg_panel"])
+        header.pack(fill="x", padx=self.pad, pady=(self.pad, 16))
+
+        tk.Label(header, text="NIBOR DAYS", fg=THEME["text"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
+
+        OnyxButtonTK(header, "Refresh", command=self.update, variant="default").pack(side="right")
+
+        # Info label
+        self.info_label = tk.Label(self, text="", fg=THEME["text_muted"], bg=THEME["bg_panel"],
+                                   font=("Segoe UI", CURRENT_MODE["small"]))
+        self.info_label.pack(anchor="w", padx=self.pad, pady=(0, 12))
+
+        # Table container with scrollbar
+        table_container = tk.Frame(self, bg=THEME["bg_panel"])
+        table_container.pack(fill="both", expand=True, padx=self.pad, pady=(0, self.pad))
+
+        # Create canvas and scrollbar for the table
+        self.canvas = tk.Canvas(table_container, bg=THEME["bg_card"], highlightthickness=1,
+                                highlightbackground=THEME["border"])
+        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=self.canvas.yview)
+        self.table_frame = tk.Frame(self.canvas, bg=THEME["bg_card"])
+
+        self.table_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.table_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+
+        def on_canvas_configure(e):
+            self.canvas.itemconfig(self.canvas_window, width=e.width)
+        self.canvas.bind("<Configure>", on_canvas_configure)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Mousewheel scrolling
+        def on_mousewheel(e):
+            self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        self.canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+    def update(self):
+        """Refresh the Nibor Days data."""
+        # Clear existing rows
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
+
+        if not hasattr(self.app, 'excel_engine') or not self.app.excel_engine:
+            tk.Label(self.table_frame, text="Excel engine not available",
+                    font=("Segoe UI", 12), fg=THEME["text_muted"],
+                    bg=THEME["bg_card"]).pack(pady=40)
+            return
+
+        # Get future days data
+        future_df = self.app.excel_engine.get_future_days_data(limit_rows=100)
+
+        if future_df.empty:
+            tk.Label(self.table_frame, text="No Nibor Days data available",
+                    font=("Segoe UI", 12), fg=THEME["text_muted"],
+                    bg=THEME["bg_card"]).pack(pady=40)
+            return
+
+        # Get today's date for highlighting
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        # Update info label
+        self.info_label.config(text=f"Showing {len(future_df)} upcoming fixing dates")
+
+        # Column configuration
+        columns = []
+        col_widths = []
+
+        # Detect available columns
+        if "date" in future_df.columns:
+            columns.append(("Date", "date"))
+            col_widths.append(12)
+        if "settlement" in future_df.columns:
+            columns.append(("Settlement", "settlement"))
+            col_widths.append(12)
+
+        # Days columns
+        for tenor in ["1w", "1m", "2m", "3m", "6m"]:
+            days_col = f"{tenor}_Days"
+            if days_col in future_df.columns:
+                columns.append((tenor.upper(), days_col))
+                col_widths.append(8)
+
+        if not columns:
+            tk.Label(self.table_frame, text="No valid columns found in data",
+                    font=("Segoe UI", 12), fg=THEME["text_muted"],
+                    bg=THEME["bg_card"]).pack(pady=40)
+            return
+
+        # Create header row
+        header_row = tk.Frame(self.table_frame, bg=THEME["table_header_bg"])
+        header_row.pack(fill="x")
+
+        for (header_text, _), width in zip(columns, col_widths):
+            tk.Label(header_row, text=header_text, font=("Segoe UI", 10),
+                    fg=THEME["text_muted"], bg=THEME["table_header_bg"],
+                    width=width, anchor="center").pack(side="left", padx=4, pady=8)
+
+        tk.Frame(self.table_frame, bg=THEME["border"], height=1).pack(fill="x")
+
+        # Data rows
+        for idx, row in future_df.iterrows():
+            row_date = str(row.get("date", ""))
+            is_today = row_date == today_str
+
+            # Row background - orange for today
+            if is_today:
+                row_bg = "#FFF3E0"  # Light orange
+                text_color = "#E65100"  # Dark orange
+                font_weight = "bold"
+            else:
+                row_bg = THEME["bg_card"] if idx % 2 == 0 else THEME["row_odd"]
+                text_color = THEME["text"]
+                font_weight = "normal"
+
+            data_row = tk.Frame(self.table_frame, bg=row_bg)
+            data_row.pack(fill="x")
+
+            for (_, col_key), width in zip(columns, col_widths):
+                value = row.get(col_key, "")
+                if col_key in ["date", "settlement"]:
+                    display_val = str(value) if value else "-"
+                else:
+                    # Days columns - show as integer
+                    try:
+                        display_val = str(int(float(value))) if value and str(value) != "nan" else "-"
+                    except (ValueError, TypeError):
+                        display_val = "-"
+
+                tk.Label(data_row, text=display_val,
+                        font=("Segoe UI" if font_weight == "normal" else "Segoe UI Semibold", 10),
+                        fg=text_color, bg=row_bg,
+                        width=width, anchor="center").pack(side="left", padx=4, pady=6)
+
+            # Add indicator for today's row
+            if is_today:
+                tk.Label(data_row, text="← TODAY",
+                        font=("Segoe UI Semibold", 9),
+                        fg="#E65100", bg=row_bg).pack(side="left", padx=(8, 0))
 
 
 class WeightsPage(tk.Frame):

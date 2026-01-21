@@ -55,7 +55,7 @@ from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
     WeightsPage, AuditLogPage, NiborRoadmapPage, NokImpliedPage,
-    MetaDataPage
+    MetaDataPage, NiborDaysPage
 )
 
 
@@ -924,6 +924,7 @@ class NiborTerminalCTK(ctk.CTk):
             ("meta_data", "📝", "Meta Data", MetaDataPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_recon", "✅", "Nibor Recon", ReconPage),
+            ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
             ("weights", "⚖️", "Weights", WeightsPage),
             ("rules_logic", "🧮", "Backup Nibor", RulesPage),
             ("nibor_roadmap", "🔀", "Nibor Roadmap", NiborRoadmapPage),
