@@ -2271,8 +2271,24 @@ class DashboardPage(BaseFrame):
                     lbl = cells.get(key)
                     if lbl:
                         lbl.configure(text="--", fg=COLORS.TEXT_MUTED)
-            # When loading=False, update() will be called to populate real values
 
+        # Don't update funding rates when loading - just show empty state
+        if loading:
+            # Also reset validation badges to neutral state
+            for check_id, check in self.validation_checks.items():
+                check["status"] = None
+                check["alerts"] = []
+                check["icon"].configure(text="—", fg=THEME["text_muted"])
+                check["label"].configure(fg=THEME["text_muted"])
+                check["frame"].configure(bg=THEME["chip"])
+                check["icon"].configure(bg=THEME["chip"])
+                check["label"].configure(bg=THEME["chip"])
+
+            # Reset validation summary
+            self.validation_summary_lbl.config(text="", fg=THEME["text_muted"])
+            return
+
+        # When loading=False, update() will be called to populate real values
         # Update funding rates with Excel validation (cards are in global header, updated by main.py)
         try:
             self._update_funding_rates_with_validation()
