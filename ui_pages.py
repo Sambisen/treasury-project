@@ -1884,66 +1884,25 @@ class DashboardPage(BaseFrame):
         all_passed = len(days_failed) == 0 and len(days_passed) > 0
 
         if all_passed:
-            # Show success message
+            # Show simple success message - no table needed
+            from datetime import datetime
+            today_str = datetime.now().strftime("%Y-%m-%d")
+
             success_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
             success_frame.pack(pady=(0, 16))
 
             inner = tk.Frame(success_frame, bg=THEME["bg_card"])
-            inner.pack(padx=20, pady=20)
+            inner.pack(padx=30, pady=25)
 
             tk.Label(inner,
                     text="✔  All tenor days match the Nibor Days file",
                     font=("Segoe UI", 12),
                     fg="#1B5E20", bg=THEME["bg_card"]).pack()
 
-            # Show comparison table
-            from datetime import datetime
-            today_str = datetime.now().strftime("%Y-%m-%d")
-
-            tk.Label(content,
-                    text=f"Validation for {today_str}",
+            tk.Label(inner,
+                    text=f"Validated for {today_str}",
                     font=("Segoe UI", 10),
-                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=(10, 8))
-
-            # Table
-            table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
-            table.pack()
-
-            # Header
-            header = tk.Frame(table, bg=THEME["table_header_bg"])
-            header.pack(fill="x")
-
-            for text, width in [("Tenor", 8), ("Cell", 8), ("Excel", 10), ("Nibor Days", 12), ("Status", 8)]:
-                tk.Label(header, text=text, font=("Segoe UI", 9),
-                        fg=THEME["text_muted"], bg=THEME["table_header_bg"],
-                        width=width, anchor="center").pack(side="left", padx=4, pady=6)
-
-            tk.Frame(table, bg=THEME["border"], height=1).pack(fill="x")
-
-            # Data rows
-            for i, day in enumerate(self._days_details):
-                row_bg = THEME["bg_card"] if i % 2 == 0 else THEME["row_odd"]
-                row = tk.Frame(table, bg=row_bg)
-                row.pack(fill="x")
-
-                tenor = day.get("tenor", "")
-                cell = day.get("cell", "")
-                excel_val = day.get("excel_value")
-                nibor_val = day.get("nibor_value")
-
-                excel_str = str(excel_val) if excel_val is not None else "—"
-                nibor_str = str(nibor_val) if nibor_val is not None else "—"
-
-                tk.Label(row, text=tenor, font=("Segoe UI", 10),
-                        fg=THEME["text"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
-                tk.Label(row, text=cell, font=("Consolas", 10),
-                        fg=THEME["text_muted"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
-                tk.Label(row, text=excel_str, font=("Consolas", 10),
-                        fg=THEME["text"], bg=row_bg, width=10, anchor="center").pack(side="left", padx=4, pady=6)
-                tk.Label(row, text=nibor_str, font=("Consolas", 10),
-                        fg=THEME["text"], bg=row_bg, width=12, anchor="center").pack(side="left", padx=4, pady=6)
-                tk.Label(row, text="OK", font=("Segoe UI", 10),
-                        fg="#1B5E20", bg=row_bg, width=8, anchor="center").pack(side="left", padx=4, pady=6)
+                    fg=THEME["text_muted"], bg=THEME["bg_card"]).pack(pady=(8, 0))
         else:
             # Show failed days
             FAIL_HEADER_BG = "#F5F5F5"
@@ -4685,12 +4644,13 @@ class NokImpliedPage(tk.Frame):
 
 
 class NiborDaysPage(tk.Frame):
-    """Nibor Days page showing upcoming fixing days with today highlighted."""
+    """Nibor Days page showing upcoming fixing days with today highlighted and search."""
 
     def __init__(self, master, app):
         super().__init__(master, bg=THEME["bg_panel"])
         self.app = app
         self.pad = CURRENT_MODE["pad"]
+        self._all_data = None  # Store all data for filtering
         self._build_ui()
 
     def _build_ui(self):
@@ -4701,20 +4661,53 @@ class NiborDaysPage(tk.Frame):
         tk.Label(header, text="NIBOR DAYS", fg=THEME["text"], bg=THEME["bg_panel"],
                  font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
 
-        OnyxButtonTK(header, "Refresh", command=self.update, variant="default").pack(side="right")
+        # Buttons on right
+        btn_frame = tk.Frame(header, bg=THEME["bg_panel"])
+        btn_frame.pack(side="right")
+
+        OnyxButtonTK(btn_frame, "Refresh", command=self.update, variant="default").pack(side="right")
+        OnyxButtonTK(btn_frame, "Go to Today", command=self._scroll_to_today, variant="accent").pack(side="right", padx=(0, 8))
+
+        # Search bar
+        search_frame = tk.Frame(self, bg=THEME["bg_panel"])
+        search_frame.pack(fill="x", padx=self.pad, pady=(0, 12))
+
+        tk.Label(search_frame, text="Search Date:", fg=THEME["text"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", 10)).pack(side="left")
+
+        self.search_var = tk.StringVar()
+        self.search_var.trace("w", lambda *args: self._filter_data())
+
+        self.search_entry = tk.Entry(search_frame, textvariable=self.search_var,
+                                     font=("Consolas", 11), width=16,
+                                     bg=THEME["bg_card"], fg=THEME["text"],
+                                     insertbackground=THEME["text"],
+                                     relief="flat", highlightthickness=1,
+                                     highlightbackground=THEME["border"],
+                                     highlightcolor=THEME["accent"])
+        self.search_entry.pack(side="left", padx=(8, 0), ipady=4)
+
+        tk.Label(search_frame, text="(YYYY-MM-DD)", fg=THEME["text_muted"], bg=THEME["bg_panel"],
+                 font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
+
+        # Clear button
+        self.clear_btn = tk.Button(search_frame, text="Clear", command=self._clear_search,
+                                   font=("Segoe UI", 9), bg=THEME["bg_card"], fg=THEME["text"],
+                                   relief="flat", cursor="hand2", padx=8)
+        self.clear_btn.pack(side="left", padx=(8, 0))
 
         # Info label
-        self.info_label = tk.Label(self, text="", fg=THEME["text_muted"], bg=THEME["bg_panel"],
+        self.info_label = tk.Label(search_frame, text="", fg=THEME["text_muted"], bg=THEME["bg_panel"],
                                    font=("Segoe UI", CURRENT_MODE["small"]))
-        self.info_label.pack(anchor="w", padx=self.pad, pady=(0, 12))
+        self.info_label.pack(side="right")
 
         # Table container with scrollbar
-        table_container = tk.Frame(self, bg=THEME["bg_panel"])
+        table_container = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
+                                   highlightbackground=THEME["border"])
         table_container.pack(fill="both", expand=True, padx=self.pad, pady=(0, self.pad))
 
         # Create canvas and scrollbar for the table
-        self.canvas = tk.Canvas(table_container, bg=THEME["bg_card"], highlightthickness=1,
-                                highlightbackground=THEME["border"])
+        self.canvas = tk.Canvas(table_container, bg=THEME["bg_card"], highlightthickness=0)
         scrollbar = tk.Scrollbar(table_container, orient="vertical", command=self.canvas.yview)
         self.table_frame = tk.Frame(self.canvas, bg=THEME["bg_card"])
 
@@ -4734,55 +4727,95 @@ class NiborDaysPage(tk.Frame):
             self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         self.canvas.bind_all("<MouseWheel>", on_mousewheel)
 
+    def _clear_search(self):
+        """Clear the search field."""
+        self.search_var.set("")
+        self.search_entry.focus_set()
+
+    def _scroll_to_today(self):
+        """Scroll to today's row."""
+        self.search_var.set("")
+        self._render_data(scroll_to_today=True)
+
+    def _filter_data(self):
+        """Filter data based on search query."""
+        self._render_data()
+
     def update(self):
         """Refresh the Nibor Days data."""
+        if not hasattr(self.app, 'excel_engine') or not self.app.excel_engine:
+            self._all_data = None
+            self._render_data()
+            return
+
+        # Get future days data
+        self._all_data = self.app.excel_engine.get_future_days_data(limit_rows=300)
+        self._render_data(scroll_to_today=True)
+
+    def _render_data(self, scroll_to_today=False):
+        """Render the data table with optional filtering."""
         # Clear existing rows
         for widget in self.table_frame.winfo_children():
             widget.destroy()
 
-        if not hasattr(self.app, 'excel_engine') or not self.app.excel_engine:
-            tk.Label(self.table_frame, text="Excel engine not available",
-                    font=("Segoe UI", 12), fg=THEME["text_muted"],
-                    bg=THEME["bg_card"]).pack(pady=40)
-            return
-
-        # Get future days data
-        future_df = self.app.excel_engine.get_future_days_data(limit_rows=100)
-
-        if future_df.empty:
+        if self._all_data is None or self._all_data.empty:
             tk.Label(self.table_frame, text="No Nibor Days data available",
                     font=("Segoe UI", 12), fg=THEME["text_muted"],
                     bg=THEME["bg_card"]).pack(pady=40)
+            self.info_label.config(text="")
             return
 
         # Get today's date for highlighting
         from datetime import datetime
         today_str = datetime.now().strftime("%Y-%m-%d")
 
+        # Filter data if search is active
+        search_query = self.search_var.get().strip()
+        if search_query:
+            filtered_df = self._all_data[
+                self._all_data["date"].astype(str).str.contains(search_query, case=False, na=False)
+            ]
+        else:
+            filtered_df = self._all_data
+
+        if filtered_df.empty:
+            tk.Label(self.table_frame, text=f"No results for '{search_query}'",
+                    font=("Segoe UI", 12), fg=THEME["text_muted"],
+                    bg=THEME["bg_card"]).pack(pady=40)
+            self.info_label.config(text="0 results")
+            return
+
         # Update info label
-        self.info_label.config(text=f"Showing {len(future_df)} upcoming fixing dates")
+        total = len(self._all_data)
+        showing = len(filtered_df)
+        if search_query:
+            self.info_label.config(text=f"Showing {showing} of {total} dates")
+        else:
+            self.info_label.config(text=f"{total} fixing dates loaded")
 
-        # Column configuration
+        # Column configuration with fixed widths for centering
+        COL_WIDTHS = {
+            "date": 14,
+            "settlement": 14,
+            "1w_Days": 8,
+            "1m_Days": 8,
+            "2m_Days": 8,
+            "3m_Days": 8,
+            "6m_Days": 8,
+        }
+
         columns = []
-        col_widths = []
-
-        # Detect available columns
-        if "date" in future_df.columns:
-            columns.append(("Date", "date"))
-            col_widths.append(12)
-        if "settlement" in future_df.columns:
+        if "date" in filtered_df.columns:
+            columns.append(("Fixing Date", "date"))
+        if "settlement" in filtered_df.columns:
             columns.append(("Settlement", "settlement"))
-            col_widths.append(12)
-
-        # Days columns
         for tenor in ["1w", "1m", "2m", "3m", "6m"]:
             days_col = f"{tenor}_Days"
-            if days_col in future_df.columns:
+            if days_col in filtered_df.columns:
                 columns.append((tenor.upper(), days_col))
-                col_widths.append(8)
 
         if not columns:
-            tk.Label(self.table_frame, text="No valid columns found in data",
+            tk.Label(self.table_frame, text="No valid columns found",
                     font=("Segoe UI", 12), fg=THEME["text_muted"],
                     bg=THEME["bg_card"]).pack(pady=40)
             return
@@ -4791,52 +4824,70 @@ class NiborDaysPage(tk.Frame):
         header_row = tk.Frame(self.table_frame, bg=THEME["table_header_bg"])
         header_row.pack(fill="x")
 
-        for (header_text, _), width in zip(columns, col_widths):
-            tk.Label(header_row, text=header_text, font=("Segoe UI", 10),
+        for header_text, col_key in columns:
+            width = COL_WIDTHS.get(col_key, 10)
+            tk.Label(header_row, text=header_text, font=("Segoe UI Semibold", 10),
                     fg=THEME["text_muted"], bg=THEME["table_header_bg"],
-                    width=width, anchor="center").pack(side="left", padx=4, pady=8)
+                    width=width, anchor="center").pack(side="left", padx=2, pady=10)
 
         tk.Frame(self.table_frame, bg=THEME["border"], height=1).pack(fill="x")
 
+        # Track today's row for scrolling
+        today_row_widget = None
+        row_count = 0
+
         # Data rows
-        for idx, row in future_df.iterrows():
+        for idx, (_, row) in enumerate(filtered_df.iterrows()):
             row_date = str(row.get("date", ""))
             is_today = row_date == today_str
 
-            # Row background - orange for today
+            # Row styling
             if is_today:
                 row_bg = "#FFF3E0"  # Light orange
                 text_color = "#E65100"  # Dark orange
-                font_weight = "bold"
+                font_style = ("Segoe UI Semibold", 10)
             else:
                 row_bg = THEME["bg_card"] if idx % 2 == 0 else THEME["row_odd"]
                 text_color = THEME["text"]
-                font_weight = "normal"
+                font_style = ("Segoe UI", 10)
 
             data_row = tk.Frame(self.table_frame, bg=row_bg)
             data_row.pack(fill="x")
 
-            for (_, col_key), width in zip(columns, col_widths):
-                value = row.get(col_key, "")
-                if col_key in ["date", "settlement"]:
-                    display_val = str(value) if value else "-"
-                else:
-                    # Days columns - show as integer
-                    try:
-                        display_val = str(int(float(value))) if value and str(value) != "nan" else "-"
-                    except (ValueError, TypeError):
-                        display_val = "-"
-
-                tk.Label(data_row, text=display_val,
-                        font=("Segoe UI" if font_weight == "normal" else "Segoe UI Semibold", 10),
-                        fg=text_color, bg=row_bg,
-                        width=width, anchor="center").pack(side="left", padx=4, pady=6)
-
-            # Add indicator for today's row
             if is_today:
-                tk.Label(data_row, text="← TODAY",
+                today_row_widget = data_row
+                row_count = idx
+
+            for header_text, col_key in columns:
+                width = COL_WIDTHS.get(col_key, 10)
+                value = row.get(col_key, "")
+
+                if col_key in ["date", "settlement"]:
+                    display_val = str(value) if value else "—"
+                else:
+                    try:
+                        display_val = str(int(float(value))) if value and str(value) != "nan" else "—"
+                    except (ValueError, TypeError):
+                        display_val = "—"
+
+                tk.Label(data_row, text=display_val, font=font_style,
+                        fg=text_color, bg=row_bg,
+                        width=width, anchor="center").pack(side="left", padx=2, pady=8)
+
+            # Today indicator
+            if is_today:
+                tk.Label(data_row, text="◀ TODAY",
                         font=("Segoe UI Semibold", 9),
-                        fg="#E65100", bg=row_bg).pack(side="left", padx=(8, 0))
+                        fg="#E65100", bg=row_bg).pack(side="left", padx=(12, 0))
+
+        # Scroll to today if requested
+        if scroll_to_today and today_row_widget and not search_query:
+            self.table_frame.update_idletasks()
+            # Calculate scroll position
+            total_rows = len(filtered_df)
+            if total_rows > 0:
+                scroll_pos = max(0, (row_count - 2) / total_rows)  # Show 2 rows above today
+                self.canvas.yview_moveto(scroll_pos)
 
 
 class WeightsPage(tk.Frame):
