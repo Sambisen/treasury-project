@@ -3829,6 +3829,7 @@ class BackupNiborPage(tk.Frame):
         inputs_row.columnconfigure(0, weight=1, uniform="cols")
         inputs_row.columnconfigure(1, weight=1, uniform="cols")
         inputs_row.columnconfigure(2, weight=1, uniform="cols")
+        inputs_row.columnconfigure(3, weight=0)  # Spread column - fixed width
 
         # EUR Column
         eur_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
@@ -3914,6 +3915,28 @@ class BackupNiborPage(tk.Frame):
                             fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
             nok_e.pack(side="left", padx=2, ipady=2)
             self._all_entries[f"nok_{tenor}_rate"] = nok_e
+
+        # Spread Column (fixed 0.20)
+        spread_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
+        spread_frame.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
+
+        tk.Label(spread_frame, text="SPREAD", fg=THEME["accent"], bg=THEME["bg_card"],
+                 font=("Segoe UI Semibold", 12)).pack(anchor="w")
+
+        spread_hdr = tk.Frame(spread_frame, bg=THEME["bg_card"])
+        spread_hdr.pack(fill="x", pady=(8, 4))
+        tk.Label(spread_hdr, text="", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9), width=4, anchor="w").pack(side="left")
+        tk.Label(spread_hdr, text="Fixed", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9), width=6, anchor="w").pack(side="left")
+
+        for tenor in self.TENORS:
+            row = tk.Frame(spread_frame, bg=THEME["bg_card"])
+            row.pack(fill="x", pady=2)
+            tk.Label(row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
+                     font=("Segoe UI Semibold", 10), width=4, anchor="w").pack(side="left")
+            tk.Label(row, text="0.20", fg=THEME["text_muted"], bg=THEME["bg_card"],
+                     font=("Consolas", 10), width=6, anchor="w").pack(side="left", padx=2)
 
         # ================================================================
         # RESULTS CARD
@@ -4047,11 +4070,13 @@ class BackupNiborPage(tk.Frame):
                 # NOK rate
                 nok_rate = float(self._all_entries[f"nok_{tenor}_rate"].get().replace(",", "."))
 
-                # Calculate weighted NIBOR
+                # Calculate weighted NIBOR + spread (0.20)
+                spread = 0.20
                 if eur_implied is not None and usd_implied is not None:
                     nibor_rate = calc_funding_rate(eur_implied, usd_implied, nok_rate, weights)
                     if nibor_rate is not None:
-                        self._result_labels[tenor].configure(text=f"{nibor_rate:.4f}%",
+                        nibor_with_spread = nibor_rate + spread
+                        self._result_labels[tenor].configure(text=f"{nibor_with_spread:.4f}%",
                                                             fg=THEME["good"])
                     else:
                         self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
