@@ -5986,8 +5986,8 @@ Always uses ECP (Euro Commercial Paper) rate."""
         inner = tk.Frame(outer, bg=THEME["bg_card"], cursor="hand2")
         inner.pack(fill="both", expand=True)
 
-        # Content padding - centered
-        content = tk.Frame(inner, bg=THEME["bg_card"], padx=16, pady=14)
+        # Content padding
+        content = tk.Frame(inner, bg=THEME["bg_card"], padx=20, pady=14)
         content.pack(fill="both", expand=True)
 
         # Header row: icon + title (centered)
@@ -6002,31 +6002,38 @@ Always uses ECP (Euro Commercial Paper) rate."""
 
         # Time label (centered)
         tk.Label(content, text=data["time"], fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(pady=(0, 8))
+                 font=("Segoe UI", 10)).pack(pady=(0, 10))
 
-        # Summary lines (centered)
+        # Separator line
+        tk.Frame(content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 10))
+
+        # Summary lines container (left-aligned text)
+        lines_frame = tk.Frame(content, bg=THEME["bg_card"])
+        lines_frame.pack(fill="x")
+
         for line in data["lines"]:
             if line == "":
-                tk.Frame(content, bg=THEME["bg_card"], height=4).pack()
+                tk.Frame(lines_frame, bg=THEME["bg_card"], height=6).pack(anchor="w")
             else:
-                tk.Label(content, text=line, fg=THEME["muted"], bg=THEME["bg_card"],
-                         font=("Segoe UI", 10)).pack()
+                tk.Label(lines_frame, text=line, fg=THEME["muted"], bg=THEME["bg_card"],
+                         font=("Segoe UI", 10), anchor="w").pack(anchor="w", fill="x")
 
         # Store references
         self._card_frames[key] = {"outer": outer, "inner": inner, "content": content}
 
-        # Bind events
-        widgets = [inner, content] + list(content.winfo_children())
-        for widget in widgets:
-            widget.bind("<Enter>", lambda e, k=key: self._on_card_enter(k))
-            widget.bind("<Leave>", lambda e, k=key: self._on_card_leave(k))
-            widget.bind("<Button-1>", lambda e, k=key: self._on_card_click(k))
-
-            # Make children also have hand cursor
+        # Bind events to all widgets recursively
+        def bind_all(w):
+            w.bind("<Enter>", lambda e, k=key: self._on_card_enter(k))
+            w.bind("<Leave>", lambda e, k=key: self._on_card_leave(k))
+            w.bind("<Button-1>", lambda e, k=key: self._on_card_click(k))
             try:
-                widget.configure(cursor="hand2")
+                w.configure(cursor="hand2")
             except tk.TclError:
                 pass
+            for child in w.winfo_children():
+                bind_all(child)
+
+        bind_all(inner)
 
     def _on_card_enter(self, key):
         """Handle mouse enter on card."""
@@ -6048,7 +6055,7 @@ Always uses ECP (Euro Commercial Paper) rate."""
         root = self.winfo_toplevel()
         root.update_idletasks()
 
-        drawer_width = 480
+        drawer_width = 580
         drawer_height = root.winfo_height()
 
         # Position drawer window to the right of main window
@@ -6126,7 +6133,7 @@ Always uses ECP (Euro Commercial Paper) rate."""
         """Keep drawer window positioned next to main window."""
         if self._drawer_window and self._drawer_window.winfo_exists():
             root = self.winfo_toplevel()
-            drawer_width = 480
+            drawer_width = 580
             main_x = root.winfo_x()
             main_y = root.winfo_y()
             main_width = root.winfo_width()
