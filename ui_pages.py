@@ -2556,6 +2556,7 @@ class DashboardPage(BaseFrame):
         ]
 
         excel_cells_failed = []
+        bloomberg_failed = []  # Track cell_check failures for Bloomberg validation
 
         for tenor_key in ["1m", "2m", "3m", "6m"]:
             data = getattr(self.app, 'funding_calc_data', {}).get(tenor_key, {})
@@ -2588,7 +2589,7 @@ class DashboardPage(BaseFrame):
                                 "excel_value": excel_rounded,
                                 "decimals": decimals
                             })
-                            excel_cells_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
+                            bloomberg_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
                     except (ValueError, TypeError):
                         pass
 
@@ -2623,7 +2624,7 @@ class DashboardPage(BaseFrame):
                         excel_rounded = round(float(excel_value), decimals)
                         matched = (gui_rounded == excel_rounded)
                         if not matched:
-                            excel_cells_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
+                            bloomberg_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
                     except (ValueError, TypeError):
                         pass
 
@@ -2764,12 +2765,20 @@ class DashboardPage(BaseFrame):
             if getattr(self.app, 'funding_calc_data', {}):
                 self._update_validation_check("nibor_contrib", True, [])
 
-        # Update Excel Cells validation icon
+        # Update Excel Cells validation icon (Nore vs Swedbank + Internal vs ECP)
         if self._excel_cells_details:
             if excel_cells_failed:
                 self._update_validation_check("excel_cells", False, excel_cells_failed)
             else:
                 self._update_validation_check("excel_cells", True, [])
+
+        # Update Bloomberg validation icon (GUI vs Excel cell checks)
+        if bloomberg_failed:
+            self._update_validation_check("bloomberg", False, bloomberg_failed)
+        else:
+            # Mark OK if we have funding calc data
+            if getattr(self.app, 'funding_calc_data', {}):
+                self._update_validation_check("bloomberg", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
