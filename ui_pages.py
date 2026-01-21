@@ -2519,16 +2519,11 @@ class DashboardPage(BaseFrame):
         # ═══════════════════════════════════════════════════════════════
         nore_vs_swedbank_columns = [
             # (column, field_name, decimals)
+            # Removed: B, D, G, H, I, J
             ("A", "Tenor Date", 0),
-            ("B", "Days", 0),
             ("C", "Tenor Days", 0),
-            ("D", "EUR Weight", 4),
             ("E", "USD Weight", 4),
             ("F", "NOK Weight", 4),
-            ("G", "EUR Days", 0),
-            ("H", "USD Days", 0),
-            ("I", "NOK Days", 0),
-            ("J", "EUR Spot Days", 0),
             ("K", "NOK ECP Rate", 4),
             ("L", "NOK ECP Adj", 4),
             ("N", "EURNOK Spot", 4),
