@@ -142,6 +142,9 @@ class DashboardPage(BaseFrame):
         # Initialize match data for all tenors (ensures button state works on first update)
         self._match_data = {}
 
+        # Track loading state to avoid validation during loading
+        self._is_loading = False
+
         # ====================================================================
         # NAVIGATION REMOVED - Now in main.py (visible on ALL pages)
         # ====================================================================
@@ -2251,6 +2254,10 @@ class DashboardPage(BaseFrame):
 
     def update(self):
         """Update all dashboard elements."""
+        # Skip update if in loading state - wait for set_loading(False)
+        if getattr(self, '_is_loading', False):
+            return
+
         # Update historical mode visual indicator
         self._update_historical_mode()
 
@@ -2298,6 +2305,10 @@ class DashboardPage(BaseFrame):
     def set_loading(self, loading: bool):
         """Show loading state on dashboard cells."""
         from ui.theme import COLORS
+
+        # Track loading state
+        self._is_loading = loading
+
         for tenor_key in ["1m", "2m", "3m", "6m"]:
             cells = self.funding_cells.get(tenor_key, {})
             if loading:

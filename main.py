@@ -860,7 +860,7 @@ class NiborTerminalCTK(ctk.CTk):
 
             tk.Label(
                 self.dev_warning_banner,
-                text="⚠️  DEV MODE – Bloomberg data may be stale before 10:30. Validation results are for testing only.",
+                text="⚠️  DEV MODE",
                 fg="#92400E",  # Dark amber text
                 bg="#FEF3C7",
                 font=("Segoe UI Semibold", 11),
@@ -1624,6 +1624,11 @@ class NiborTerminalCTK(ctk.CTk):
 
         self.set_busy(False)
         self._update_status_bar()
+
+        # Clear loading state before refreshing UI - this runs validation once with final data
+        if "dashboard" in self._pages:
+            self._pages["dashboard"].set_loading(False)
+
         self.refresh_ui()
 
         # Show success toast and flash animation
