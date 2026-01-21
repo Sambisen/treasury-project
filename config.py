@@ -473,7 +473,17 @@ RULES_DB = [
     ("125", "Y30", "-", "Exakt 0.20", "Shall Always be 0,20. Fixed spread"),
     ("126", "Y31", "-", "Exakt 0.20", "Shall Always be 0,20. Fixed spread"),
     ("127", "Y32", "-", "Exakt 0.20", "Shall Always be 0,20. Fixed spread"),
-    ("128", "Y33", "-", "Exakt 0.20", "Shall Always be 0,20. Fixed spread")
+    ("128", "Y33", "-", "Exakt 0.20", "Shall Always be 0,20. Fixed spread"),
+    # EUR Internal Rates (M30-M33) must never be below EUR ECP rates (M7-M10)
+    ("129", "M30", "M7", "Minimum", "EUR 1M Internal Rate is below ECP EUR rate"),
+    ("130", "M31", "M8", "Minimum", "EUR 2M Internal Rate is below ECP EUR rate"),
+    ("131", "M32", "M9", "Minimum", "EUR 3M Internal Rate is below ECP EUR rate"),
+    ("132", "M33", "M10", "Minimum", "EUR 6M Internal Rate is below ECP EUR rate"),
+    # USD Internal Rates (R30-R33) must never be below USD ECP rates (R7-R10)
+    ("133", "R30", "R7", "Minimum", "USD 1M Internal Rate is below ECP USD rate"),
+    ("134", "R31", "R8", "Minimum", "USD 2M Internal Rate is below ECP USD rate"),
+    ("135", "R32", "R9", "Minimum", "USD 3M Internal Rate is below ECP USD rate"),
+    ("136", "R33", "R10", "Minimum", "USD 6M Internal Rate is below ECP USD rate"),
 ]
 
 RECON_MAPPING = [

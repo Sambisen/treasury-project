@@ -1772,6 +1772,10 @@ class NiborTerminalCTK(ctk.CTk):
                         val_bot = self.excel_engine.get_recon_value(ref_target)
                         ok = abs(round(float(val_top), 2) - round(float(val_bot), 2)) < 0.000001
 
+                    elif logic == "Minimum":
+                        val_bot = self.excel_engine.get_recon_value(ref_target)
+                        ok = float(val_top) >= float(val_bot)
+
                     elif "-" in logic and logic[0].isdigit():
                         a, b = logic.split("-")
                         ok = float(a) <= float(val_top) <= float(b)
@@ -2035,6 +2039,8 @@ def generate_alerts_report():
                         ok = (str(val_top).strip() == str(val_bot).strip())
                 elif logic == "Avrundat 2 dec":
                     ok = abs(round(float(val_top), 2) - round(float(val_bot), 2)) < 0.000001
+                elif logic == "Minimum":
+                    ok = float(val_top) >= float(val_bot)
                 elif "-" in logic and logic[0].isdigit():
                     a, b = logic.split("-")
                     ok = float(a) <= float(val_top) <= float(b)

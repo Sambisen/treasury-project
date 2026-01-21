@@ -43,7 +43,7 @@ def build_required_cell_set() -> set[tuple[int, int]]:
     for _, top_cell, ref_cell, logic, _ in RULES_DB:
         if top_cell and top_cell != "-":
             needed.add(coordinate_to_tuple(top_cell))
-        if ref_cell and ref_cell != "-" and logic in ("Exakt Match", "Avrundat 2 dec"):
+        if ref_cell and ref_cell != "-" and logic in ("Exakt Match", "Avrundat 2 dec", "Minimum"):
             needed.add(coordinate_to_tuple(ref_cell))
 
     for cell, _, _ in SWET_CM_RECON_MAPPING:
