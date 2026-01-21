@@ -39,7 +39,7 @@ def get_logger(name):
 # Dynamic file lookup is handled by nibor_file_manager.py
 # NOTE: This is the fallback value. The actual setting is stored in settings.json
 # and can be changed via GUI: Settings > Data & Refresh > Data Mode
-DEVELOPMENT_MODE = True  # Default to TEST mode
+DEVELOPMENT_MODE = False  # Default to PROD mode
 
 # ============================================================================
 # FIXING TIME CONFIGURATION

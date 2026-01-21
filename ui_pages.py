@@ -2004,20 +2004,55 @@ class DashboardPage(BaseFrame):
         self._update_validation_summary()
 
     def _update_validation_summary(self):
-        """Update the validation summary label with X/Y format."""
-        total = len(self.validation_checks)
-        ok_count = sum(1 for c in self.validation_checks.values() if c["status"] is True)
+        """Update the validation summary label with X/Y format counting all individual checks."""
+        # Count all individual checks from the detail lists
+        total_checks = 0
+        passed_checks = 0
 
-        if ok_count == total:
+        # Excel cells details (includes cell_check, implied_nok, internal_vs_ecp, nore_vs_swedbank)
+        if hasattr(self, '_excel_cells_details') and self._excel_cells_details:
+            for check in self._excel_cells_details:
+                total_checks += 1
+                if check.get("matched"):
+                    passed_checks += 1
+
+        # Spreads details
+        if hasattr(self, '_spreads_details') and self._spreads_details:
+            for check in self._spreads_details:
+                total_checks += 1
+                if check.get("matched"):
+                    passed_checks += 1
+
+        # Days details
+        if hasattr(self, '_days_details') and self._days_details:
+            for check in self._days_details:
+                total_checks += 1
+                if check.get("matched"):
+                    passed_checks += 1
+
+        # Weights - count from validation check alerts (1 check per weight)
+        weights_check = self.validation_checks.get("weights", {})
+        if weights_check.get("status") is not None:
+            # 3 weight checks (EUR, USD, NOK)
+            total_checks += 3
+            if weights_check.get("status") is True:
+                passed_checks += 3
+
+        # If no checks have run yet, show nothing
+        if total_checks == 0:
+            self.validation_summary_lbl.config(text="", fg=THEME["text_muted"])
+            return
+
+        if passed_checks == total_checks:
             # All passed
             self.validation_summary_lbl.config(
-                text=f"{ok_count}/{total}",
+                text=f"{passed_checks}/{total_checks}",
                 fg=THEME["success"]
             )
         else:
             # Some failed
             self.validation_summary_lbl.config(
-                text=f"{ok_count}/{total}",
+                text=f"{passed_checks}/{total_checks}",
                 fg=THEME["danger"]
             )
 

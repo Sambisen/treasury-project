@@ -28,7 +28,7 @@ def _get_development_mode() -> bool:
     """
     try:
         from settings import get_setting
-        return get_setting("development_mode", True)  # Default to TEST mode
+        return get_setting("development_mode", False)  # Default to PROD mode
     except ImportError:
         # Fallback to config if settings not available
         from config import DEVELOPMENT_MODE
