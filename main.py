@@ -667,8 +667,9 @@ class NiborTerminalCTK(ctk.CTk):
         self.bbg_ok = False
         self.excel_ok = False
 
-        # Update UI to show empty state
-        self.refresh_ui()
+        # Clear the NIBOR rates table - show empty state
+        if "dashboard" in self._pages:
+            self._pages["dashboard"].set_loading(True)
 
         # Show toast - inform user to click Calculate
         self.toast.info(f"Fixing time: {new_value} CET – Press Calculate to load data")
