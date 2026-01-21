@@ -947,6 +947,8 @@ class DashboardPage(BaseFrame):
             self._show_excel_cells_table(popup)
         elif check_id == "bloomberg" and hasattr(self, '_excel_cells_details'):
             self._show_bloomberg_table(popup)
+        elif check_id == "spreads" and hasattr(self, '_spreads_details'):
+            self._show_spreads_table(popup)
         else:
             # Standard alerts list for other checks
             alerts = check.get("alerts", [])
@@ -1731,6 +1733,112 @@ class DashboardPage(BaseFrame):
             except Exception:
                 pass
         popup.bind("<Destroy>", on_popup_destroy)
+
+    def _show_spreads_table(self, popup):
+        """Show Spreads validation - check if spreads are within allowed intervals."""
+        content = tk.Frame(popup, bg=THEME["bg_panel"])
+        content.pack(fill="both", expand=True, padx=24, pady=12)
+
+        if not hasattr(self, '_spreads_details') or not self._spreads_details:
+            tk.Label(content,
+                    text="No spread data available",
+                    font=("Segoe UI", 12),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(pady=30)
+            return
+
+        spreads_failed = [s for s in self._spreads_details if not s.get("matched")]
+        spreads_passed = [s for s in self._spreads_details if s.get("matched")]
+
+        # Check if all passed
+        all_passed = len(spreads_failed) == 0 and len(spreads_passed) > 0
+
+        if all_passed:
+            # Show simple success message - no details
+            success_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            success_frame.pack(fill="x", pady=(0, 16))
+
+            inner = tk.Frame(success_frame, bg=THEME["bg_card"])
+            inner.pack(fill="x", padx=20, pady=20)
+
+            tk.Label(inner,
+                    text="✔",
+                    font=("Segoe UI", 16),
+                    fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(0, 12))
+
+            tk.Label(inner,
+                    text="All spreads are within the allowed interval",
+                    font=("Segoe UI", 12),
+                    fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left")
+
+            # Show interval info
+            info_frame = tk.Frame(content, bg=THEME["bg_panel"])
+            info_frame.pack(fill="x", pady=(10, 0))
+
+            tk.Label(info_frame,
+                    text="Intervals:",
+                    font=("Segoe UI", 10),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w")
+
+            tk.Label(info_frame,
+                    text="• 1W (Y6): 0.10 - 0.20",
+                    font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(anchor="w", padx=(10, 0))
+
+            tk.Label(info_frame,
+                    text="• 1M-6M (Y7-Y10): 0.15 - 0.25",
+                    font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(anchor="w", padx=(10, 0))
+        else:
+            # Show failed spreads with details
+            FAIL_HEADER_BG = "#F5F5F5"
+            FAIL_HEADER_FG = "#B71C1C"
+
+            tk.Label(content,
+                    text="Spreads Outside Allowed Interval",
+                    font=("Segoe UI", 11),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 8))
+
+            # Table for failed spreads
+            table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            table.pack(fill="x")
+
+            # Header
+            header = tk.Frame(table, bg=FAIL_HEADER_BG)
+            header.pack(fill="x")
+
+            headers = [("Tenor", 8), ("Cell", 6), ("Value", 10), ("Interval", 14), ("Status", 8)]
+            for text, width in headers:
+                tk.Label(header, text=text, font=("Segoe UI", 9),
+                        fg=THEME["text_muted"], bg=FAIL_HEADER_BG,
+                        width=width, anchor="center").pack(side="left", padx=2, pady=6)
+
+            tk.Frame(table, bg=THEME["border"], height=1).pack(fill="x")
+
+            # Rows for failed spreads
+            for i, spread in enumerate(spreads_failed):
+                row_bg = THEME["bg_card"] if i % 2 == 0 else THEME["row_odd"]
+                row = tk.Frame(table, bg=row_bg)
+                row.pack(fill="x")
+
+                tenor = spread.get("tenor", "")
+                cell = spread.get("cell", "")
+                value = spread.get("value")
+                min_val = spread.get("min", 0)
+                max_val = spread.get("max", 0)
+
+                value_str = f"{value:.4f}" if value is not None else "—"
+                interval_str = f"{min_val:.2f} - {max_val:.2f}"
+
+                tk.Label(row, text=tenor, font=("Segoe UI", 9),
+                        fg=THEME["text"], bg=row_bg, width=8, anchor="center").pack(side="left", padx=2, pady=4)
+                tk.Label(row, text=cell, font=("Consolas", 9),
+                        fg=THEME["text_muted"], bg=row_bg, width=6, anchor="center").pack(side="left", padx=2, pady=4)
+                tk.Label(row, text=value_str, font=("Consolas", 9),
+                        fg=FAIL_HEADER_FG, bg=row_bg, width=10, anchor="center").pack(side="left", padx=2, pady=4)
+                tk.Label(row, text=interval_str, font=("Consolas", 9),
+                        fg=THEME["text"], bg=row_bg, width=14, anchor="center").pack(side="left", padx=2, pady=4)
+                tk.Label(row, text="Fail", font=("Segoe UI", 9),
+                        fg=FAIL_HEADER_FG, bg=row_bg, width=8, anchor="center").pack(side="left", padx=2, pady=4)
 
     def _update_validation_check(self, check_id, status, alerts=None):
         """Update a validation check badge status.
@@ -2916,6 +3024,52 @@ class DashboardPage(BaseFrame):
             # Mark OK if we have funding calc data
             if getattr(self.app, 'funding_calc_data', {}):
                 self._update_validation_check("bloomberg", True, [])
+
+        # ═══════════════════════════════════════════════════════════════
+        # Spreads validation - check Y6 (0.10-0.20) and Y7-Y10 (0.15-0.25)
+        # ═══════════════════════════════════════════════════════════════
+        self._spreads_details = []
+        spreads_failed = []
+
+        spread_checks = [
+            # (cell, tenor, min_val, max_val)
+            ("Y6", "1W", 0.10, 0.20),
+            ("Y7", "1M", 0.15, 0.25),
+            ("Y8", "2M", 0.15, 0.25),
+            ("Y9", "3M", 0.15, 0.25),
+            ("Y10", "6M", 0.15, 0.25),
+        ]
+
+        for cell, tenor, min_val, max_val in spread_checks:
+            spread_val = read_excel_cell(cell)
+            matched = False
+            spread_rounded = None
+
+            if spread_val is not None:
+                try:
+                    spread_rounded = round(float(spread_val), 4)
+                    matched = min_val <= spread_rounded <= max_val
+                    if not matched:
+                        spreads_failed.append(f"{tenor} ({cell}): {spread_rounded:.4f} not in [{min_val:.2f}-{max_val:.2f}]")
+                except (ValueError, TypeError):
+                    pass
+
+            self._spreads_details.append({
+                "tenor": tenor,
+                "cell": cell,
+                "value": spread_rounded,
+                "min": min_val,
+                "max": max_val,
+                "matched": matched
+            })
+
+        # Update Spreads validation icon
+        if spreads_failed:
+            self._update_validation_check("spreads", False, spreads_failed)
+        else:
+            # Only mark OK if we have Excel data
+            if hasattr(self.app, 'excel_engine') and self.app.excel_engine:
+                self._update_validation_check("spreads", True, [])
 
     def _on_model_change(self):
         """Called when calculation model selection changes."""
