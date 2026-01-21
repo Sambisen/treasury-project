@@ -1755,39 +1755,62 @@ class DashboardPage(BaseFrame):
         if all_passed:
             # Show simple success message - no details
             success_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
-            success_frame.pack(fill="x", pady=(0, 16))
+            success_frame.pack(pady=(0, 16))
 
             inner = tk.Frame(success_frame, bg=THEME["bg_card"])
-            inner.pack(fill="x", padx=20, pady=20)
+            inner.pack(padx=20, pady=20)
 
             tk.Label(inner,
-                    text="✔",
-                    font=("Segoe UI", 16),
-                    fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(0, 12))
-
-            tk.Label(inner,
-                    text="All spreads are within the allowed interval",
+                    text="✔  All spreads are within the allowed interval",
                     font=("Segoe UI", 12),
-                    fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left")
+                    fg="#1B5E20", bg=THEME["bg_card"]).pack()
 
-            # Show interval info
-            info_frame = tk.Frame(content, bg=THEME["bg_panel"])
-            info_frame.pack(fill="x", pady=(10, 0))
+            # Centered table with interval info
+            table_frame = tk.Frame(content, bg=THEME["bg_panel"])
+            table_frame.pack(pady=(10, 0))
 
-            tk.Label(info_frame,
-                    text="Intervals:",
-                    font=("Segoe UI", 10),
-                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w")
+            # Table
+            table = tk.Frame(table_frame, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+            table.pack()
 
-            tk.Label(info_frame,
-                    text="• 1W (Y6): 0.10 - 0.20",
-                    font=("Segoe UI", 9),
-                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(anchor="w", padx=(10, 0))
+            # Header row
+            header = tk.Frame(table, bg=THEME["table_header_bg"])
+            header.pack(fill="x")
 
-            tk.Label(info_frame,
-                    text="• 1M-6M (Y7-Y10): 0.15 - 0.25",
-                    font=("Segoe UI", 9),
-                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(anchor="w", padx=(10, 0))
+            tk.Label(header, text="Spread Swedbank model", font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["table_header_bg"],
+                    width=22, anchor="w").pack(side="left", padx=8, pady=6)
+            tk.Label(header, text="Min Max", font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["table_header_bg"],
+                    width=12, anchor="center").pack(side="left", padx=8, pady=6)
+
+            tk.Frame(table, bg=THEME["border"], height=1).pack(fill="x")
+
+            # Row 1: 1W
+            row1 = tk.Frame(table, bg=THEME["bg_card"])
+            row1.pack(fill="x")
+            tk.Label(row1, text="1W", font=("Segoe UI", 10),
+                    fg=THEME["text"], bg=THEME["bg_card"],
+                    width=8, anchor="w").pack(side="left", padx=8, pady=6)
+            tk.Label(row1, text="15bp +/- 5bp", font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["bg_card"],
+                    width=14, anchor="w").pack(side="left", pady=6)
+            tk.Label(row1, text="0,10 - 0,20", font=("Consolas", 10),
+                    fg=THEME["text"], bg=THEME["bg_card"],
+                    width=12, anchor="center").pack(side="left", padx=8, pady=6)
+
+            # Row 2: 1-6 month
+            row2 = tk.Frame(table, bg=THEME["row_odd"])
+            row2.pack(fill="x")
+            tk.Label(row2, text="1-6 month", font=("Segoe UI", 10),
+                    fg=THEME["text"], bg=THEME["row_odd"],
+                    width=8, anchor="w").pack(side="left", padx=8, pady=6)
+            tk.Label(row2, text="20bp +/- 5bp", font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=THEME["row_odd"],
+                    width=14, anchor="w").pack(side="left", pady=6)
+            tk.Label(row2, text="0,15 - 0,25", font=("Consolas", 10),
+                    fg=THEME["text"], bg=THEME["row_odd"],
+                    width=12, anchor="center").pack(side="left", padx=8, pady=6)
         else:
             # Show failed spreads with details
             FAIL_HEADER_BG = "#F5F5F5"
