@@ -4650,10 +4650,13 @@ class NiborDaysPage(tk.Frame):
         super().__init__(master, bg=THEME["bg_panel"])
         self.app = app
         self.pad = CURRENT_MODE["pad"]
-        self._all_data = None  # Store all data for filtering
+        self._all_data = None
+        self._today_item = None
         self._build_ui()
 
     def _build_ui(self):
+        from tkinter import ttk
+
         # Header
         header = tk.Frame(self, bg=THEME["bg_panel"])
         header.pack(fill="x", padx=self.pad, pady=(self.pad, 16))
@@ -4661,7 +4664,6 @@ class NiborDaysPage(tk.Frame):
         tk.Label(header, text="NIBOR DAYS", fg=THEME["text"], bg=THEME["bg_panel"],
                  font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack(side="left")
 
-        # Buttons on right
         btn_frame = tk.Frame(header, bg=THEME["bg_panel"])
         btn_frame.pack(side="right")
 
@@ -4690,86 +4692,103 @@ class NiborDaysPage(tk.Frame):
         tk.Label(search_frame, text="(YYYY-MM-DD)", fg=THEME["text_muted"], bg=THEME["bg_panel"],
                  font=("Segoe UI", 9)).pack(side="left", padx=(8, 0))
 
-        # Clear button
         self.clear_btn = tk.Button(search_frame, text="Clear", command=self._clear_search,
                                    font=("Segoe UI", 9), bg=THEME["bg_card"], fg=THEME["text"],
                                    relief="flat", cursor="hand2", padx=8)
         self.clear_btn.pack(side="left", padx=(8, 0))
 
-        # Info label
         self.info_label = tk.Label(search_frame, text="", fg=THEME["text_muted"], bg=THEME["bg_panel"],
                                    font=("Segoe UI", CURRENT_MODE["small"]))
         self.info_label.pack(side="right")
 
-        # Table container with scrollbar
-        table_container = tk.Frame(self, bg=THEME["bg_card"], highlightthickness=1,
-                                   highlightbackground=THEME["border"])
+        # Treeview with styling
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("NiborDays.Treeview",
+                        background=THEME["bg_card"],
+                        foreground=THEME["text"],
+                        fieldbackground=THEME["bg_card"],
+                        rowheight=28,
+                        font=("Segoe UI", 10))
+        style.configure("NiborDays.Treeview.Heading",
+                        background=THEME["table_header_bg"],
+                        foreground=THEME["text_muted"],
+                        font=("Segoe UI Semibold", 10))
+        style.map("NiborDays.Treeview",
+                  background=[("selected", THEME["accent"])],
+                  foreground=[("selected", "white")])
+
+        # Table container
+        table_container = tk.Frame(self, bg=THEME["bg_card"])
         table_container.pack(fill="both", expand=True, padx=self.pad, pady=(0, self.pad))
 
-        # Create canvas and scrollbar for the table
-        self.canvas = tk.Canvas(table_container, bg=THEME["bg_card"], highlightthickness=0)
-        scrollbar = tk.Scrollbar(table_container, orient="vertical", command=self.canvas.yview)
-        self.table_frame = tk.Frame(self.canvas, bg=THEME["bg_card"])
+        # Treeview columns
+        self.columns = ("date", "settlement", "1w", "1m", "2m", "3m", "6m", "indicator")
+        self.tree = ttk.Treeview(table_container, columns=self.columns, show="headings",
+                                 style="NiborDays.Treeview", selectmode="browse")
 
-        self.table_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.table_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=scrollbar.set)
+        # Configure columns with centering
+        col_config = [
+            ("date", "Fixing Date", 120),
+            ("settlement", "Settlement", 120),
+            ("1w", "1W", 70),
+            ("1m", "1M", 70),
+            ("2m", "2M", 70),
+            ("3m", "3M", 70),
+            ("6m", "6M", 70),
+            ("indicator", "", 80),
+        ]
 
-        def on_canvas_configure(e):
-            self.canvas.itemconfig(self.canvas_window, width=e.width)
-        self.canvas.bind("<Configure>", on_canvas_configure)
+        for col_id, heading, width in col_config:
+            self.tree.heading(col_id, text=heading, anchor="center")
+            self.tree.column(col_id, width=width, anchor="center", minwidth=width)
 
-        self.canvas.pack(side="left", fill="both", expand=True)
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(table_container, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+        self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Mousewheel scrolling
-        def on_mousewheel(e):
-            self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        self.canvas.bind_all("<MouseWheel>", on_mousewheel)
+        # Tag for today's row (orange)
+        self.tree.tag_configure("today", background="#FFF3E0", foreground="#E65100", font=("Segoe UI Semibold", 10))
+        self.tree.tag_configure("odd", background=THEME["row_odd"])
+        self.tree.tag_configure("even", background=THEME["bg_card"])
 
     def _clear_search(self):
-        """Clear the search field."""
         self.search_var.set("")
         self.search_entry.focus_set()
 
     def _scroll_to_today(self):
-        """Scroll to today's row."""
         self.search_var.set("")
         self._render_data(scroll_to_today=True)
 
     def _filter_data(self):
-        """Filter data based on search query."""
         self._render_data()
 
     def update(self):
-        """Refresh the Nibor Days data."""
         if not hasattr(self.app, 'excel_engine') or not self.app.excel_engine:
             self._all_data = None
             self._render_data()
             return
-
-        # Get future days data
         self._all_data = self.app.excel_engine.get_future_days_data(limit_rows=300)
         self._render_data(scroll_to_today=True)
 
     def _render_data(self, scroll_to_today=False):
-        """Render the data table with optional filtering."""
-        # Clear existing rows
-        for widget in self.table_frame.winfo_children():
-            widget.destroy()
+        # Clear existing data
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        self._today_item = None
 
         if self._all_data is None or self._all_data.empty:
-            tk.Label(self.table_frame, text="No Nibor Days data available",
-                    font=("Segoe UI", 12), fg=THEME["text_muted"],
-                    bg=THEME["bg_card"]).pack(pady=40)
-            self.info_label.config(text="")
+            self.info_label.config(text="No data")
             return
 
-        # Get today's date for highlighting
         from datetime import datetime
         today_str = datetime.now().strftime("%Y-%m-%d")
 
-        # Filter data if search is active
+        # Filter
         search_query = self.search_var.get().strip()
         if search_query:
             filtered_df = self._all_data[
@@ -4779,115 +4798,55 @@ class NiborDaysPage(tk.Frame):
             filtered_df = self._all_data
 
         if filtered_df.empty:
-            tk.Label(self.table_frame, text=f"No results for '{search_query}'",
-                    font=("Segoe UI", 12), fg=THEME["text_muted"],
-                    bg=THEME["bg_card"]).pack(pady=40)
-            self.info_label.config(text="0 results")
+            self.info_label.config(text=f"No results for '{search_query}'")
             return
 
-        # Update info label
+        # Update info
         total = len(self._all_data)
         showing = len(filtered_df)
-        if search_query:
-            self.info_label.config(text=f"Showing {showing} of {total} dates")
-        else:
-            self.info_label.config(text=f"{total} fixing dates loaded")
+        self.info_label.config(text=f"Showing {showing} of {total}" if search_query else f"{total} dates")
 
-        # Column configuration with fixed widths for centering
-        COL_WIDTHS = {
-            "date": 14,
-            "settlement": 14,
-            "1w_Days": 8,
-            "1m_Days": 8,
-            "2m_Days": 8,
-            "3m_Days": 8,
-            "6m_Days": 8,
-        }
-
-        columns = []
-        if "date" in filtered_df.columns:
-            columns.append(("Fixing Date", "date"))
-        if "settlement" in filtered_df.columns:
-            columns.append(("Settlement", "settlement"))
-        for tenor in ["1w", "1m", "2m", "3m", "6m"]:
-            days_col = f"{tenor}_Days"
-            if days_col in filtered_df.columns:
-                columns.append((tenor.upper(), days_col))
-
-        if not columns:
-            tk.Label(self.table_frame, text="No valid columns found",
-                    font=("Segoe UI", 12), fg=THEME["text_muted"],
-                    bg=THEME["bg_card"]).pack(pady=40)
-            return
-
-        # Create header row
-        header_row = tk.Frame(self.table_frame, bg=THEME["table_header_bg"])
-        header_row.pack(fill="x")
-
-        for header_text, col_key in columns:
-            width = COL_WIDTHS.get(col_key, 10)
-            tk.Label(header_row, text=header_text, font=("Segoe UI Semibold", 10),
-                    fg=THEME["text_muted"], bg=THEME["table_header_bg"],
-                    width=width, anchor="center").pack(side="left", padx=2, pady=10)
-
-        tk.Frame(self.table_frame, bg=THEME["border"], height=1).pack(fill="x")
-
-        # Track today's row for scrolling
-        today_row_widget = None
-        row_count = 0
-
-        # Data rows
+        # Insert rows - this is fast with Treeview
         for idx, (_, row) in enumerate(filtered_df.iterrows()):
             row_date = str(row.get("date", ""))
             is_today = row_date == today_str
 
-            # Row styling
+            # Format values
+            date_val = str(row.get("date", "")) if row.get("date") else "—"
+            settlement_val = str(row.get("settlement", "")) if row.get("settlement") else "—"
+
+            def fmt_days(val):
+                try:
+                    return str(int(float(val))) if val and str(val) != "nan" else "—"
+                except:
+                    return "—"
+
+            values = (
+                date_val,
+                settlement_val,
+                fmt_days(row.get("1w_Days")),
+                fmt_days(row.get("1m_Days")),
+                fmt_days(row.get("2m_Days")),
+                fmt_days(row.get("3m_Days")),
+                fmt_days(row.get("6m_Days")),
+                "◀ TODAY" if is_today else ""
+            )
+
+            # Determine tag
             if is_today:
-                row_bg = "#FFF3E0"  # Light orange
-                text_color = "#E65100"  # Dark orange
-                font_style = ("Segoe UI Semibold", 10)
+                tag = "today"
             else:
-                row_bg = THEME["bg_card"] if idx % 2 == 0 else THEME["row_odd"]
-                text_color = THEME["text"]
-                font_style = ("Segoe UI", 10)
+                tag = "odd" if idx % 2 == 1 else "even"
 
-            data_row = tk.Frame(self.table_frame, bg=row_bg)
-            data_row.pack(fill="x")
+            item_id = self.tree.insert("", "end", values=values, tags=(tag,))
 
             if is_today:
-                today_row_widget = data_row
-                row_count = idx
+                self._today_item = item_id
 
-            for header_text, col_key in columns:
-                width = COL_WIDTHS.get(col_key, 10)
-                value = row.get(col_key, "")
-
-                if col_key in ["date", "settlement"]:
-                    display_val = str(value) if value else "—"
-                else:
-                    try:
-                        display_val = str(int(float(value))) if value and str(value) != "nan" else "—"
-                    except (ValueError, TypeError):
-                        display_val = "—"
-
-                tk.Label(data_row, text=display_val, font=font_style,
-                        fg=text_color, bg=row_bg,
-                        width=width, anchor="center").pack(side="left", padx=2, pady=8)
-
-            # Today indicator
-            if is_today:
-                tk.Label(data_row, text="◀ TODAY",
-                        font=("Segoe UI Semibold", 9),
-                        fg="#E65100", bg=row_bg).pack(side="left", padx=(12, 0))
-
-        # Scroll to today if requested
-        if scroll_to_today and today_row_widget and not search_query:
-            self.table_frame.update_idletasks()
-            # Calculate scroll position
-            total_rows = len(filtered_df)
-            if total_rows > 0:
-                scroll_pos = max(0, (row_count - 2) / total_rows)  # Show 2 rows above today
-                self.canvas.yview_moveto(scroll_pos)
+        # Scroll to today
+        if scroll_to_today and self._today_item and not search_query:
+            self.tree.see(self._today_item)
+            self.tree.selection_set(self._today_item)
 
 
 class WeightsPage(tk.Frame):
