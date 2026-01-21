@@ -2519,11 +2519,8 @@ class DashboardPage(BaseFrame):
         # ═══════════════════════════════════════════════════════════════
         nore_vs_swedbank_columns = [
             # (column, field_name, decimals)
-            # Removed: B, D, G, H, I, J
-            ("A", "Tenor Date", 0),
+            # Removed: A, B, D, E, F, G, H, I, J, AB, AC (text or not needed)
             ("C", "Tenor Days", 0),
-            ("E", "USD Weight", 4),
-            ("F", "NOK Weight", 4),
             ("K", "NOK ECP Rate", 4),
             ("L", "NOK ECP Adj", 4),
             ("N", "EURNOK Spot", 4),
@@ -2533,8 +2530,6 @@ class DashboardPage(BaseFrame):
             ("T", "USDNOK Pips", 2),
             ("V", "USD Implied", 4),
             ("W", "Weighted Avg", 4),
-            ("AB", "NIBOR Calc", 4),
-            ("AC", "NIBOR Final", 4),
         ]
 
         tenor_rows = [
