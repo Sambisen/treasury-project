@@ -327,4 +327,5 @@ def main(page: ft.Page):
 
 # Run the app
 if __name__ == "__main__":
-    ft.app(target=main)
+    # Use web mode to avoid group policy blocking desktop client
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=8550)
