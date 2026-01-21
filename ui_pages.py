@@ -1023,43 +1023,154 @@ class DashboardPage(BaseFrame):
         popup.focus_set()
 
     def _show_nibor_contrib_table(self, popup):
-        """Show elegant table with GUI vs Excel comparison for NIBOR Contrib."""
+        """Show NIBOR Contribution validation with Input Diffs and Implied NOK sections."""
         content = tk.Frame(popup, bg=THEME["bg_panel"])
         content.pack(fill="both", expand=True, padx=24, pady=12)
 
-        # Title
-        tk.Label(content,
-                text=f"Differences ({len(self._recon_diff_details)})",
-                font=("Segoe UI", 12),
-                fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 12))
+        # Get implied NOK checks from excel_cells_details
+        implied_nok_checks = []
+        if hasattr(self, '_excel_cells_details'):
+            implied_nok_checks = [c for c in self._excel_cells_details if c.get("check_type") == "implied_nok"]
 
-        # Table frame
-        table = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
-        table.pack(fill="both", expand=True)
+        implied_failed = [c for c in implied_nok_checks if not c.get("matched")]
+        implied_passed = [c for c in implied_nok_checks if c.get("matched")]
 
-        # Configure grid columns
-        table.columnconfigure(0, weight=0, minsize=70)   # Tenor
-        table.columnconfigure(1, weight=1, minsize=120)  # Component
-        table.columnconfigure(2, weight=0, minsize=100)  # GUI
-        table.columnconfigure(3, weight=0, minsize=100)  # Excel
-        table.columnconfigure(4, weight=0, minsize=90)   # Diff
+        # Professional colors
+        FAIL_HEADER_BG = "#F5F5F5"
+        FAIL_HEADER_FG = "#B71C1C"
+        FAIL_BORDER = "#E0E0E0"
+        PASS_HEADER_BG = "#F5F5F5"
+        PASS_HEADER_FG = "#1B5E20"
+        PASS_BORDER = "#E0E0E0"
 
-        # Header row
-        headers = [("Tenor", "center"), ("Component", "w"), ("GUI Value", "e"), ("Excel Value", "e"), ("Diff", "e")]
-        for col, (text, anchor) in enumerate(headers):
-            tk.Label(table,
-                    text=text,
+        # Summary bar
+        total_input_diffs = len(self._recon_diff_details) if self._recon_diff_details else 0
+        total_implied_failed = len(implied_failed)
+        total_implied_passed = len(implied_passed)
+        total_issues = total_input_diffs + total_implied_failed
+
+        summary_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
+        summary_frame.pack(fill="x", pady=(0, 16))
+
+        summary_inner = tk.Frame(summary_frame, bg=THEME["bg_card"])
+        summary_inner.pack(fill="x", padx=16, pady=12)
+
+        tk.Label(summary_inner,
+                text=f"Total: {total_input_diffs + len(implied_nok_checks)} checks",
+                font=("Segoe UI", 11),
+                fg=THEME["text"], bg=THEME["bg_card"]).pack(side="left")
+
+        if total_issues > 0:
+            tk.Label(summary_inner,
+                    text=f"{total_issues} failed",
                     font=("Segoe UI", 11),
-                    fg=THEME["text_muted"],
-                    bg=THEME["table_header_bg"],
-                    anchor=anchor,
-                    padx=14, pady=10).grid(row=0, column=col, sticky="ew")
+                    fg="#B71C1C", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
-        # Data rows
-        for i, diff in enumerate(self._recon_diff_details):
-            row_bg = THEME["bg_card"] if i % 2 == 0 else THEME["row_odd"]
-            row_idx = i + 1
+        tk.Label(summary_inner,
+                text=f"{total_implied_passed} passed",
+                font=("Segoe UI", 11),
+                fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
+        # Scrollable container
+        canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
+        scrollbar = tk.Scrollbar(content, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=THEME["bg_panel"])
+
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        def on_canvas_configure(e):
+            canvas.itemconfig(canvas_window, width=e.width)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Mousewheel scrolling
+        def on_mousewheel(e):
+            canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        # Collapsible state - ALL collapsed by default
+        self._nibor_contrib_expanded = {
+            "input_diffs": False, "implied_failed": False, "implied_passed": False
+        }
+
+        # Column widths for grid alignment
+        COL_WIDTHS = [5, 4, 14, 8, 10, 2, 10, 9]
+
+        # Helper to create table header
+        def create_table_header(parent, columns):
+            header_row = tk.Frame(parent, bg=THEME["table_header_bg"])
+            header_row.pack(fill="x")
+            for col, (text, width) in enumerate(zip(columns, COL_WIDTHS)):
+                tk.Label(header_row, text=text, font=("Segoe UI", 9),
+                        fg=THEME["text_muted"], bg=THEME["table_header_bg"],
+                        width=width, anchor="center").pack(side="left", padx=2, pady=5)
+            tk.Frame(parent, bg=THEME["border"], height=1).pack(fill="x")
+
+        # Helper to create a check row
+        def create_check_row(parent, check, row_idx):
+            field = check.get("field", "")
+            tenor = check.get("tenor", "")
+            cell = check.get("cell", "")
+            gui_val = check.get("gui_value")
+            excel_val = check.get("excel_value")
+            decimals = check.get("decimals", 4)
+            matched = check.get("matched", False)
+
+            row_bg = THEME["bg_card"] if row_idx % 2 == 0 else THEME["row_odd"]
+            check_row = tk.Frame(parent, bg=row_bg)
+            check_row.pack(fill="x")
+
+            # Status
+            status_text = "OK" if matched else "Fail"
+            status_color = "#1B5E20" if matched else "#B71C1C"
+            tk.Label(check_row, text=status_text, font=("Segoe UI", 9),
+                    fg=status_color, bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Tenor
+            tk.Label(check_row, text=tenor, font=("Segoe UI", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[1], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Field name
+            tk.Label(check_row, text=field, font=("Segoe UI", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[2], anchor="w").pack(side="left", padx=2, pady=3)
+
+            # Cell reference
+            tk.Label(check_row, text=cell, font=("Consolas", 9),
+                    fg=THEME["text_muted"], bg=row_bg, width=COL_WIDTHS[3], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # GUI value
+            val1_str = f"{gui_val:.{decimals}f}" if gui_val is not None else "—"
+            tk.Label(check_row, text=val1_str, font=("Consolas", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[4], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Comparison indicator
+            cmp_text = "=" if matched else "!="
+            cmp_color = "#1B5E20" if matched else "#B71C1C"
+            tk.Label(check_row, text=cmp_text, font=("Consolas", 9),
+                    fg=cmp_color, bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Excel value
+            val2_str = f"{excel_val:.{decimals}f}" if excel_val is not None else "—"
+            tk.Label(check_row, text=val2_str, font=("Consolas", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[6], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Difference
+            diff_str = ""
+            if not matched and gui_val is not None and excel_val is not None:
+                try:
+                    diff = float(gui_val) - float(excel_val)
+                    diff_str = f"{diff:+.{decimals}f}"
+                except (ValueError, TypeError):
+                    pass
+            tk.Label(check_row, text=diff_str, font=("Consolas", 9),
+                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
+
+        # Helper to create input diff row (from _recon_diff_details)
+        def create_input_diff_row(parent, diff, row_idx):
             tenor = diff["tenor"]
             component = diff["component"]
             gui_val = diff["gui_value"]
@@ -1067,50 +1178,151 @@ class DashboardPage(BaseFrame):
             decimals = diff["decimals"]
             diff_val = gui_val - excel_val
 
+            row_bg = THEME["bg_card"] if row_idx % 2 == 0 else THEME["row_odd"]
+            check_row = tk.Frame(parent, bg=row_bg)
+            check_row.pack(fill="x")
+
+            # Status
+            tk.Label(check_row, text="Fail", font=("Segoe UI", 9),
+                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=2, pady=3)
+
             # Tenor
-            tk.Label(table,
-                    text=tenor,
-                    font=("Segoe UI", 11),
-                    fg=THEME["text"],
-                    bg=row_bg,
-                    anchor="center",
-                    padx=14, pady=8).grid(row=row_idx, column=0, sticky="ew")
+            tk.Label(check_row, text=tenor, font=("Segoe UI", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[1], anchor="center").pack(side="left", padx=2, pady=3)
 
             # Component
-            tk.Label(table,
-                    text=component,
-                    font=("Segoe UI", 11),
-                    fg=THEME["text"],
-                    bg=row_bg,
-                    anchor="w",
-                    padx=14, pady=8).grid(row=row_idx, column=1, sticky="ew")
+            tk.Label(check_row, text=component, font=("Segoe UI", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[2], anchor="w").pack(side="left", padx=2, pady=3)
+
+            # Cell (empty for input diffs)
+            tk.Label(check_row, text="", font=("Consolas", 9),
+                    fg=THEME["text_muted"], bg=row_bg, width=COL_WIDTHS[3], anchor="center").pack(side="left", padx=2, pady=3)
 
             # GUI value
-            tk.Label(table,
-                    text=f"{gui_val:.{decimals}f}",
-                    font=("Consolas", 11),
-                    fg=THEME["text"],
-                    bg=row_bg,
-                    anchor="e",
-                    padx=14, pady=8).grid(row=row_idx, column=2, sticky="ew")
+            tk.Label(check_row, text=f"{gui_val:.{decimals}f}", font=("Consolas", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[4], anchor="center").pack(side="left", padx=2, pady=3)
+
+            # Comparison
+            tk.Label(check_row, text="!=", font=("Consolas", 9),
+                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=2, pady=3)
 
             # Excel value
-            tk.Label(table,
-                    text=f"{excel_val:.{decimals}f}",
-                    font=("Consolas", 11),
-                    fg=THEME["text"],
-                    bg=row_bg,
-                    anchor="e",
-                    padx=14, pady=8).grid(row=row_idx, column=3, sticky="ew")
+            tk.Label(check_row, text=f"{excel_val:.{decimals}f}", font=("Consolas", 9),
+                    fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[6], anchor="center").pack(side="left", padx=2, pady=3)
 
             # Diff
-            tk.Label(table,
-                    text=f"{diff_val:+.{decimals}f}",
-                    font=("Consolas", 11),
-                    fg=THEME["danger"],
-                    bg=row_bg,
-                    anchor="e",
-                    padx=14, pady=8).grid(row=row_idx, column=4, sticky="ew")
+            tk.Label(check_row, text=f"{diff_val:+.{decimals}f}", font=("Consolas", 9),
+                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
+
+        # Helper to create collapsible section
+        def create_section(parent, title, items, section_key, header_bg, header_fg, border_color,
+                          columns, row_creator, initially_expanded=False):
+            if not items:
+                return
+
+            section = tk.Frame(parent, bg=THEME["bg_panel"])
+            section.pack(fill="x", pady=(0, 6))
+
+            # Header
+            header = tk.Frame(section, bg=header_bg, cursor="hand2", highlightthickness=1, highlightbackground=border_color)
+            header.pack(fill="x")
+
+            expand_lbl = tk.Label(header, text="▼" if initially_expanded else "▶",
+                                 font=("Segoe UI", 9), fg=header_fg, bg=header_bg)
+            expand_lbl.pack(side="left", padx=(12, 4), pady=6)
+
+            tk.Label(header, text=title, font=("Segoe UI", 10),
+                    fg=header_fg, bg=header_bg).pack(side="left", pady=6)
+
+            count_text = f"({len(items)})"
+            tk.Label(header, text=count_text, font=("Segoe UI", 9),
+                    fg=THEME["text_muted"], bg=header_bg).pack(side="right", padx=12, pady=6)
+
+            # Container
+            container = tk.Frame(section, bg=THEME["bg_card"],
+                                highlightthickness=1, highlightbackground=border_color)
+
+            # Table header
+            create_table_header(container, columns)
+
+            # Rows
+            for i, item in enumerate(items):
+                row_creator(container, item, i)
+
+            if initially_expanded:
+                container.pack(fill="x")
+
+            self._nibor_contrib_expanded[section_key] = initially_expanded
+
+            # Toggle function
+            def toggle(e=None):
+                self._nibor_contrib_expanded[section_key] = not self._nibor_contrib_expanded[section_key]
+                if self._nibor_contrib_expanded[section_key]:
+                    container.pack(fill="x")
+                    expand_lbl.config(text="▼")
+                else:
+                    container.pack_forget()
+                    expand_lbl.config(text="▶")
+
+            header.bind("<Button-1>", toggle)
+            for child in header.winfo_children():
+                child.bind("<Button-1>", toggle)
+
+        # Column definitions
+        implied_columns = ["Status", "Tenor", "Field", "Cell", "GUI", "", "Excel", "Diff"]
+        input_columns = ["Status", "Tenor", "Component", "", "GUI", "", "Excel", "Diff"]
+
+        section_shown = False
+
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 1: Input Differences (from _recon_diff_details)
+        # ═══════════════════════════════════════════════════════════════
+        if self._recon_diff_details:
+            tk.Label(scroll_frame, text="Input Data Differences",
+                    font=("Segoe UI", 11),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 2))
+            tk.Label(scroll_frame, text="GUI input values vs Excel input values",
+                    font=("Segoe UI", 9), fg=THEME["text_muted"],
+                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 6))
+
+            create_section(scroll_frame, "Failed", self._recon_diff_details, "input_diffs",
+                          FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                          input_columns, create_input_diff_row, initially_expanded=False)
+            section_shown = True
+
+        # ═══════════════════════════════════════════════════════════════
+        # SECTION 2: Implied NOK (EUR Implied, USD Implied)
+        # ═══════════════════════════════════════════════════════════════
+        if implied_nok_checks:
+            if section_shown:
+                tk.Frame(scroll_frame, bg=THEME["border"], height=1).pack(fill="x", pady=(4, 10))
+
+            tk.Label(scroll_frame, text="Implied NOK",
+                    font=("Segoe UI", 11),
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 2))
+            tk.Label(scroll_frame, text="GUI calculated implied rates vs Excel implied rates",
+                    font=("Segoe UI", 9), fg=THEME["text_muted"],
+                    bg=THEME["bg_panel"]).pack(anchor="w", pady=(0, 6))
+
+            # Sort by tenor then field
+            implied_failed_sorted = sorted(implied_failed, key=lambda x: (x.get("tenor", ""), x.get("field", "")))
+            implied_passed_sorted = sorted(implied_passed, key=lambda x: (x.get("tenor", ""), x.get("field", "")))
+
+            if implied_failed_sorted:
+                create_section(scroll_frame, "Failed", implied_failed_sorted, "implied_failed",
+                              FAIL_HEADER_BG, FAIL_HEADER_FG, FAIL_BORDER,
+                              implied_columns, create_check_row, initially_expanded=False)
+            if implied_passed_sorted:
+                create_section(scroll_frame, "Passed", implied_passed_sorted, "implied_passed",
+                              PASS_HEADER_BG, PASS_HEADER_FG, PASS_BORDER,
+                              implied_columns, create_check_row, initially_expanded=False)
+
+        # If nothing to show
+        if not self._recon_diff_details and not implied_nok_checks:
+            tk.Label(scroll_frame,
+                    text="All NIBOR Contribution checks passed",
+                    font=("Segoe UI", 11),
+                    fg="#1B5E20", bg=THEME["bg_panel"]).pack(pady=20)
 
     def _show_excel_cells_table(self, popup):
         """Show professional Excel Cells validation with Cell Checks and Internal Rates vs ECP sections."""
@@ -2557,6 +2769,7 @@ class DashboardPage(BaseFrame):
 
         excel_cells_failed = []
         bloomberg_failed = []  # Track cell_check failures for Bloomberg validation
+        implied_nok_failed = []  # Track implied NOK failures for NIBOR Contribution
 
         for tenor_key in ["1m", "2m", "3m", "6m"]:
             data = getattr(self.app, 'funding_calc_data', {}).get(tenor_key, {})
@@ -2606,7 +2819,7 @@ class DashboardPage(BaseFrame):
                     "check_type": "cell_check"
                 })
 
-            # Check output fields
+            # Check output fields (Implied NOK - goes to NIBOR Contribution)
             for label, mapping_key, data_key, decimals in output_fields:
                 cell = RECON_CELL_MAPPING.get(mapping_key, {}).get(tenor_key)
                 if not cell:
@@ -2624,7 +2837,7 @@ class DashboardPage(BaseFrame):
                         excel_rounded = round(float(excel_value), decimals)
                         matched = (gui_rounded == excel_rounded)
                         if not matched:
-                            bloomberg_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
+                            implied_nok_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
                     except (ValueError, TypeError):
                         pass
 
@@ -2637,7 +2850,7 @@ class DashboardPage(BaseFrame):
                     "decimals": decimals,
                     "matched": matched,
                     "is_input": False,
-                    "check_type": "cell_check"
+                    "check_type": "implied_nok"
                 })
 
         # ═══════════════════════════════════════════════════════════════
@@ -2755,11 +2968,15 @@ class DashboardPage(BaseFrame):
                     "check_type": "nore_vs_swedbank"
                 })
 
-        # Update NIBOR Contrib validation icon based on diffs
+        # Update NIBOR Contrib validation icon based on diffs and implied NOK checks
+        nibor_contrib_failures = []
         if self._recon_diff_details:
-            # Simple alert messages for backwards compatibility
-            diff_messages = [f"{d['tenor']}: {d['component']}" for d in self._recon_diff_details]
-            self._update_validation_check("nibor_contrib", False, diff_messages)
+            nibor_contrib_failures.extend([f"{d['tenor']}: {d['component']}" for d in self._recon_diff_details])
+        if implied_nok_failed:
+            nibor_contrib_failures.extend(implied_nok_failed)
+
+        if nibor_contrib_failures:
+            self._update_validation_check("nibor_contrib", False, nibor_contrib_failures)
         else:
             # Only mark OK if we have data
             if getattr(self.app, 'funding_calc_data', {}):
