@@ -924,14 +924,13 @@ class NiborTerminalCTK(ctk.CTk):
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
                     text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 18)).pack(anchor="w", padx=12, pady=(8, 8))
+                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=12, pady=(8, 8))
 
         # Navigation buttons - simple CTkButton with icon in text
         self.PAGES_CONFIG = [
             ("dashboard", "📊", "NIBOR", DashboardPage),
             ("meta_data", "📝", "Meta Data", MetaDataPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
-            ("nibor_recon", "✅", "Nibor Recon", ReconPage),
             ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
             ("weights", "⚖️", "Weights", WeightsPage),
             ("rules_logic", "🧮", "Backup Nibor", RulesPage),
@@ -948,12 +947,12 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=THEME["bg_nav_sel"],
                 text_color=THEME["muted"],
-                font=("Segoe UI", 13),
+                font=("Segoe UI", 16),
                 anchor="w",
                 corner_radius=4,
-                height=36
+                height=44
             )
-            btn.pack(fill="x", padx=8, pady=1)
+            btn.pack(fill="x", padx=10, pady=1)
 
             self._nav_buttons[page_key] = {
                 "btn": btn,
@@ -964,8 +963,8 @@ class NiborTerminalCTK(ctk.CTk):
                 "active_bg": THEME["bg_nav_sel"]
             }
 
-        # Spacer to maintain Quick Access position (compensates for removed pages)
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=76).pack(fill="x")
+        # Spacer before Quick Access
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=20).pack(fill="x")
 
         # Divider
         ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=12)
