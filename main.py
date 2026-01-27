@@ -7,6 +7,7 @@ import os
 import threading
 import time
 from datetime import datetime, time as dt_time
+from pathlib import Path
 from tkinter import messagebox
 try:
     from zoneinfo import ZoneInfo
@@ -809,21 +810,36 @@ class NiborTerminalCTK(ctk.CTk):
         branding_inner = tk.Frame(branding_header, bg=BRANDING_BG)
         branding_inner.pack(fill="both", expand=True, padx=hpad, pady=8)
 
-        # Load and display Swedbank logo
-        try:
-            logo_path = APP_DIR / "assets" / "swedbank_logo.png"
-            logo_img = Image.open(logo_path)
-            # Resize to 32px height, maintain aspect ratio
-            aspect = logo_img.width / logo_img.height
-            new_height = 32
-            new_width = int(new_height * aspect)
-            logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            self._branding_logo = ImageTk.PhotoImage(logo_img)
+        # Load and display Swedbank logo (try multiple paths)
+        logo_paths = [
+            APP_DIR / "assets" / "swedbank_logo.png",
+            Path.home() / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png",
+            DATA_DIR / "Nibor" / "Historik" / "2025" / "Picture1.png",
+        ]
 
-            logo_label = tk.Label(branding_inner, image=self._branding_logo, bg=BRANDING_BG)
-            logo_label.pack(side="left")
-        except Exception as e:
-            log.warning(f"Could not load branding logo: {e}")
+        logo_loaded = False
+        for logo_path in logo_paths:
+            try:
+                if logo_path.exists():
+                    logo_img = Image.open(logo_path)
+                    # Resize to 32px height, maintain aspect ratio
+                    aspect = logo_img.width / logo_img.height
+                    new_height = 32
+                    new_width = int(new_height * aspect)
+                    logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    self._branding_logo = ImageTk.PhotoImage(logo_img)
+
+                    logo_label = tk.Label(branding_inner, image=self._branding_logo, bg=BRANDING_BG)
+                    logo_label.pack(side="left")
+                    logo_loaded = True
+                    log.info(f"Loaded branding logo from: {logo_path}")
+                    break
+            except Exception as e:
+                log.debug(f"Could not load logo from {logo_path}: {e}")
+                continue
+
+        if not logo_loaded:
+            log.warning("Could not load branding logo from any path")
 
         # Title text
         title_label = tk.Label(
