@@ -813,6 +813,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Load and display Swedbank logo (try multiple paths)
         logo_paths = [
             APP_DIR / "assets" / "swedbank_logo.png",
+            Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png"),
             Path.home() / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png",
             DATA_DIR / "Nibor" / "Historik" / "2025" / "Picture1.png",
         ]
@@ -820,6 +821,7 @@ class NiborTerminalCTK(ctk.CTk):
         logo_loaded = False
         for logo_path in logo_paths:
             try:
+                log.info(f"Trying logo path: {logo_path} (exists={logo_path.exists()})")
                 if logo_path.exists():
                     logo_img = Image.open(logo_path)
                     # Resize to 32px height, maintain aspect ratio
@@ -832,14 +834,14 @@ class NiborTerminalCTK(ctk.CTk):
                     logo_label = tk.Label(branding_inner, image=self._branding_logo, bg=BRANDING_BG)
                     logo_label.pack(side="left")
                     logo_loaded = True
-                    log.info(f"Loaded branding logo from: {logo_path}")
+                    log.info(f"SUCCESS: Loaded branding logo from: {logo_path}")
                     break
             except Exception as e:
-                log.debug(f"Could not load logo from {logo_path}: {e}")
+                log.warning(f"Could not load logo from {logo_path}: {e}")
                 continue
 
         if not logo_loaded:
-            log.warning("Could not load branding logo from any path")
+            log.error("Could not load branding logo from any path")
 
         # Title text
         title_label = tk.Label(
