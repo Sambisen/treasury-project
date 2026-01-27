@@ -810,38 +810,14 @@ class NiborTerminalCTK(ctk.CTk):
         branding_inner = tk.Frame(branding_header, bg=BRANDING_BG)
         branding_inner.pack(fill="both", expand=True, padx=hpad, pady=8)
 
-        # Load and display Swedbank logo (try multiple paths)
-        logo_paths = [
-            APP_DIR / "assets" / "swedbank_logo.png",
-            Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png"),
-            Path.home() / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png",
-            DATA_DIR / "Nibor" / "Historik" / "2025" / "Picture1.png",
-        ]
+        # Placeholder for logo (will be loaded after window is ready)
+        self._logo_label = tk.Label(branding_inner, text="", bg=BRANDING_BG)
+        self._logo_label.pack(side="left")
+        self._branding_inner = branding_inner
+        self._branding_bg = BRANDING_BG
 
-        logo_loaded = False
-        for logo_path in logo_paths:
-            try:
-                log.info(f"Trying logo path: {logo_path} (exists={logo_path.exists()})")
-                if logo_path.exists():
-                    logo_img = Image.open(logo_path)
-                    # Resize to 32px height, maintain aspect ratio
-                    aspect = logo_img.width / logo_img.height
-                    new_height = 32
-                    new_width = int(new_height * aspect)
-                    logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    self._branding_logo = ImageTk.PhotoImage(logo_img)
-
-                    logo_label = tk.Label(branding_inner, image=self._branding_logo, bg=BRANDING_BG)
-                    logo_label.pack(side="left")
-                    logo_loaded = True
-                    log.info(f"SUCCESS: Loaded branding logo from: {logo_path}")
-                    break
-            except Exception as e:
-                log.warning(f"Could not load logo from {logo_path}: {e}")
-                continue
-
-        if not logo_loaded:
-            log.error("Could not load branding logo from any path")
+        # Delay logo loading until window is fully initialized
+        self.after(100, self._load_branding_logo)
 
         # Title text
         title_label = tk.Label(
@@ -1167,6 +1143,39 @@ class NiborTerminalCTK(ctk.CTk):
 
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
+
+    def _load_branding_logo(self):
+        """Load branding logo after window is fully initialized."""
+        logo_paths = [
+            APP_DIR / "assets" / "swedbank_logo.png",
+            Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png"),
+            Path.home() / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png",
+            DATA_DIR / "Nibor" / "Historik" / "2025" / "Picture1.png",
+        ]
+
+        for logo_path in logo_paths:
+            try:
+                log.info(f"Trying logo path: {logo_path} (exists={logo_path.exists()})")
+                if logo_path.exists():
+                    logo_img = Image.open(logo_path)
+                    # Resize to 32px height, maintain aspect ratio
+                    aspect = logo_img.width / logo_img.height
+                    new_height = 32
+                    new_width = int(new_height * aspect)
+                    logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                    # Create PhotoImage with explicit master reference
+                    self._branding_logo = ImageTk.PhotoImage(logo_img, master=self)
+
+                    # Update the placeholder label
+                    self._logo_label.configure(image=self._branding_logo)
+                    log.info(f"SUCCESS: Loaded branding logo from: {logo_path}")
+                    return
+            except Exception as e:
+                log.warning(f"Could not load logo from {logo_path}: {e}")
+                continue
+
+        log.error("Could not load branding logo from any path")
 
     def _update_header_clock(self):
         """Update the header clock and NIBOR fixing countdown every second."""
