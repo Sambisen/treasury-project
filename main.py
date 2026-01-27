@@ -14,6 +14,7 @@ except ImportError:
     from backports.zoneinfo import ZoneInfo
 
 import tkinter as tk
+from PIL import Image, ImageTk
 from ctk_compat import ctk, CTK_AVAILABLE
 
 from openpyxl.utils import coordinate_to_tuple
@@ -793,6 +794,50 @@ class NiborTerminalCTK(ctk.CTk):
 
     def build_ui(self):
         hpad = CURRENT_MODE["hpad"]
+
+        # ====================================================================
+        # BRANDING HEADER - Swedbank logo and Treasury Tools title
+        # ====================================================================
+        BRANDING_BG = "#F5F5F5"  # Matches logo background
+        SWEDBANK_ORANGE = "#FF5F00"
+
+        branding_header = tk.Frame(self, bg=BRANDING_BG, height=48)
+        branding_header.pack(fill="x")
+        branding_header.pack_propagate(False)  # Fixed height
+
+        # Inner container with padding
+        branding_inner = tk.Frame(branding_header, bg=BRANDING_BG)
+        branding_inner.pack(fill="both", expand=True, padx=hpad, pady=8)
+
+        # Load and display Swedbank logo
+        try:
+            logo_path = APP_DIR / "assets" / "swedbank_logo.png"
+            logo_img = Image.open(logo_path)
+            # Resize to 32px height, maintain aspect ratio
+            aspect = logo_img.width / logo_img.height
+            new_height = 32
+            new_width = int(new_height * aspect)
+            logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            self._branding_logo = ImageTk.PhotoImage(logo_img)
+
+            logo_label = tk.Label(branding_inner, image=self._branding_logo, bg=BRANDING_BG)
+            logo_label.pack(side="left")
+        except Exception as e:
+            log.warning(f"Could not load branding logo: {e}")
+
+        # Title text
+        title_label = tk.Label(
+            branding_inner,
+            text="Treasury Tools",
+            font=("Segoe UI Semibold", 14),
+            fg="#333333",
+            bg=BRANDING_BG
+        )
+        title_label.pack(side="left", padx=(12, 0))
+
+        # Orange accent line below branding header
+        accent_line = tk.Frame(self, bg=SWEDBANK_ORANGE, height=3)
+        accent_line.pack(fill="x")
 
         # ====================================================================
         # GLOBAL HEADER - Compact bar with ENV badge, Fixing toggle, Validation button, Clock
