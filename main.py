@@ -802,7 +802,7 @@ class NiborTerminalCTK(ctk.CTk):
         BRANDING_BG = "#FFFFFF"  # White background
         SWEDBANK_ORANGE = "#FF5F00"
 
-        branding_header = tk.Frame(self, bg=BRANDING_BG, height=60)
+        branding_header = tk.Frame(self, bg=BRANDING_BG, height=68)
         branding_header.pack(fill="x")
         branding_header.pack_propagate(False)  # Fixed height
 
@@ -822,8 +822,8 @@ class NiborTerminalCTK(ctk.CTk):
         # Title text
         title_label = tk.Label(
             branding_inner,
-            text="Treasury Tools",
-            font=("Segoe UI Semibold", 14),
+            text="Nibor 6 Eyes Recon",
+            font=("Segoe UI Semibold", 16),
             fg="#333333",
             bg=BRANDING_BG
         )
@@ -1158,9 +1158,9 @@ class NiborTerminalCTK(ctk.CTk):
                 log.info(f"Trying logo path: {logo_path} (exists={logo_path.exists()})")
                 if logo_path.exists():
                     logo_img = Image.open(logo_path)
-                    # Resize to 44px height, maintain aspect ratio
+                    # Resize to 52px height, maintain aspect ratio
                     aspect = logo_img.width / logo_img.height
-                    new_height = 44
+                    new_height = 52
                     new_width = int(new_height * aspect)
                     logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
