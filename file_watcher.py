@@ -3,6 +3,9 @@ File watcher module for robust Excel file change detection.
 
 Uses watchdog for OS-level file monitoring combined with MD5 hash
 verification for bulletproof change detection.
+
+Handles Excel auto-save by using a "quiet period" - only notifies
+after the file has been stable (no changes) for X seconds.
 """
 import hashlib
 import threading
@@ -60,7 +63,7 @@ class ExcelFileHandler(FileSystemEventHandler):
 
         src_path = Path(event.src_path)
         if src_path.suffix.lower() in ('.xlsx', '.xlsm', '.xls'):
-            log.info(f"[FileWatcher] Detected modification: {src_path.name}")
+            log.debug(f"[FileWatcher] Detected modification: {src_path.name}")
             self.watcher._on_file_event(src_path)
 
     def on_created(self, event):
@@ -69,7 +72,7 @@ class ExcelFileHandler(FileSystemEventHandler):
 
         src_path = Path(event.src_path)
         if src_path.suffix.lower() in ('.xlsx', '.xlsm', '.xls'):
-            log.info(f"[FileWatcher] Detected creation: {src_path.name}")
+            log.debug(f"[FileWatcher] Detected creation: {src_path.name}")
             self.watcher._on_file_event(src_path)
 
 
@@ -80,13 +83,17 @@ class FileWatcher:
     Primary: watchdog (OS-level inotify/FSEvents/ReadDirectoryChangesW)
     Fallback: Polling with MD5 hash comparison
 
-    Always verifies changes with MD5 hash to avoid false positives.
+    Handles auto-save by using a "quiet period":
+    - Only notifies after file has been stable for X seconds
+    - Prevents notification spam during active editing
+    - Cooldown prevents multiple notifications within Y seconds
     """
 
     def __init__(
         self,
         on_change_callback: Optional[Callable[[Path], None]] = None,
-        debounce_seconds: float = 1.0,
+        quiet_period_seconds: float = 10.0,
+        notification_cooldown_seconds: float = 60.0,
         poll_interval_seconds: float = 5.0,
     ):
         """
@@ -94,27 +101,34 @@ class FileWatcher:
 
         Args:
             on_change_callback: Function called when file changes (receives Path)
-            debounce_seconds: Minimum time between change notifications
+            quiet_period_seconds: Wait this long after last change before notifying
+            notification_cooldown_seconds: Minimum time between notifications for same file
             poll_interval_seconds: Interval for fallback polling (if watchdog unavailable)
         """
         self._callback = on_change_callback
-        self._debounce_sec = debounce_seconds
+        self._quiet_period = quiet_period_seconds
+        self._cooldown = notification_cooldown_seconds
         self._poll_interval = poll_interval_seconds
 
         # Tracked files: path -> {"hash": str, "mtime": float, "size": int}
         self._tracked_files: dict[Path, dict] = {}
         self._lock = threading.Lock()
 
-        # Debounce state
-        self._last_notification: dict[Path, float] = {}
+        # Quiet period state: path -> timestamp of last event
+        self._last_event_time: dict[Path, float] = {}
+        self._pending_notifications: dict[Path, str] = {}  # path -> hash at time of change
+
+        # Cooldown state: path -> timestamp of last notification
+        self._last_notification_time: dict[Path, float] = {}
 
         # Watchdog observer
         self._observer: Optional[Observer] = None
         self._watched_dirs: set[Path] = set()
 
-        # Polling fallback
+        # Background threads
         self._poll_thread: Optional[threading.Thread] = None
-        self._poll_stop_event = threading.Event()
+        self._quiet_check_thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
 
         self._started = False
 
@@ -149,7 +163,7 @@ class FileWatcher:
                 return False
 
             self._tracked_files[file_path] = metadata
-            log.info(f"[FileWatcher] Now watching: {file_path.name} (hash={file_hash[:8]}...)")
+            log.info(f"[FileWatcher] Now watching: {file_path.name} (hash={file_hash[:8] if file_hash else 'None'}...)")
 
             # Set up watchdog for the parent directory
             parent_dir = file_path.parent
@@ -183,61 +197,102 @@ class FileWatcher:
         log.info(f"[FileWatcher] Watchdog monitoring: {directory}")
 
     def _on_file_event(self, file_path: Path):
-        """Handle file system event from watchdog."""
+        """
+        Handle file system event from watchdog.
+
+        Instead of notifying immediately, record the event time and
+        let the quiet period checker handle notification.
+        """
         file_path = file_path.resolve()
 
         with self._lock:
             if file_path not in self._tracked_files:
-                # Not a file we're tracking
                 return
 
-            # Check debounce
             now = time.time()
-            last_notif = self._last_notification.get(file_path, 0)
-            if now - last_notif < self._debounce_sec:
-                log.debug(f"[FileWatcher] Debouncing event for {file_path.name}")
-                return
 
-            # Verify with MD5 hash that content actually changed
+            # Record this event time (resets quiet period timer)
+            self._last_event_time[file_path] = now
+
+            # Check if content actually changed (quick hash check)
             old_hash = self._tracked_files[file_path].get("hash")
 
             # Small delay to let file writes complete
-            time.sleep(0.2)
+            time.sleep(0.1)
 
             new_hash = compute_file_hash(file_path)
 
             if new_hash is None:
-                log.warning(f"[FileWatcher] Could not hash {file_path.name} - file may be locked")
+                log.debug(f"[FileWatcher] Could not hash {file_path.name} - file may be locked")
                 return
 
-            if new_hash == old_hash:
-                log.debug(f"[FileWatcher] Hash unchanged for {file_path.name} - ignoring event")
-                return
+            if new_hash != old_hash:
+                # Content changed - mark as pending
+                self._pending_notifications[file_path] = new_hash
+                log.debug(f"[FileWatcher] Change detected in {file_path.name}, waiting for quiet period...")
 
-            # Content actually changed!
-            log.info(f"[FileWatcher] CONTENT CHANGED: {file_path.name}")
-            log.info(f"[FileWatcher]   Old hash: {old_hash[:8] if old_hash else 'None'}...")
-            log.info(f"[FileWatcher]   New hash: {new_hash[:8]}...")
+    def _check_quiet_periods(self):
+        """
+        Background thread that checks if quiet periods have elapsed.
 
-            # Update stored metadata
-            try:
-                stat = file_path.stat()
-                self._tracked_files[file_path] = {
-                    "hash": new_hash,
-                    "mtime": stat.st_mtime,
-                    "size": stat.st_size,
-                }
-            except OSError:
-                self._tracked_files[file_path]["hash"] = new_hash
+        When a file has been stable (no changes) for quiet_period_seconds,
+        and cooldown has passed, trigger the notification.
+        """
+        log.info(f"[FileWatcher] Quiet period checker started (quiet={self._quiet_period}s, cooldown={self._cooldown}s)")
 
-            self._last_notification[file_path] = now
+        while not self._stop_event.is_set():
+            self._stop_event.wait(1.0)  # Check every second
 
-        # Call callback outside lock
-        if self._callback:
-            try:
-                self._callback(file_path)
-            except Exception as e:
-                log.error(f"[FileWatcher] Callback error: {e}")
+            if self._stop_event.is_set():
+                break
+
+            now = time.time()
+            files_to_notify = []
+
+            with self._lock:
+                for file_path, new_hash in list(self._pending_notifications.items()):
+                    last_event = self._last_event_time.get(file_path, 0)
+                    last_notif = self._last_notification_time.get(file_path, 0)
+
+                    # Check quiet period elapsed
+                    quiet_elapsed = now - last_event >= self._quiet_period
+
+                    # Check cooldown elapsed
+                    cooldown_elapsed = now - last_notif >= self._cooldown
+
+                    if quiet_elapsed and cooldown_elapsed:
+                        # Verify hash is still different from stored
+                        old_hash = self._tracked_files.get(file_path, {}).get("hash")
+
+                        if new_hash != old_hash:
+                            files_to_notify.append((file_path, new_hash))
+
+                            # Update stored hash
+                            if file_path in self._tracked_files:
+                                self._tracked_files[file_path]["hash"] = new_hash
+                                try:
+                                    stat = file_path.stat()
+                                    self._tracked_files[file_path]["mtime"] = stat.st_mtime
+                                    self._tracked_files[file_path]["size"] = stat.st_size
+                                except OSError:
+                                    pass
+
+                            # Record notification time
+                            self._last_notification_time[file_path] = now
+
+                        # Remove from pending
+                        del self._pending_notifications[file_path]
+
+            # Notify outside lock
+            for file_path, new_hash in files_to_notify:
+                log.info(f"[FileWatcher] STABLE CHANGE DETECTED: {file_path.name}")
+                log.info(f"[FileWatcher]   New hash: {new_hash[:8]}...")
+
+                if self._callback:
+                    try:
+                        self._callback(file_path)
+                    except Exception as e:
+                        log.error(f"[FileWatcher] Callback error: {e}")
 
     def start(self):
         """Start the file watcher."""
@@ -245,13 +300,17 @@ class FileWatcher:
             return
 
         self._started = True
+        self._stop_event.clear()
+
+        # Start quiet period checker thread
+        self._quiet_check_thread = threading.Thread(target=self._check_quiet_periods, daemon=True)
+        self._quiet_check_thread.start()
 
         # Start polling thread as fallback/supplement
-        self._poll_stop_event.clear()
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
 
-        log.info(f"[FileWatcher] Started (watchdog={'enabled' if WATCHDOG_AVAILABLE else 'disabled'})")
+        log.info(f"[FileWatcher] Started (watchdog={'enabled' if WATCHDOG_AVAILABLE else 'disabled'}, quiet_period={self._quiet_period}s)")
 
     def stop(self):
         """Stop the file watcher."""
@@ -259,9 +318,12 @@ class FileWatcher:
             return
 
         self._started = False
+        self._stop_event.set()
 
-        # Stop polling
-        self._poll_stop_event.set()
+        # Wait for threads
+        if self._quiet_check_thread and self._quiet_check_thread.is_alive():
+            self._quiet_check_thread.join(timeout=2.0)
+
         if self._poll_thread and self._poll_thread.is_alive():
             self._poll_thread.join(timeout=2.0)
 
@@ -277,10 +339,10 @@ class FileWatcher:
         """Fallback polling loop for change detection."""
         log.info(f"[FileWatcher] Polling loop started (interval={self._poll_interval}s)")
 
-        while not self._poll_stop_event.is_set():
-            self._poll_stop_event.wait(self._poll_interval)
+        while not self._stop_event.is_set():
+            self._stop_event.wait(self._poll_interval)
 
-            if self._poll_stop_event.is_set():
+            if self._stop_event.is_set():
                 break
 
             self._check_all_files()
@@ -301,8 +363,8 @@ class FileWatcher:
                 if stat.st_mtime == metadata["mtime"] and stat.st_size == metadata["size"]:
                     continue
 
-                # Something changed - verify with hash
-                log.debug(f"[FileWatcher] Metadata changed for {file_path.name}, checking hash...")
+                # Something changed - trigger event handler
+                log.debug(f"[FileWatcher] Polling detected change in {file_path.name}")
                 self._on_file_event(file_path)
 
             except OSError:
@@ -310,7 +372,7 @@ class FileWatcher:
 
     def check_now(self, file_path: Optional[Path] = None) -> bool:
         """
-        Manually check for changes immediately.
+        Manually check for changes immediately (bypasses quiet period).
 
         Args:
             file_path: Specific file to check, or None for all files
@@ -336,7 +398,19 @@ class FileWatcher:
             if new_hash and new_hash != old_hash:
                 log.info(f"[FileWatcher] check_now() found change in {fp.name}")
                 changed = True
-                self._on_file_event(fp)
+
+                # Update hash immediately
+                with self._lock:
+                    if fp in self._tracked_files:
+                        self._tracked_files[fp]["hash"] = new_hash
+                        self._last_notification_time[fp] = time.time()
+
+                # Notify
+                if self._callback:
+                    try:
+                        self._callback(fp)
+                    except Exception as e:
+                        log.error(f"[FileWatcher] Callback error: {e}")
 
         return changed
 
@@ -364,3 +438,10 @@ class FileWatcher:
                         pass
 
         return new_hash
+
+    def has_pending_changes(self, file_path: Optional[Path] = None) -> bool:
+        """Check if there are pending changes waiting for quiet period."""
+        with self._lock:
+            if file_path:
+                return file_path.resolve() in self._pending_notifications
+            return len(self._pending_notifications) > 0

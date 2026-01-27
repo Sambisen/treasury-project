@@ -84,9 +84,11 @@ class ExcelEngine:
         self._last_hash: str | None = None
 
         # File watcher for automatic change detection
+        # Uses quiet period to handle Excel auto-save (waits for file to be stable)
         self._file_watcher = FileWatcher(
             on_change_callback=self._on_file_changed,
-            debounce_seconds=1.0,
+            quiet_period_seconds=10.0,       # Wait 10s after last change before notifying
+            notification_cooldown_seconds=60.0,  # Max 1 notification per minute
             poll_interval_seconds=5.0,
         )
         self._file_watcher.start()
