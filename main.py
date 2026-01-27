@@ -78,6 +78,10 @@ class NiborTerminalCTK(ctk.CTk):
         self.engine = BloombergEngine(cache_ttl_sec=3.0)
         self.excel_engine = ExcelEngine()
 
+        # Register for Excel file change notifications
+        self.excel_engine.on_change(self._on_excel_file_changed)
+        self._excel_change_pending = False
+
         # Toast notification manager
         from toast import ToastManager
         self.toast = ToastManager(self)
@@ -754,7 +758,38 @@ class NiborTerminalCTK(ctk.CTk):
         log.info("Application shutting down")
         if self._tray:
             self._tray.stop()
+        # Stop file watcher
+        if hasattr(self, 'excel_engine') and self.excel_engine:
+            self.excel_engine.stop_watching()
         self.destroy()
+
+    def _on_excel_file_changed(self, file_path):
+        """
+        Called by FileWatcher when Excel file changes.
+
+        Shows a toast notification and sets a pending flag.
+        The user can then click refresh to reload.
+        """
+        log.info(f"[Main] Excel file changed: {file_path.name}")
+        self._excel_change_pending = True
+
+        # Update connection panel to show "stale" state
+        try:
+            self.connection_panel.set_excel_status(ConnectionStatusIndicator.WARNING)
+        except Exception:
+            pass
+
+        # Show toast notification (must be on main thread)
+        def _show_toast():
+            try:
+                self.toast.info(
+                    f"Excel file updated: {file_path.name}\nPress F5 or click Run Calculation to reload.",
+                    duration=8000
+                )
+            except Exception as e:
+                log.warning(f"Could not show toast: {e}")
+
+        self._safe_after(0, _show_toast)
 
     def build_ui(self):
         hpad = CURRENT_MODE["hpad"]

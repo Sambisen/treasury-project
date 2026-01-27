@@ -19,6 +19,7 @@ from config import (
     EXCEL_CM_RATES_MAPPING, RECON_CELL_MAPPING, get_logger
 )
 from nibor_file_manager import get_nibor_file_path, NiborFileManager
+from file_watcher import FileWatcher, compute_file_hash
 
 log = get_logger("engines")
 from utils import copy_to_cache_fast, safe_float, to_date
@@ -80,6 +81,16 @@ class ExcelEngine:
         self._last_src: Path | None = None
         self._last_mtime: float | None = None
         self._last_size: int | None = None
+        self._last_hash: str | None = None
+
+        # File watcher for automatic change detection
+        self._file_watcher = FileWatcher(
+            on_change_callback=self._on_file_changed,
+            debounce_seconds=1.0,
+            poll_interval_seconds=5.0,
+        )
+        self._file_watcher.start()
+        self._change_callbacks: list[callable] = []
 
         # WEIGHTS file cache
         self.weights_ok: bool = False
@@ -265,6 +276,10 @@ class ExcelEngine:
                 self._last_src = file_path
                 self._last_mtime = st.st_mtime
                 self._last_size = st.st_size
+                self._last_hash = compute_file_hash(file_path)
+
+                # Register file with watcher for automatic change detection
+                self._file_watcher.watch_file(file_path)
             except Exception:
                 pass
 
@@ -303,16 +318,60 @@ class ExcelEngine:
         except Exception as e:
             return False, str(e)
 
-    def check_changed(self):
+    def check_changed(self) -> bool:
+        """
+        Check if Excel file has changed since last load.
+
+        Uses MD5 hash comparison for reliable detection.
+        """
         if not self._last_src:
             return False
         try:
+            # Quick check: mtime or size changed?
             s = self._last_src.stat()
-            if s.st_mtime != self._last_mtime or s.st_size != self._last_size:
+            if s.st_mtime == self._last_mtime and s.st_size == self._last_size:
+                return False
+
+            # Verify with hash
+            current_hash = compute_file_hash(self._last_src)
+            if current_hash and current_hash != self._last_hash:
+                log.info(f"[ExcelEngine] File changed: {self._last_src.name}")
                 return True
+            return False
         except Exception:
             return False
-        return False
+
+    def on_change(self, callback: callable):
+        """
+        Register a callback to be notified when Excel file changes.
+
+        The callback receives (file_path: Path) as argument.
+        """
+        if callback not in self._change_callbacks:
+            self._change_callbacks.append(callback)
+            log.info(f"[ExcelEngine] Registered change callback: {callback.__name__}")
+
+    def remove_change_callback(self, callback: callable):
+        """Remove a previously registered change callback."""
+        if callback in self._change_callbacks:
+            self._change_callbacks.remove(callback)
+
+    def _on_file_changed(self, file_path: Path):
+        """Internal callback from FileWatcher when file changes."""
+        log.info(f"[ExcelEngine] FILE CHANGED DETECTED: {file_path.name}")
+
+        # Notify all registered callbacks
+        for callback in self._change_callbacks:
+            try:
+                callback(file_path)
+            except Exception as e:
+                log.error(f"[ExcelEngine] Change callback error: {e}")
+
+    def stop_watching(self):
+        """Stop the file watcher (call on application exit)."""
+        if self._file_watcher:
+            self._file_watcher.stop()
+            log.info("[ExcelEngine] File watcher stopped")
 
     def get_days_for_date(self, date_str: str) -> dict:
         """
