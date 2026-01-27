@@ -990,26 +990,42 @@ class NiborTerminalCTK(ctk.CTk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - Simple unified design with scroll
+        # COMMAND CENTER SIDEBAR - Dark professional design with orange accents
         # ====================================================================
-        sidebar_container = ctk.CTkFrame(self.body, fg_color=THEME["bg_nav"], width=220,
+        SIDEBAR_BG = "#1A1A1A"          # Dark background
+        SIDEBAR_TEXT = "#FFFFFF"         # White text
+        SIDEBAR_MUTED = "#A0A0A0"        # Muted gray text
+        SIDEBAR_HOVER = "#2D2D2D"        # Hover background
+        SIDEBAR_SELECTED = "#FF5F00"     # Swedbank orange for selected
+        SIDEBAR_DIVIDER = "#333333"      # Subtle divider
+
+        sidebar_container = ctk.CTkFrame(self.body, fg_color=SIDEBAR_BG, width=220,
                                corner_radius=CTK_CORNER_RADIUS["frame"])
         sidebar_container.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         sidebar_container.grid_propagate(False)
 
         # Scrollable sidebar content
-        sidebar_scroll = ctk.CTkScrollableFrame(sidebar_container, fg_color=THEME["bg_nav"],
-                                          scrollbar_button_color=THEME["border"],
-                                          scrollbar_button_hover_color=THEME["text_muted"])
+        sidebar_scroll = ctk.CTkScrollableFrame(sidebar_container, fg_color=SIDEBAR_BG,
+                                          scrollbar_button_color=SIDEBAR_DIVIDER,
+                                          scrollbar_button_hover_color=SIDEBAR_MUTED)
         sidebar_scroll.pack(fill="both", expand=True)
 
         # Get the correct frame for adding widgets (handles CTk vs Tkinter fallback)
         sidebar = getattr(sidebar_scroll, 'interior', sidebar_scroll)
 
+        # Store sidebar colors for use in show_page
+        self._sidebar_colors = {
+            "bg": SIDEBAR_BG,
+            "text": SIDEBAR_TEXT,
+            "muted": SIDEBAR_MUTED,
+            "hover": SIDEBAR_HOVER,
+            "selected": SIDEBAR_SELECTED,
+        }
+
         # Sidebar title
         ctk.CTkLabel(sidebar, text="COMMAND CENTER",
-                    text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=12, pady=(8, 8))
+                    text_color=SIDEBAR_MUTED,
+                    font=("Segoe UI Semibold", 11)).pack(anchor="w", padx=16, pady=(12, 8))
 
         # Navigation buttons - simple CTkButton with icon in text
         self.PAGES_CONFIG = [
@@ -1024,40 +1040,40 @@ class NiborTerminalCTK(ctk.CTk):
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
-            # Simple button - same style as Quick Access
+            # Dark sidebar button with orange selection
             btn = ctk.CTkButton(
                 sidebar,
                 text=f"{icon}  {page_name}",
                 command=lambda pk=page_key: self.show_page(pk),
                 fg_color="transparent",
-                hover_color=THEME["bg_nav_sel"],
-                text_color=THEME["muted"],
-                font=("Segoe UI", 16),
+                hover_color=SIDEBAR_HOVER,
+                text_color=SIDEBAR_TEXT,
+                font=("Segoe UI", 14),
                 anchor="w",
-                corner_radius=4,
-                height=44
+                corner_radius=6,
+                height=42
             )
-            btn.pack(fill="x", padx=10, pady=1)
+            btn.pack(fill="x", padx=8, pady=2)
 
             self._nav_buttons[page_key] = {
                 "btn": btn,
                 "indicator": None,
                 "container": None,
                 "icon": None,
-                "hover_color": THEME["bg_nav_sel"],
-                "active_bg": THEME["bg_nav_sel"]
+                "hover_color": SIDEBAR_HOVER,
+                "active_bg": SIDEBAR_SELECTED
             }
 
         # Spacer before Quick Access
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=20).pack(fill="x")
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=16).pack(fill="x")
 
-        # Divider
-        ctk.CTkFrame(sidebar, fg_color=THEME["border"], height=1).pack(fill="x", padx=16, pady=12)
+        # Divider with orange accent
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=12, pady=8)
 
         # Quick Access header
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
-                    text_color=THEME["text_muted"],
-                    font=("Segoe UI Semibold", 20)).pack(anchor="w", padx=16, pady=(0, 10))
+                    text_color=SIDEBAR_MUTED,
+                    font=("Segoe UI Semibold", 11)).pack(anchor="w", padx=16, pady=(4, 8))
 
         # History folder button
         history_btn = ctk.CTkButton(
@@ -1065,14 +1081,14 @@ class NiborTerminalCTK(ctk.CTk):
             text="📂  History",
             command=self.open_history_folder,
             fg_color="transparent",
-            hover_color=THEME["bg_nav_sel"],
-            text_color=THEME["muted"],
-            font=("Segoe UI", 16),
+            hover_color=SIDEBAR_HOVER,
+            text_color=SIDEBAR_TEXT,
+            font=("Segoe UI", 14),
             anchor="w",
-            corner_radius=4,
-            height=44
+            corner_radius=6,
+            height=42
         )
-        history_btn.pack(fill="x", padx=10, pady=1)
+        history_btn.pack(fill="x", padx=8, pady=2)
 
         # GRSS folder button
         grss_btn = ctk.CTkButton(
@@ -1080,21 +1096,21 @@ class NiborTerminalCTK(ctk.CTk):
             text="📂  GRSS",
             command=self.open_stibor_folder,
             fg_color="transparent",
-            hover_color=THEME["bg_nav_sel"],
-            text_color=THEME["muted"],
-            font=("Segoe UI", 16),
+            hover_color=SIDEBAR_HOVER,
+            text_color=SIDEBAR_TEXT,
+            font=("Segoe UI", 14),
             anchor="w",
-            corner_radius=4,
-            height=44
+            corner_radius=6,
+            height=42
         )
-        grss_btn.pack(fill="x", padx=10, pady=1)
+        grss_btn.pack(fill="x", padx=8, pady=2)
 
         # Credit at bottom of sidebar
         ctk.CTkFrame(sidebar, fg_color="transparent", height=40).pack(fill="x")
         ctk.CTkLabel(
             sidebar,
             text="Powered by Samba Sjödin",
-            text_color=THEME["text_muted"],
+            text_color=SIDEBAR_MUTED,
             font=("Segoe UI", 9)
         ).pack(side="bottom", pady=(0, 8))
 
@@ -1509,24 +1525,24 @@ class NiborTerminalCTK(ctk.CTk):
         self._current_page = key
         self._pages[key].grid()
 
-        # Update navigation button highlighting (simple style)
+        # Update navigation button highlighting (dark sidebar with orange accent)
         for btn_key, btn_data in self._nav_buttons.items():
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
 
             try:
                 if btn_key == key:
-                    # Active state: accent color, subtle background
+                    # Active state: orange text, subtle dark background
                     btn.configure(
-                        text_color=THEME["accent"],
-                        fg_color=THEME["bg_nav_sel"],
-                        font=("Segoe UI Semibold", 13)
+                        text_color="#FF5F00",  # Swedbank orange
+                        fg_color="#2D2D2D",    # Slightly lighter dark
+                        font=("Segoe UI Semibold", 14)
                     )
                 else:
-                    # Inactive state: muted color, transparent background
+                    # Inactive state: white text, transparent background
                     btn.configure(
-                        text_color=THEME["muted"],
+                        text_color="#FFFFFF",  # White
                         fg_color="transparent",
-                        font=("Segoe UI", 13)
+                        font=("Segoe UI", 14)
                     )
                 # Force button to redraw
                 btn.update_idletasks()
