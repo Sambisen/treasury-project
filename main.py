@@ -990,14 +990,15 @@ class NiborTerminalCTK(ctk.CTk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - Dark professional design with orange accents
+        # COMMAND CENTER SIDEBAR - Swedbank Orange professional design
         # ====================================================================
-        SIDEBAR_BG = "#1A1A1A"          # Dark background
+        SIDEBAR_BG = "#FF5F00"           # Swedbank orange
         SIDEBAR_TEXT = "#FFFFFF"         # White text
-        SIDEBAR_MUTED = "#A0A0A0"        # Muted gray text
-        SIDEBAR_HOVER = "#2D2D2D"        # Hover background
-        SIDEBAR_SELECTED = "#FF5F00"     # Swedbank orange for selected
-        SIDEBAR_DIVIDER = "#333333"      # Subtle divider
+        SIDEBAR_MUTED = "#FFD9BF"        # Light peach for muted text
+        SIDEBAR_HOVER = "#E85500"        # Darker orange on hover
+        SIDEBAR_SELECTED = "#FFFFFF"     # White for selected
+        SIDEBAR_SELECTED_BG = "#CC4D00"  # Deep orange for selected bg
+        SIDEBAR_DIVIDER = "#FF7F2A"      # Lighter orange divider
 
         sidebar_container = ctk.CTkFrame(self.body, fg_color=SIDEBAR_BG, width=220,
                                corner_radius=CTK_CORNER_RADIUS["frame"])
@@ -1006,8 +1007,8 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Scrollable sidebar content
         sidebar_scroll = ctk.CTkScrollableFrame(sidebar_container, fg_color=SIDEBAR_BG,
-                                          scrollbar_button_color=SIDEBAR_DIVIDER,
-                                          scrollbar_button_hover_color=SIDEBAR_MUTED)
+                                          scrollbar_button_color="#CC4D00",
+                                          scrollbar_button_hover_color="#FFFFFF")
         sidebar_scroll.pack(fill="both", expand=True)
 
         # Get the correct frame for adding widgets (handles CTk vs Tkinter fallback)
@@ -1525,22 +1526,22 @@ class NiborTerminalCTK(ctk.CTk):
         self._current_page = key
         self._pages[key].grid()
 
-        # Update navigation button highlighting (dark sidebar with orange accent)
+        # Update navigation button highlighting (orange sidebar with white accent)
         for btn_key, btn_data in self._nav_buttons.items():
             btn = btn_data["btn"] if isinstance(btn_data, dict) else btn_data
 
             try:
                 if btn_key == key:
-                    # Active state: orange text, subtle dark background
+                    # Active state: white text, deeper orange background
                     btn.configure(
-                        text_color="#FF5F00",  # Swedbank orange
-                        fg_color="#2D2D2D",    # Slightly lighter dark
-                        font=("Segoe UI Semibold", 14)
+                        text_color="#FFFFFF",
+                        fg_color="#CC4D00",    # Deep orange
+                        font=("Segoe UI Bold", 14)
                     )
                 else:
                     # Inactive state: white text, transparent background
                     btn.configure(
-                        text_color="#FFFFFF",  # White
+                        text_color="#FFFFFF",
                         fg_color="transparent",
                         font=("Segoe UI", 14)
                     )
