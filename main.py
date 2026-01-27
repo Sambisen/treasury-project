@@ -819,12 +819,12 @@ class NiborTerminalCTK(ctk.CTk):
         # Delay logo loading until window is fully initialized
         self.after(100, self._load_branding_logo)
 
-        # Title text (centered, elegant styling)
+        # Title text (centered, Swedbank orange)
         title_label = tk.Label(
             branding_inner,
             text="NIBOR  6 EYES  TERMINAL",
-            font=("Segoe UI Light", 22),
-            fg="#512D6D",
+            font=("Segoe UI Semibold", 22),
+            fg="#FF5F00",
             bg=BRANDING_BG
         )
         title_label.pack(expand=True)
