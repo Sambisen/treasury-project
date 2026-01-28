@@ -8,8 +8,150 @@ import tkinter as tk
 from tkinter import Canvas
 from typing import Optional, Dict
 import math
+from PIL import Image, ImageDraw, ImageTk
 from ..theme import COLORS, FONTS, SPACING, ICONS, ENV_BADGE_COLORS, BUTTON_CONFIG, SEGMENT_COLORS
 from typing import Callable, List, Tuple
+
+
+# =============================================================================
+# ANALOG CLOCK (HEADER)
+# =============================================================================
+
+class AnalogClock(tk.Label):
+    """Anti-aliased analog clock.
+
+    Previous implementation used Tkinter Canvas which can look pixelated,
+    especially at larger sizes. This version renders the clock using PIL at a
+    higher internal resolution and downsamples with LANCZOS for smoother edges.
+    """
+
+    def __init__(
+        self,
+        parent,
+        diameter: int = 44,
+        bg: str = None,
+        ring_color: str = "#22314B",
+        tick_color: str = "#A8B3C7",
+        hand_color: str = "#E7ECF3",
+        second_hand_color: str = "#FF6B35",
+        **kwargs,
+    ):
+        d = int(diameter)
+        self._d = d if d > 10 else 10
+        self._bg = bg if bg is not None else (parent.cget("bg") if "bg" in parent.keys() else "#0B1220")
+
+        # Not a Tkinter option — pop before calling super().__init__.
+        render_scale = int(kwargs.pop("render_scale", 3))
+
+        super().__init__(
+            parent,
+            bg=self._bg,
+            **kwargs,
+        )
+
+        self._ring_color = ring_color
+        self._tick_color = tick_color
+        self._hand_color = hand_color
+        self._second_hand_color = second_hand_color
+
+        # Render scale: render larger and downsample for anti-alias.
+        # 3x is a good balance between quality and CPU.
+        self._scale = render_scale
+        if self._scale < 2:
+            self._scale = 2
+
+        self._last_hms: tuple[int, int, int] | None = None
+        self._photo = None
+
+        # Initial paint
+        self.set_time(0, 0, 0)
+
+    def _render_image(self, hour: int, minute: int, second: int) -> Image.Image:
+        d = self._d
+        s = self._scale
+        D = d * s
+
+        # Convert provided bg to RGB (PIL doesn't know theme; we just fill solid)
+        img = Image.new("RGBA", (D, D), self._bg)
+        draw = ImageDraw.Draw(img)
+
+        cx = cy = D / 2.0
+        r = (D / 2.0) - (2 * s)
+
+        # Stroke widths scaled
+        ring_w = max(1, int(1.2 * s))
+        tick_w = max(1, int(1.0 * s))
+        hour_w = max(2, int(2.6 * s))
+        min_w = max(2, int(2.2 * s))
+        sec_w = max(1, int(1.2 * s))
+        hub_r = max(2, int(2.4 * s))
+
+        # Outer ring
+        bbox = (cx - r, cy - r, cx + r, cy + r)
+        draw.ellipse(bbox, outline=self._ring_color, width=ring_w, fill=self._bg)
+
+        # Ticks (12)
+        for i in range(12):
+            ang = (math.pi / 6) * i
+            r1 = r - (6 * s)
+            r2 = r - ((14 * s) if i % 3 == 0 else (12 * s))
+            x1 = cx + r1 * math.sin(ang)
+            y1 = cy - r1 * math.cos(ang)
+            x2 = cx + r2 * math.sin(ang)
+            y2 = cy - r2 * math.cos(ang)
+            draw.line((x1, y1, x2, y2), fill=self._tick_color, width=tick_w)
+
+        # Hands
+        h = int(hour) % 12
+        m = int(minute) % 60
+        s2 = int(second) % 60
+
+        hour_ang = (2 * math.pi) * ((h + (m / 60.0)) / 12.0)
+        min_ang = (2 * math.pi) * ((m + (s2 / 60.0)) / 60.0)
+        sec_ang = (2 * math.pi) * (s2 / 60.0)
+
+        def end_point(angle: float, length: float) -> tuple[float, float]:
+            x = cx + length * math.sin(angle)
+            y = cy - length * math.cos(angle)
+            return x, y
+
+        hx, hy = end_point(hour_ang, r * 0.45)
+        mx, my = end_point(min_ang, r * 0.65)
+        sx, sy = end_point(sec_ang, r * 0.75)
+
+        # Hour/min hands (rounded caps simulated by drawing circles at endpoints)
+        draw.line((cx, cy, hx, hy), fill=self._hand_color, width=hour_w)
+        draw.line((cx, cy, mx, my), fill=self._hand_color, width=min_w)
+        draw.line((cx, cy, sx, sy), fill=self._second_hand_color, width=sec_w)
+
+        # Hub
+        draw.ellipse((cx - hub_r, cy - hub_r, cx + hub_r, cy + hub_r), fill=self._hand_color, outline=None)
+
+        # Downsample to target size for anti-aliasing
+        out = img.resize((d, d), resample=Image.Resampling.LANCZOS)
+        return out
+
+    def set_time(self, hour: int, minute: int, second: int) -> None:
+        """Render the clock for the provided time."""
+        h = int(hour)
+        m = int(minute)
+        s = int(second)
+
+        # Avoid unnecessary re-render if called multiple times with same time
+        if self._last_hms == (h, m, s):
+            return
+        self._last_hms = (h, m, s)
+
+        img = self._render_image(h, m, s)
+        # IMPORTANT: bind the PhotoImage to *this* widget's Tcl interpreter.
+        # In our app we show a splash using a separate Tk root during startup.
+        # If PhotoImage is created without an explicit master it can attach to the
+        # wrong default root, leading to: _tkinter.TclError: image "pyimageX" doesn't exist
+        self._photo = ImageTk.PhotoImage(img, master=self)
+        self.configure(image=self._photo)
+
+        # Ensure widget is sized to the image (important for geometry managers)
+        self.configure(width=self._d, height=self._d)
 
 
 class StatusStrip(tk.Frame):
@@ -386,10 +528,9 @@ class PremiumEnvBadge(tk.Frame):
     Nordic Light theme - light background with colored accents.
 
     Features:
-    - Light pill-shaped container with subtle tinted background
+    - Pill-shaped container with subtle tinted background
     - Colored dot with soft glow effect
-    - Pulse animation for PROD (indicates "live")
-    - Static dot for DEV
+    - Premium/static styling (no pulse) to feel more "enterprise" than "alert"
 
     Usage:
         badge = PremiumEnvBadge(parent, environment="PROD")
@@ -407,9 +548,11 @@ class PremiumEnvBadge(tk.Frame):
         self._is_prod = environment.upper() == "PROD"
         self._compact = compact
 
-        # Use shorter text in compact mode
+        # Text strategy:
+        # - Keep PROD as a premium "sigill" (PRODUCTION) even in compact header.
+        # - Keep DEV short in compact mode to avoid stealing header space.
         if compact:
-            self._env_text = "PROD" if self._is_prod else "DEV"
+            self._env_text = "PRODUCTION" if self._is_prod else "DEV"
         else:
             self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
 
@@ -501,12 +644,9 @@ class PremiumEnvBadge(tk.Frame):
         self._animation_phase = 0.0
         self._animation_id = None
 
-        # Start pulse animation for PROD
-        if self._is_prod:
-            self._start_pulse()
-        else:
-            # Static glow for DEV
-            self._draw_static_glow()
+        # Premium feel: keep the badge static in both PROD/DEV.
+        # (Pulse often reads like "alert/live", which is not the desired premium feel.)
+        self._draw_static_glow()
 
     def _hex_to_rgb(self, hex_color: str) -> tuple:
         """Convert hex color to RGB tuple."""
@@ -530,7 +670,9 @@ class PremiumEnvBadge(tk.Frame):
 
     def _draw_static_glow(self):
         """Draw a static glow effect (for DEV)."""
-        opacities = [0.2, 0.35, 0.5]
+        # Subtle glow layers.
+        # Keep it intentionally understated so it feels like a high-end status label.
+        opacities = [0.10, 0.18, 0.26]
         for i, glow_id in enumerate(self._glow_items):
             blended = self._blend_with_bg(self._glow_color, opacities[i])
             self._canvas.itemconfig(glow_id, fill=blended, outline="")
@@ -593,21 +735,23 @@ class PremiumEnvBadge(tk.Frame):
 
     def set_environment(self, environment: str):
         """Update the environment display."""
-        was_prod = self._is_prod
         self._is_prod = environment.upper() == "PROD"
-        self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
+        if self._compact:
+            self._env_text = "PRODUCTION" if self._is_prod else "DEV"
+        else:
+            self._env_text = "PRODUCTION" if self._is_prod else "DEVELOPMENT"
 
         # Update all colors
         self._update_colors()
 
-        # Handle animation change
-        if self._is_prod and not was_prod:
-            self._start_pulse()
-        elif not self._is_prod and was_prod:
-            if self._animation_id:
+        # Always static glow (premium)
+        if self._animation_id:
+            try:
                 self.after_cancel(self._animation_id)
-                self._animation_id = None
-            self._draw_static_glow()
+            except Exception:
+                pass
+            self._animation_id = None
+        self._draw_static_glow()
 
 
 # =============================================================================

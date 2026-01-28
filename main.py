@@ -52,6 +52,7 @@ from utils import (
 from engines import ExcelEngine, BloombergEngine, blpapi
 from ui_components import style_ttk, NavButtonTK, SourceCardTK, ConnectionStatusPanel, ConnectionStatusIndicator
 from ui.components import PremiumEnvBadge, SegmentedControl
+from ui.components.status import AnalogClock
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
 from ui_pages import (
@@ -266,6 +267,9 @@ class NiborTerminalCTK(ctk.CTk):
             (start_h, start_m), (end_h, end_m) = get_gate_window()
             fixing_time = get_setting("fixing_time", DEFAULT_FIXING_TIME)
 
+            # In PROD we want explicit timezone label; in DEV keep it short.
+            fixing_label = f"{fixing_time} CET" if is_prod_mode() else fixing_time
+
             if is_dev_mode():
                 return (
                     "DEV Mode\n"
@@ -277,7 +281,7 @@ class NiborTerminalCTK(ctk.CTk):
             return (
                 f"NIBOR Validation Window\n"
                 f"━━━━━━━━━━━━━━━━━━━━━\n"
-                f"Fixing Time: {fixing_time}\n"
+                f"Fixing Time: {fixing_label}\n"
                 f"Window: {start_h}:{start_m:02d} - {end_h}:{end_m:02d} Stockholm\n"
                 f"\n"
                 f"Validation can only run during\n"
@@ -595,7 +599,12 @@ class NiborTerminalCTK(ctk.CTk):
             # In PROD mode, skip dev_only times
             if config.get("dev_only", False) and not is_dev_mode():
                 continue
-            options.append((time_key, time_key))
+
+            # Display label:
+            #  - DEV: "10:00" / "10:30" (no timezone)
+            #  - PROD: "10:00 CET" / "10:30 CET"
+            label = f"{time_key} CET" if is_prod_mode() else time_key
+            options.append((label, time_key))
         return options
 
     def _update_fixing_time_control(self):
@@ -608,7 +617,8 @@ class NiborTerminalCTK(ctk.CTk):
 
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
         new_options = self._get_fixing_time_options()
-        available_times = [opt[0] for opt in new_options]
+        # options are (label, value)
+        available_times = [opt[1] for opt in new_options]
 
         # If current fixing time is not available in new mode, reset to default
         if current_fixing not in available_times:
@@ -797,18 +807,20 @@ class NiborTerminalCTK(ctk.CTk):
         hpad = CURRENT_MODE["hpad"]
 
         # ====================================================================
-        # BRANDING HEADER - Swedbank logo and Treasury Tools title
+        # BRANDING HEADER - Premium dark header with Swedbank accent
         # ====================================================================
-        BRANDING_BG = "#FFFFFF"  # White background
-        SWEDBANK_ORANGE = "#FF5F00"
+        BRANDING_BG = THEME["bg_card"]
+        SWEDBANK_ORANGE = THEME["accent"]
 
-        branding_header = tk.Frame(self, bg=BRANDING_BG, height=85)
+        # Taller branding header to make room for the larger analog clock.
+        branding_header = tk.Frame(self, bg=BRANDING_BG, height=120)
         branding_header.pack(fill="x")
         branding_header.pack_propagate(False)  # Fixed height
 
         # Inner container with padding
         branding_inner = tk.Frame(branding_header, bg=BRANDING_BG)
-        branding_inner.pack(fill="both", expand=True, padx=hpad, pady=8)
+        # Slightly larger vertical padding to keep title vertically centered
+        branding_inner.pack(fill="both", expand=True, padx=hpad, pady=10)
 
         # Placeholder for logo (will be loaded after window is ready)
         self._logo_label = tk.Label(branding_inner, text="", bg=BRANDING_BG)
@@ -819,17 +831,48 @@ class NiborTerminalCTK(ctk.CTk):
         # Delay logo loading until window is fully initialized
         self.after(100, self._load_branding_logo)
 
-        # Title text (centered, Swedbank orange)
-        title_label = tk.Label(
-            branding_inner,
-            text="NIBOR  6 EYES  TERMINAL",
-            font=("Segoe UI Semibold", 22),
-            fg="#FF5F00",
-            bg=BRANDING_BG
-        )
-        title_label.pack(expand=True)
+        # Title text (centered, 2 lines)
+        title_container = tk.Frame(branding_inner, bg=BRANDING_BG)
+        title_container.pack(expand=True)
 
-        # Orange accent line below branding header
+        # Right-aligned analog clock (branding header)
+        # Placed before the orange accent line, as requested.
+        self._branding_clock_analog = AnalogClock(
+            branding_inner,
+            diameter=90,
+            bg=BRANDING_BG,
+            ring_color=THEME["border"],
+            tick_color=THEME["text_muted"],
+            hand_color=THEME["text"],
+            second_hand_color=THEME["accent"],
+        )
+        # Pin to top-right corner of the branding banner.
+        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=6, anchor="ne")
+
+        tk.Label(
+            title_container,
+            text="Nibor reference rate",
+            font=("Segoe UI Semibold", 22),
+            fg=THEME["text"],
+            bg=BRANDING_BG
+        ).pack()
+
+        # Second line: cursive/italic-style
+        # Note: "Segoe Script" exists on most Windows installs. Falls back to Segoe UI Italic.
+        try:
+            cursive_font = ("Segoe Script", 16)
+        except Exception:
+            cursive_font = ("Segoe UI", 16, "italic")
+
+        tk.Label(
+            title_container,
+            text="6 eyes Terminal",
+            font=cursive_font,
+            fg=THEME["text"],
+            bg=BRANDING_BG
+        ).pack(pady=(2, 0))
+
+        # Accent line below branding header
         accent_line = tk.Frame(self, bg=SWEDBANK_ORANGE, height=3)
         accent_line.pack(fill="x")
 
@@ -881,55 +924,99 @@ class NiborTerminalCTK(ctk.CTk):
         # In DEV mode, show additional early fixing times for testing
         current_fixing = get_setting("fixing_time", DEFAULT_FIXING_TIME)
         fixing_options = self._get_fixing_time_options()
+        option_values = [opt[1] for opt in fixing_options]
         self.fixing_control = SegmentedControl(
             fixing_frame,
             options=fixing_options,
-            default=current_fixing if current_fixing in [opt[0] for opt in fixing_options] else DEFAULT_FIXING_TIME,
+            default=current_fixing if current_fixing in option_values else DEFAULT_FIXING_TIME,
             command=self._on_fixing_time_change,
             compact=True
         )
         self.fixing_control.pack(side="left")
 
         # Header content container - right side
-        header_right = ctk.CTkFrame(global_header, fg_color="transparent")
+        # NOTE (fallback mode): In Tkinter fallback, 'transparent' becomes None and
+        # widgets can inherit the system default background (often white). Use an
+        # explicit dark bg when CTK isn't available.
+        header_right_bg = THEME["bg_main"] if not CTK_AVAILABLE else "transparent"
+        header_right = ctk.CTkFrame(global_header, fg_color=header_right_bg)
         header_right.pack(side="right")
 
         # ====================================================================
-        # MINIMAL CLOCK - No frame, clean floating design
+        # HEADER RIGHT - Fixing countdown (analog clock moved to branding banner)
         # ====================================================================
-        clock_container = ctk.CTkFrame(header_right, fg_color="transparent")
-        clock_container.pack(side="right")
+        # NOTE:
+        # We intentionally do NOT use fully-transparent CTk widgets here.
+        # In mixed Tk + CTk layouts, "transparent" can resolve to the underlying
+        # default CTk color theme (often light/white) and create a visible white
+        # patch behind the countdown.
+        #
+        # We instead render the countdown as a subtle "chip" that matches the
+        # app's dark fintech theme.
+        clock_container = ctk.CTkFrame(
+            header_right,
+            fg_color=THEME["bg_card"],
+            corner_radius=12,
+            border_width=1,
+            border_color=THEME["border"],
+        )
+        clock_container.pack(side="right", padx=(0, 2), pady=2)
 
-        # Time display (monospace for stability)
-        self._header_clock_time = ctk.CTkLabel(clock_container, text="--:--:--",
-                                               text_color=THEME["text"],
-                                               font=("Consolas", 14))
-        self._header_clock_time.pack(side="left")
+        # Store the chip so we can align the analog clock above it.
+        self._fixing_chip = clock_container
+
+        # In Tkinter fallback, CTkLabel(fg_color="transparent") becomes a Label with no
+        # explicit bg -> defaults to white. Force label bg to match the card.
+        label_bg = THEME["bg_card"] if not CTK_AVAILABLE else "transparent"
 
         # Separator
-        ctk.CTkLabel(clock_container, text="|",
-                    text_color=THEME["text_muted"],
-                    font=("Consolas", 14)).pack(side="left", padx=10)
+        ctk.CTkLabel(
+            clock_container,
+            text="|",
+            text_color=THEME["text_muted"],
+            fg_color=label_bg,
+            font=("Consolas", 14)
+        ).pack(side="left", padx=10, pady=6)
 
         # FIXING label
-        ctk.CTkLabel(clock_container, text="FIXING",
-                    text_color=THEME["text_muted"],
-                    font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(
+            clock_container,
+            text="FIXING",
+            text_color=THEME["text_muted"],
+            fg_color=label_bg,
+            font=("Segoe UI", 9)
+        ).pack(side="left", padx=(0, 8), pady=6)
 
         # Fixing countdown (monospace for stability)
-        self._nibor_fixing_status = ctk.CTkLabel(clock_container, text="--:--:--",
-                                                 text_color=THEME["text"],
-                                                 font=("Consolas", 14))
-        self._nibor_fixing_status.pack(side="left")
+        self._nibor_fixing_status = ctk.CTkLabel(
+            clock_container,
+            text="--:--:--",
+            text_color=THEME["text"],
+            fg_color=label_bg,
+            font=("Consolas", 14)
+        )
+        self._nibor_fixing_status.pack(side="left", pady=6)
 
         # Fixing indicator
-        self._nibor_fixing_indicator = ctk.CTkLabel(clock_container, text="",
-                                                    text_color=THEME["text_muted"],
-                                                    font=("Segoe UI", 9))
-        self._nibor_fixing_indicator.pack(side="left", padx=(8, 0))
+        self._nibor_fixing_indicator = ctk.CTkLabel(
+            clock_container,
+            text="",
+            text_color=THEME["text_muted"],
+            fg_color=label_bg,
+            font=("Segoe UI", 9)
+        )
+        self._nibor_fixing_indicator.pack(side="left", padx=(8, 10), pady=6)
+
+        # Align the analog clock (branding header) so this chip sits centered under it.
+        # This matters more in Tkinter fallback where the chip background is very explicit.
+        self.after(150, self._align_branding_clock_to_fixing_chip)
 
         # Start the header clock update
         self._update_header_clock()
+
+        # Keep alignment when the window is resized.
+        # (Use a small delay to avoid fighting the geometry manager.)
+        self.bind("<Configure>", lambda e: self.after(50, self._align_branding_clock_to_fixing_chip), add="+")
 
         # ====================================================================
         # DEV WARNING BANNER - Only shown in DEV mode
@@ -990,25 +1077,27 @@ class NiborTerminalCTK(ctk.CTk):
         self.body.grid_rowconfigure(0, weight=1)
 
         # ====================================================================
-        # COMMAND CENTER SIDEBAR - Swedbank Orange professional design
+        # PREMIUM SLATE SIDEBAR - Modern dark design with orange accents
         # ====================================================================
-        SIDEBAR_BG = "#FF5F00"           # Swedbank orange
-        SIDEBAR_TEXT = "#FFFFFF"         # White text
-        SIDEBAR_MUTED = "#FFD9BF"        # Light peach for muted text
-        SIDEBAR_HOVER = "#E85500"        # Darker orange on hover
-        SIDEBAR_SELECTED = "#FFFFFF"     # White for selected
-        SIDEBAR_SELECTED_BG = "#CC4D00"  # Deep orange for selected bg
-        SIDEBAR_DIVIDER = "#FF7F2A"      # Lighter orange divider
+        from ui.theme import COLORS
+        
+        SIDEBAR_BG = COLORS.NAV_BG              # Dark slate-800
+        SIDEBAR_TEXT = COLORS.NAV_TEXT          # Light text
+        SIDEBAR_MUTED = COLORS.NAV_TEXT_MUTED   # Muted text
+        SIDEBAR_HOVER = COLORS.NAV_HOVER_BG     # Hover state
+        SIDEBAR_ACTIVE = COLORS.NAV_ACTIVE_BG   # Active background
+        SIDEBAR_DIVIDER = COLORS.NAV_DIVIDER    # Divider
+        SIDEBAR_INDICATOR = COLORS.NAV_INDICATOR # Orange indicator
 
-        sidebar_container = ctk.CTkFrame(self.body, fg_color=SIDEBAR_BG, width=220,
-                               corner_radius=CTK_CORNER_RADIUS["frame"])
-        sidebar_container.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        sidebar_container = ctk.CTkFrame(self.body, fg_color=SIDEBAR_BG, width=240,
+                               corner_radius=0)
+        sidebar_container.grid(row=0, column=0, sticky="nsew", padx=(0, 0))
         sidebar_container.grid_propagate(False)
 
-        # Scrollable sidebar content
+        # Scrollable sidebar content with darker scrollbar
         sidebar_scroll = ctk.CTkScrollableFrame(sidebar_container, fg_color=SIDEBAR_BG,
-                                          scrollbar_button_color="#CC4D00",
-                                          scrollbar_button_hover_color="#FFFFFF")
+                                          scrollbar_button_color=SIDEBAR_ACTIVE,
+                                          scrollbar_button_hover_color=SIDEBAR_INDICATOR)
         sidebar_scroll.pack(fill="both", expand=True)
 
         # Get the correct frame for adding widgets (handles CTk vs Tkinter fallback)
@@ -1020,28 +1109,39 @@ class NiborTerminalCTK(ctk.CTk):
             "text": SIDEBAR_TEXT,
             "muted": SIDEBAR_MUTED,
             "hover": SIDEBAR_HOVER,
-            "selected": SIDEBAR_SELECTED,
+            "active": SIDEBAR_ACTIVE,
+            "indicator": SIDEBAR_INDICATOR,
         }
 
-        # Sidebar title
-        ctk.CTkLabel(sidebar, text="COMMAND CENTER",
-                    text_color=SIDEBAR_MUTED,
-                    font=("Segoe UI Semibold", 11)).pack(anchor="w", padx=16, pady=(12, 8))
+        # Premium header with icon
+        header_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
+        header_frame.pack(fill="x", padx=20, pady=(20, 16))
+        
+        ctk.CTkLabel(header_frame, text="⚡",
+                    text_color=SIDEBAR_INDICATOR,
+                    font=("Segoe UI", 20)).pack(side="left", padx=(0, 8))
+        
+        ctk.CTkLabel(header_frame, text="COMMAND CENTER",
+                    text_color=SIDEBAR_TEXT,
+                    font=("Segoe UI Semibold", 11, "bold")).pack(side="left")
 
-        # Navigation buttons - simple CTkButton with icon in text
+        # Subtle divider after header
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=(0, 20))
+
+        # Navigation buttons with modern styling
         self.PAGES_CONFIG = [
-            ("dashboard", "📊", "NIBOR", DashboardPage),
+            ("dashboard", "📊", "NIBOR Dashboard", DashboardPage),
             ("meta_data", "📝", "Meta Data", MetaDataPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
-            ("nibor_days", "📅", "Nibor Days", NiborDaysPage),
+            ("nibor_days", "📅", "NIBOR Days", NiborDaysPage),
             ("weights", "⚖️", "Weights", WeightsPage),
-            ("rules_logic", "🧮", "Backup Nibor", RulesPage),
-            ("nibor_roadmap", "🔀", "Nibor Roadmap", NiborRoadmapPage),
+            ("rules_logic", "🧮", "Backup NIBOR", RulesPage),
+            ("nibor_roadmap", "🔀", "NIBOR Roadmap", NiborRoadmapPage),
             ("audit_log", "📋", "Audit Log", AuditLogPage),
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
-            # Dark sidebar button with orange selection
+            # Premium dark sidebar button with orange accent on active
             btn = ctk.CTkButton(
                 sidebar,
                 text=f"{icon}  {page_name}",
@@ -1049,12 +1149,12 @@ class NiborTerminalCTK(ctk.CTk):
                 fg_color="transparent",
                 hover_color=SIDEBAR_HOVER,
                 text_color=SIDEBAR_TEXT,
-                font=("Segoe UI", 14),
+                font=("Segoe UI", 13),
                 anchor="w",
-                corner_radius=6,
-                height=42
+                corner_radius=10,
+                height=46
             )
-            btn.pack(fill="x", padx=8, pady=2)
+            btn.pack(fill="x", padx=12, pady=3)
 
             self._nav_buttons[page_key] = {
                 "btn": btn,
@@ -1062,58 +1162,63 @@ class NiborTerminalCTK(ctk.CTk):
                 "container": None,
                 "icon": None,
                 "hover_color": SIDEBAR_HOVER,
-                "active_bg": SIDEBAR_SELECTED
+                "active_bg": SIDEBAR_ACTIVE
             }
 
         # Spacer before Quick Access
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=16).pack(fill="x")
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=20).pack(fill="x")
 
-        # Divider with orange accent
-        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=12, pady=8)
+        # Divider with subtle line
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=12)
 
-        # Quick Access header
+        # Quick Access section header
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
                     text_color=SIDEBAR_MUTED,
-                    font=("Segoe UI Semibold", 11)).pack(anchor="w", padx=16, pady=(4, 8))
+                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=20, pady=(8, 12))
 
         # History folder button
         history_btn = ctk.CTkButton(
             sidebar,
-            text="📂  History",
+            text="📂  History Folder",
             command=self.open_history_folder,
             fg_color="transparent",
             hover_color=SIDEBAR_HOVER,
             text_color=SIDEBAR_TEXT,
-            font=("Segoe UI", 14),
+            font=("Segoe UI", 13),
             anchor="w",
-            corner_radius=6,
+            corner_radius=10,
             height=42
         )
-        history_btn.pack(fill="x", padx=8, pady=2)
+        history_btn.pack(fill="x", padx=12, pady=3)
 
         # GRSS folder button
         grss_btn = ctk.CTkButton(
             sidebar,
-            text="📂  GRSS",
+            text="📂  GRSS Folder",
             command=self.open_stibor_folder,
             fg_color="transparent",
             hover_color=SIDEBAR_HOVER,
             text_color=SIDEBAR_TEXT,
-            font=("Segoe UI", 14),
+            font=("Segoe UI", 13),
             anchor="w",
-            corner_radius=6,
+            corner_radius=10,
             height=42
         )
-        grss_btn.pack(fill="x", padx=8, pady=2)
+        grss_btn.pack(fill="x", padx=12, pady=3)
 
-        # Credit at bottom of sidebar
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=40).pack(fill="x")
+        # Push credit to bottom with spacer
+        ctk.CTkFrame(sidebar, fg_color="transparent").pack(fill="both", expand=True)
+        
+        # Bottom divider
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=12)
+        
+        # Credit at bottom - smaller and more subtle
         ctk.CTkLabel(
             sidebar,
             text="Powered by Samba Sjödin",
             text_color=SIDEBAR_MUTED,
             font=("Segoe UI", 9)
-        ).pack(side="bottom", pady=(0, 8))
+        ).pack(side="bottom", pady=(0, 16))
 
         # Subtle separator line
         separator = ctk.CTkFrame(self.body, fg_color=THEME["border"], width=1)
@@ -1161,6 +1266,50 @@ class NiborTerminalCTK(ctk.CTk):
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
 
+    def _align_branding_clock_to_fixing_chip(self):
+        """Center the FIXING countdown chip under the analog clock.
+
+        The analog clock lives in the branding header (top banner) and the chip lives
+        in the global header row below. We compute absolute coordinates and adjust
+        the analog clock's 'x' offset (anchored NE) so its center aligns with the
+        chip's center.
+        """
+        try:
+            if not getattr(self, "_branding_clock_analog", None):
+                return
+            if not getattr(self, "_fixing_chip", None):
+                return
+
+            # Ensure geometry is computed.
+            self.update_idletasks()
+
+            clock = self._branding_clock_analog
+            chip = self._fixing_chip
+            parent = clock.master  # branding_inner
+
+            if chip.winfo_width() <= 1 or clock.winfo_width() <= 1 or parent.winfo_width() <= 1:
+                return
+
+            chip_center_rootx = chip.winfo_rootx() + (chip.winfo_width() / 2)
+            desired_clock_left_rootx = chip_center_rootx - (clock.winfo_width() / 2)
+
+            parent_rootx = parent.winfo_rootx()
+            desired_clock_left_in_parent = desired_clock_left_rootx - parent_rootx
+            desired_clock_right_in_parent = desired_clock_left_in_parent + clock.winfo_width()
+
+            # Because we place with anchor="ne" at relx=1.0, the right edge is:
+            # parent_width + x_offset. So:
+            # x_offset = desired_right - parent_width
+            x_offset = int(desired_clock_right_in_parent - parent.winfo_width())
+
+            # Clamp a bit so it can't drift wildly (defensive).
+            x_offset = max(-200, min(0, x_offset))
+
+            clock.place_configure(relx=1.0, rely=0.0, x=x_offset, y=6, anchor="ne")
+        except Exception:
+            # Never let a cosmetic alignment break the UI.
+            return
+
     def _load_branding_logo(self):
         """Load branding logo after window is fully initialized."""
         logo_paths = [
@@ -1198,8 +1347,14 @@ class NiborTerminalCTK(ctk.CTk):
         """Update the header clock and NIBOR fixing countdown every second."""
         now = datetime.now()
 
-        # Update time only (no date in minimal design)
-        self._header_clock_time.configure(text=now.strftime("%H:%M:%S"))
+        # Branding header analog clock
+        if hasattr(self, "_branding_clock_analog") and self._branding_clock_analog:
+            try:
+                self._branding_clock_analog.set_time(now.hour, now.minute, now.second)
+            except Exception:
+                pass
+
+        # Note: the analog clock is now in the branding header (top-right).
 
         # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
         hour = now.hour
@@ -1532,18 +1687,21 @@ class NiborTerminalCTK(ctk.CTk):
 
             try:
                 if btn_key == key:
-                    # Active state: white text, deeper orange background
+                    # Active state: Orange indicator with darker background
                     btn.configure(
-                        text_color="#FFFFFF",
-                        fg_color="#CC4D00",    # Deep orange
-                        font=("Segoe UI Bold", 14)
+                        text_color=self._sidebar_colors["text"],
+                        fg_color=self._sidebar_colors["active"],
+                        font=("Segoe UI Semibold", 13),
+                        border_width=0,
+                        border_color=self._sidebar_colors["indicator"]
                     )
                 else:
-                    # Inactive state: white text, transparent background
+                    # Inactive state: Light text, transparent background
                     btn.configure(
-                        text_color="#FFFFFF",
+                        text_color=self._sidebar_colors["text"],
                         fg_color="transparent",
-                        font=("Segoe UI", 14)
+                        font=("Segoe UI", 13),
+                        border_width=0
                     )
                 # Force button to redraw
                 btn.update_idletasks()
@@ -2258,6 +2416,8 @@ if __name__ == "__main__":
     import traceback
     from splash_screen import SplashScreen
     import tkinter as tk
+    import sys
+    from pathlib import Path
 
     # Create hidden root for splash
     _splash_root = tk.Tk()
@@ -2353,10 +2513,47 @@ if __name__ == "__main__":
         log.info("[Startup] mainloop exited")
 
     except Exception as e:
-        print("\n" + "="*60)
-        print("FATAL ERROR - Application failed to start")
-        print("="*60)
-        print(traceback.format_exc())
-        print("="*60)
-        log.exception("Fatal startup error")
-        input("Press Enter to exit...")
+        """Fail fast, but never block on stdin (important when launched via pythonw/.pyw)."""
+        tb = traceback.format_exc()
+        try:
+            # Always persist to a file so pythonw launches still provide diagnostics.
+            err_path = (Path(__file__).resolve().parent / "startup_error.log")
+            err_path.write_text(
+                "=" * 60 + "\n"
+                "FATAL ERROR - Application failed to start\n"
+                + "=" * 60 + "\n"
+                + tb
+                + "\n" + "=" * 60 + "\n",
+                encoding="utf-8",
+            )
+        except Exception:
+            # Don't let logging failures hide the original error.
+            pass
+
+        # Try to show a message box (works even without a console).
+        try:
+            # Ensure there is a Tk root for messagebox.
+            _err_root = tk.Tk()
+            _err_root.withdraw()
+            messagebox.showerror(
+                "Nibor Calculation Terminal - Startup error",
+                "Applikationen kunde inte starta.\n\n"
+                "En felrapport har sparats till: startup_error.log\n\n"
+                "Detaljer (första rader):\n" + "\n".join(tb.splitlines()[:20]),
+            )
+            _err_root.destroy()
+        except Exception:
+            pass
+
+        # Log via configured logger as well.
+        try:
+            log.exception("Fatal startup error")
+        except Exception:
+            pass
+
+        # Only wait for input if we actually have an interactive console.
+        try:
+            if sys.stdin and sys.stdin.isatty():
+                input("Press Enter to exit...")
+        except Exception:
+            pass

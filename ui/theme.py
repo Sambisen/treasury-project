@@ -15,75 +15,87 @@ import platform
 
 @dataclass(frozen=True)
 class Colors:
-    """Semantic color tokens for the Nordic Light theme."""
+    """Semantic color tokens for the Premium Nordic theme."""
 
-    # Backgrounds
-    BG: str = "#F6F7F9"                 # Main app background (warm light gray)
+    # Backgrounds - More sophisticated gray tones
+    BG: str = "#F8F9FC"                 # Main app background (soft blue-gray)
     SURFACE: str = "#FFFFFF"            # Card/panel surface (white)
     SURFACE_ELEVATED: str = "#FFFFFF"   # Elevated surfaces
     SURFACE_HOVER: str = "#F1F5F9"      # Hover state background
+    SURFACE_OVERLAY: str = "#FBFCFD"    # Subtle overlay
 
-    # Borders & Dividers
-    BORDER: str = "#E6E8EE"             # Default border
+    # Header
+    HEADER_BG: str = "#FFFFFF"          # App header background
+
+    # Borders & Dividers - More refined
+    BORDER: str = "#E2E8F0"             # Default border (lighter)
     BORDER_STRONG: str = "#CBD5E1"      # Stronger border for emphasis
     BORDER_SUBTLE: str = "#F1F5F9"      # Very subtle border
+    DIVIDER: str = "#E8ECF2"            # Divider lines
 
-    # Text
+    # Text - Better hierarchy
     TEXT: str = "#0F172A"               # Primary text (slate-900)
-    TEXT_SECONDARY: str = "#334155"     # Secondary text (slate-700)
-    TEXT_MUTED: str = "#475569"         # Muted text (slate-600)
+    TEXT_SECONDARY: str = "#475569"     # Secondary text (slate-600)
+    TEXT_MUTED: str = "#64748B"         # Muted text (slate-500)
     TEXT_PLACEHOLDER: str = "#94A3B8"   # Placeholder text (slate-400)
     TEXT_INVERSE: str = "#FFFFFF"       # Text on dark backgrounds
+    TEXT_LIGHT: str = "#CBD5E1"         # Very light text
 
-    # Accent (Swedbank Orange)
-    ACCENT: str = "#F57C00"             # Primary accent (Swedbank orange)
-    ACCENT_HOVER: str = "#E65100"       # Darker on hover
-    ACCENT_LIGHT: str = "#FFF3E0"       # Light accent background
-    ACCENT_MUTED: str = "#FFCC80"       # Muted accent
+    # Accent (Swedbank Orange) - Refined
+    ACCENT: str = "#FF6B35"             # Primary accent (vibrant orange)
+    ACCENT_HOVER: str = "#FF5722"       # Darker on hover
+    ACCENT_LIGHT: str = "#FFF4F0"       # Light accent background (softer)
+    ACCENT_MUTED: str = "#FFB59A"       # Muted accent
+    ACCENT_GLOW: str = "rgba(255, 107, 53, 0.15)"  # Glow effect
 
-    # Semantic Colors
-    SUCCESS: str = "#1E8E3E"            # Success green
-    SUCCESS_BG: str = "#E8F5E9"         # Success background
-    SUCCESS_LIGHT: str = "#C8E6C9"      # Light success
+    # Semantic Colors - More vibrant
+    SUCCESS: str = "#10B981"            # Success green (emerald)
+    SUCCESS_BG: str = "#ECFDF5"         # Success background
+    SUCCESS_LIGHT: str = "#D1FAE5"      # Light success
 
-    WARNING: str = "#B45309"            # Warning amber
-    WARNING_BG: str = "#FFF8E1"         # Warning background
-    WARNING_LIGHT: str = "#FFE082"      # Light warning
+    WARNING: str = "#F59E0B"            # Warning amber
+    WARNING_BG: str = "#FFFBEB"         # Warning background
+    WARNING_LIGHT: str = "#FDE68A"      # Light warning
 
-    DANGER: str = "#D93025"             # Error/danger red
-    DANGER_BG: str = "#FFEBEE"          # Danger background
-    DANGER_LIGHT: str = "#FFCDD2"       # Light danger
+    DANGER: str = "#EF4444"             # Error/danger red
+    DANGER_BG: str = "#FEF2F2"          # Danger background
+    DANGER_LIGHT: str = "#FECACA"       # Light danger
 
-    INFO: str = "#2563EB"               # Info blue
-    INFO_BG: str = "#E3F2FD"            # Info background
-    INFO_LIGHT: str = "#BBDEFB"         # Light info
+    INFO: str = "#3B82F6"               # Info blue
+    INFO_BG: str = "#EFF6FF"            # Info background
+    INFO_LIGHT: str = "#DBEAFE"         # Light info
 
-    # UI Elements
-    CHIP_BG: str = "#EEF2F7"            # Chip/badge background
-    ROW_HOVER: str = "#F1F5F9"          # Table row hover
+    # UI Elements - Enhanced
+    CHIP_BG: str = "#F1F5F9"            # Chip/badge background
+    ROW_HOVER: str = "#F8FAFC"          # Table row hover
     ROW_ZEBRA: str = "#FAFBFC"          # Alternating row color
     TABLE_HEADER_BG: str = "#F8FAFC"    # Table header background
 
-    # Navigation
-    NAV_BG: str = "#FFFFFF"             # Sidebar background
-    NAV_ACTIVE_BG: str = "#FFF3E0"      # Active nav item background
-    NAV_HOVER_BG: str = "#F8FAFC"       # Nav item hover
-    NAV_INDICATOR: str = "#F57C00"      # Active indicator (orange line)
+    # Navigation - Premium slate sidebar
+    NAV_BG: str = "#1E293B"             # Sidebar background (slate-800)
+    NAV_BG_DARK: str = "#0F172A"        # Darker sidebar variant
+    NAV_ACTIVE_BG: str = "#334155"      # Active nav item background (slate-700)
+    NAV_HOVER_BG: str = "#293548"       # Nav item hover
+    NAV_INDICATOR: str = "#FF6B35"      # Active indicator (orange)
+    NAV_TEXT: str = "#F1F5F9"           # Sidebar text (light)
+    NAV_TEXT_MUTED: str = "#94A3B8"     # Sidebar muted text
+    NAV_DIVIDER: str = "#334155"        # Sidebar divider
 
-    # Shadows (for reference - actual shadow values below)
-    SHADOW_COLOR: str = "rgba(0, 0, 0, 0.08)"
+    # Shadows
+    SHADOW_COLOR: str = "rgba(15, 23, 42, 0.08)"
+    SHADOW_STRONG: str = "rgba(15, 23, 42, 0.12)"
 
     # Chart specific
     CHART_BG: str = "#FFFFFF"           # Chart background
-    CHART_GRID: str = "#E6E8EE"         # Grid lines
-    CHART_LINE_PRIMARY: str = "#F57C00" # Primary line (orange)
-    CHART_LINE_SECONDARY: str = "#2563EB"  # Secondary line (blue)
+    CHART_GRID: str = "#E8ECF2"         # Grid lines
+    CHART_LINE_PRIMARY: str = "#FF6B35" # Primary line (orange)
+    CHART_LINE_SECONDARY: str = "#3B82F6"  # Secondary line (blue)
 
     # Status indicators
-    STATUS_ONLINE: str = "#1E8E3E"      # Online/connected
+    STATUS_ONLINE: str = "#10B981"      # Online/connected
     STATUS_OFFLINE: str = "#94A3B8"     # Offline/disconnected
-    STATUS_ERROR: str = "#D93025"       # Error state
-    STATUS_PENDING: str = "#F57C00"     # Pending/loading
+    STATUS_ERROR: str = "#EF4444"       # Error state
+    STATUS_PENDING: str = "#F59E0B"     # Pending/loading
 
 
 # Singleton instance
@@ -169,21 +181,23 @@ class EnvBadgeColors:
     Nordic Light theme - light background, colored glow.
     """
 
-    # Badge container (Nordic Light - white pill with subtle border)
-    BADGE_BG: str = "#FFFFFF"
-    BADGE_BORDER: str = "#E6E8EE"
+    # Badge container
+    # Note: The app is dark-themed; keep border subtle/dark so it feels premium.
+    BADGE_BG: str = "#0B1220"
+    BADGE_BORDER: str = "#22314B"
 
-    # PROD colors (green)
-    PROD_DOT: str = "#1E8E3E"
-    PROD_GLOW: str = "#1E8E3E"
-    PROD_TEXT: str = "#1E8E3E"
-    PROD_BG_TINT: str = "#E8F5E9"  # Subtle green tint for badge bg
+    # PROD colors (premium "sigill" green/teal tint)
+    # Tuned to feel less "alert" and more "status label".
+    PROD_DOT: str = "#22C55E"       # Emerald 500 (slightly brighter dot)
+    PROD_GLOW: str = "#22C55E"
+    PROD_TEXT: str = "#86EFAC"      # Emerald 200 for softer text
+    PROD_BG_TINT: str = "#0B1F16"   # Dark green-tinted background
 
-    # DEV colors (amber/orange)
-    DEV_DOT: str = "#F59E0B"
+    # DEV colors (warm amber tint, still premium)
+    DEV_DOT: str = "#F59E0B"       # Amber 500
     DEV_GLOW: str = "#F59E0B"
-    DEV_TEXT: str = "#B45309"
-    DEV_BG_TINT: str = "#FFF8E1"  # Subtle amber tint for badge bg
+    DEV_TEXT: str = "#FCD34D"      # Amber 300
+    DEV_BG_TINT: str = "#2A1B14"   # Dark accent-tinted background (matches THEME['accent_light'])
 
     # Animation
     PULSE_INTERVAL_MS: int = 1500
@@ -200,19 +214,22 @@ class SegmentedControlColors:
     Segmented control colors for Nordic Light theme.
     """
 
-    # Container
-    BG: str = "#FFFFFF"
-    BORDER: str = "#E6E8EE"
+    # Container (dark app integration)
+    # NOTE: This UI project uses a dark fintech theme in config.py (THEME['bg_main']).
+    # The segmented control is used inside the dark global header, so we keep it dark
+    # to avoid the “white patches” you see around 10:00/10:30.
+    BG: str = "#0E172A"       # matches THEME['bg_panel'] in config.py
+    BORDER: str = "#22314B"   # matches THEME['border'] in config.py
 
     # Segments
-    SEGMENT_BG: str = "#FFFFFF"
-    SEGMENT_ACTIVE_BG: str = "#F57C00"  # Accent orange
-    SEGMENT_HOVER_BG: str = "#F8FAFC"
+    SEGMENT_BG: str = "#0B1220"         # matches THEME['bg_main']
+    SEGMENT_ACTIVE_BG: str = "#FF6B35"  # matches THEME['accent']
+    SEGMENT_HOVER_BG: str = "#1C2A44"   # matches THEME['bg_hover']
 
     # Text
-    TEXT: str = "#334155"
+    TEXT: str = "#A8B3C7"         # matches THEME['text_muted']
     TEXT_ACTIVE: str = "#FFFFFF"
-    TEXT_HOVER: str = "#0F172A"
+    TEXT_HOVER: str = "#E7ECF3"   # matches THEME['text']
 
 
 SEGMENT_COLORS = SegmentedControlColors()
@@ -324,37 +341,37 @@ FONTS = Fonts()
 
 @dataclass(frozen=True)
 class Spacing:
-    """Spacing scale based on 4px baseline grid."""
+    """Spacing scale based on 4px baseline grid - More generous for premium feel."""
 
     NONE: int = 0
     XXS: int = 2    # 2px
     XS: int = 4     # 4px
     SM: int = 8     # 8px
-    MD: int = 12    # 12px
-    LG: int = 16    # 16px
-    XL: int = 20    # 20px
-    XXL: int = 24   # 24px
-    XXXL: int = 32  # 32px
+    MD: int = 14    # 14px (increased from 12)
+    LG: int = 20    # 20px (increased from 16)
+    XL: int = 24    # 24px (increased from 20)
+    XXL: int = 28   # 28px (increased from 24)
+    XXXL: int = 36  # 36px (increased from 32)
 
-    # Component-specific
-    CARD_PADDING: int = 20
-    CARD_GAP: int = 16
-    SECTION_GAP: int = 24
-    PAGE_PADDING: int = 24
+    # Component-specific - More breathing room
+    CARD_PADDING: int = 24      # Increased from 20
+    CARD_GAP: int = 20          # Increased from 16
+    SECTION_GAP: int = 28       # Increased from 24
+    PAGE_PADDING: int = 28      # Increased from 24
 
-    # Table
-    TABLE_CELL_X: int = 12
-    TABLE_CELL_Y: int = 10
-    TABLE_ROW_HEIGHT: int = 40
+    # Table - More comfortable
+    TABLE_CELL_X: int = 16      # Increased from 12
+    TABLE_CELL_Y: int = 12      # Increased from 10
+    TABLE_ROW_HEIGHT: int = 44  # Increased from 40
 
-    # Button
-    BUTTON_X: int = 16
-    BUTTON_Y: int = 10
-    BUTTON_GAP: int = 8
+    # Button - More substantial
+    BUTTON_X: int = 20          # Increased from 16
+    BUTTON_Y: int = 12          # Increased from 10
+    BUTTON_GAP: int = 10        # Increased from 8
 
     # Input
-    INPUT_X: int = 12
-    INPUT_Y: int = 10
+    INPUT_X: int = 14           # Increased from 12
+    INPUT_Y: int = 12           # Increased from 10
 
 
 SPACING = Spacing()
@@ -366,23 +383,23 @@ SPACING = Spacing()
 
 @dataclass(frozen=True)
 class Radii:
-    """Border radius values for consistent rounding."""
+    """Border radius values for consistent rounding - More modern, rounded."""
 
     NONE: int = 0
-    SM: int = 4
-    MD: int = 6
-    LG: int = 8
-    XL: int = 10
-    XXL: int = 12
+    SM: int = 6     # Increased from 4
+    MD: int = 8     # Increased from 6
+    LG: int = 10    # Increased from 8
+    XL: int = 14    # Increased from 10
+    XXL: int = 16   # Increased from 12
     FULL: int = 999  # Pill shape
 
-    # Component-specific
-    CARD: int = 12
-    BUTTON: int = 10
+    # Component-specific - More rounded for modern look
+    CARD: int = 16      # Increased from 12
+    BUTTON: int = 10    # Kept at 10
     CHIP: int = 999     # Full rounded
-    INPUT: int = 8
-    MODAL: int = 12
-    TOOLTIP: int = 6
+    INPUT: int = 10     # Increased from 8
+    MODAL: int = 16     # Increased from 12
+    TOOLTIP: int = 8    # Increased from 6
 
 
 RADII = Radii()
@@ -422,6 +439,7 @@ class Icons:
     # Navigation
     DASHBOARD: str = "\u25A6"      # ▦ Grid
     CHART: str = "\u2197"          # ↗ Trend up
+    CHART_LINE: str = "\u2197"     # ↗ Alias used by some components
     TABLE: str = "\u2630"          # ☰ Menu/list
     SETTINGS: str = "\u2699"       # ⚙ Gear
     REFRESH: str = "\u21BB"        # ↻ Refresh
@@ -540,7 +558,7 @@ ANIMATION = Animation()
 THEME = {
     # Backgrounds
     "bg_main": COLORS.BG,
-    "bg_panel": COLORS.NAV_BG,
+    "bg_panel": COLORS.SURFACE_OVERLAY,
     "bg_card": COLORS.SURFACE,
     "bg_card_2": COLORS.SURFACE_HOVER,
     "bg_hover": COLORS.ROW_HOVER,

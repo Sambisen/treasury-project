@@ -308,12 +308,18 @@ class DashboardPage(BaseFrame):
             ("CHG", 14, "center"),
         ]
         for col, (text, width, anchor) in enumerate(headers):
-            tk.Label(funding_frame, text=text,
-                    fg=THEME["text"],  # Mörkare text för bättre kontrast
-                    bg=header_bg,
-                    font=("Segoe UI Semibold", 11),  # Något större font
-                    width=width, pady=12, padx=18,  # Mer padding
-                    anchor=anchor).grid(row=0, column=col, sticky="nsew")
+            # Keep headers consistent. (Per request: no special background/border.)
+            tk.Label(
+                funding_frame,
+                text=text,
+                fg=THEME["text"],
+                bg=header_bg,
+                font=("Segoe UI Semibold", 11),
+                width=width,
+                pady=12,
+                padx=18,
+                anchor=anchor,
+            ).grid(row=0, column=col, sticky="nsew")
 
         # Vertical separator between main cols and contribution
         tk.Frame(funding_frame, bg=row_separator_color, width=1).grid(row=0, column=5, rowspan=20, sticky="ns", padx=12)
@@ -357,10 +363,17 @@ class DashboardPage(BaseFrame):
         ).grid(row=0, column=0, sticky="nsew")
 
         for col, val in enumerate(["N/A", "—", "N/A", "—"], start=1):
-            tk.Label(self._1w_row_frame, text=val,
-                    fg=THEME["text_light"], bg=row_bg,
-                    font=("Consolas", 12),
-                    anchor="center", pady=14, padx=16
+            # Keep 1W row clean as well (no special background/border).
+            # If you later want orange numbers here too, we can re-add only fg for the NIBOR cell.
+            tk.Label(
+                self._1w_row_frame,
+                text=val,
+                fg=THEME["text_light"],
+                bg=row_bg,
+                font=("Consolas", 12),
+                anchor="center",
+                pady=14,
+                padx=16,
             ).grid(row=0, column=col, sticky="nsew")
 
         # Separator and contribution for 1W
@@ -434,11 +447,19 @@ class DashboardPage(BaseFrame):
             row_widgets.append(spread_lbl)
             cells["spread"] = spread_lbl
 
-            # NIBOR - HERO COLUMN - EXTRA LARGE, bold, accent color, centered
-            final_lbl = tk.Label(funding_frame, text="—",
-                                fg=THEME["accent"], bg=row_bg,
-                                font=("Consolas", 18, "bold"),
-                                width=20, anchor="center", cursor="hand2", pady=14, padx=20)
+            # NIBOR - keep it simple: orange numbers only (no highlight background / border).
+            final_lbl = tk.Label(
+                funding_frame,
+                text="—",
+                fg=THEME["accent"],
+                bg=row_bg,
+                font=("Consolas", 18, "bold"),
+                width=20,
+                anchor="center",
+                cursor="hand2",
+                pady=14,
+                padx=20,
+            )
             final_lbl.grid(row=row_idx, column=3, sticky="nsew")
             final_lbl.bind("<Button-1>", lambda e, t=tenor["key"]: self._show_funding_details(t, show_spread=True))
             row_widgets.append(final_lbl)
@@ -484,22 +505,20 @@ class DashboardPage(BaseFrame):
             def make_hover_enter(widgets, hbg):
                 def handler(e):
                     for w in widgets:
-                        if isinstance(w, tk.Label) or isinstance(w, tk.Frame):
+                        if isinstance(w, (tk.Label, tk.Frame)):
                             w.config(bg=hbg)
                 return handler
 
-            def make_hover_leave(widgets, rbg, pill_bg):
+            def make_hover_leave(widgets, rbg):
                 def handler(e):
                     for w in widgets:
-                        if w == pill_container:
-                            w.config(bg=rbg)
-                        elif isinstance(w, tk.Label) or isinstance(w, tk.Frame):
+                        if isinstance(w, (tk.Label, tk.Frame)):
                             w.config(bg=rbg)
                 return handler
 
             for w in row_widgets:
                 w.bind("<Enter>", make_hover_enter(row_widgets, hover_bg), add="+")
-                w.bind("<Leave>", make_hover_leave(row_widgets, row_bg, THEME["chip"]), add="+")
+                w.bind("<Leave>", make_hover_leave(row_widgets, row_bg), add="+")
 
             # Subtle row separator
             tk.Frame(funding_frame, bg=row_separator_color, height=1).grid(row=row_idx+1, column=0, columnspan=7, sticky="ew")

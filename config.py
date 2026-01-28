@@ -138,84 +138,91 @@ FUNDING_SPREADS = {
 APP_VERSION = "4.0.0-ctk"  # CustomTkinter version
 
 # ==============================================================================
-#  NORDIC LIGHT FINANCIAL TERMINAL THEME
+#  PREMIUM DARK FINTECH THEME (works for both Tkinter + CustomTkinter)
 # ==============================================================================
+# This is intentionally a "wow"-theme: dark canvas, elevated cards,
+# crisp typography, and warm orange accent. Most components already consume
+# THEME[...] keys, so this change has immediate global impact.
 THEME = {
-    # Primary Backgrounds - Light Nordic
-    "bg_panel": "#F6F7F9",           # Main background - soft gray
-    "bg_card": "#FFFFFF",            # Card/container background - white
-    "bg_card_2": "#F0F2F5",          # Alternate/elevated background
-    "bg_hover": "#E8ECF0",           # Hover state
+    # Primary Backgrounds
+    "bg_main": "#0B1220",            # App canvas (deep navy)
+    "bg_panel": "#0E172A",           # Main content panel
+    "bg_card": "#121C2E",            # Card surface (elevated)
+    "bg_card_2": "#18243A",          # Secondary surface
+    "bg_hover": "#1C2A44",           # Hover surface
 
-    # Swedbank Brand Colors
-    "accent": "#F57C00",             # Swedbank orange - primary actions
-    "accent_secondary": "#E65100",   # Darker orange
-    "accent_hover": "#FF9800",       # Lighter orange for hover
+    # Brand / Accent
+    "accent": "#FF6B35",             # Premium orange accent
+    "accent_secondary": "#FF8A66",   # Softer accent tint
+    "accent_hover": "#FF5722",       # Hover for primary actions
+    "accent2": "#FF8A66",            # Legacy alias
+    "accent_light": "#2A1B14",       # Dark-tinted accent background
 
-    # Text - Dark on light (Nordic Light spec)
-    "text": "#0F172A",               # Primary text - slate 900
-    "text_muted": "#475569",         # Secondary text - slate 600
-    "muted": "#475569",              # Alias for text_muted
-    "text_light": "#9CA3AF",         # Tertiary text - light gray
+    # Text
+    "text": "#E7ECF3",               # Primary text
+    "text_secondary": "#C7D2FE",     # Slightly tinted secondary
+    "text_muted": "#A8B3C7",         # Muted labels
+    "muted": "#A8B3C7",
+    "muted2": "#7C8796",
+    "text_light": "#CBD5E1",
+    "placeholder": "#7C8796",
 
-    # Status Colors (Nordic Light spec)
-    "good": "#1E8E3E",               # Success green
-    "success": "#1E8E3E",            # Alias for good
-    "warning": "#F59E0B",            # Amber warning
-    "bad": "#D93025",                # Error red
-    "danger": "#D93025",             # Alias for bad
-    "pending": "#F59E0B",            # Pending amber
+    # Borders / Dividers
+    "border": "#22314B",
+    "border_2": "#2A3A57",
+    "border_focus": "#FF6B35",
+    "table_border": "#22314B",
 
-    # UI Elements (Nordic Light spec)
-    "border": "#E6E8EE",             # Subtle light border
-    "border_focus": "#F57C00",       # Focused border (Swedbank orange)
-    "chip": "#EEF2F7",               # Chip/badge background
-    "chip2": "#E5E7EB",              # Hover chip background
-
-    # Table specific (Nordic Light spec)
-    "table_header_bg": "#F8FAFC",    # Table header background
-    "row_hover": "#F1F5F9",          # Row hover state
-    "table_header": "#F8FAFC",       # Legacy alias
-    "table_border": "#E6E8EE",       # Table border
-
-    # Shadows (CSS-style strings for reference)
-    "shadow_sm": "0 1px 2px rgba(0,0,0,0.05)",
-    "shadow_md": "0 4px 6px rgba(0,0,0,0.07)",
-    "shadow_lg": "0 10px 15px rgba(0,0,0,0.1)",
-
-    # Legacy/compatibility (mapped to light theme)
-    "bg_main": "#F6F7F9",
-    "bg_nav": "#FFFFFF",
-    "bg_nav_sel": "#FFF3E0",         # Light orange tint for selected nav
-    "border_2": "#D1D5DB",
-    "text_secondary": "#475569",
-    "muted2": "#9CA3AF",
-    "accent2": "#FF9800",
+    # Status Colors
+    "good": "#22C55E",
+    "success": "#22C55E",
+    "warning": "#F59E0B",
     "warn": "#F59E0B",
+    "bad": "#EF4444",
+    "danger": "#EF4444",
+    "pending": "#F59E0B",
     "yellow": "#FBBF24",
-    "shadow": "#00000010",
-    "row_even": "#FFFFFF",
-    "row_odd": "#F9FAFB",
-    "tree_sel_bg": "#FFF3E0",        # Light orange selection
 
-    # Badge colors for status indicators
-    "badge_ok": "#1E8E3E",
-    "badge_fail": "#D93025",
+    # Chips / Badges
+    "chip": "#101A2B",
+    "chip2": "#18243A",
+
+    # Table
+    "table_header_bg": "#0F1A2F",
+    "table_header": "#0F1A2F",
+    "row_hover": "#0F1A2F",
+    "row_even": "#121C2E",
+    "row_odd": "#101A2B",
+    "tree_sel_bg": "#2A1B14",        # Dark accent selection
+
+    # Navigation (legacy keys)
+    "bg_nav": "#0E172A",
+    "bg_nav_sel": "#2A1B14",
+
+    # Shadows (reference)
+    "shadow_sm": "0 1px 2px rgba(0,0,0,0.35)",
+    "shadow_md": "0 10px 22px rgba(0,0,0,0.35)",
+    "shadow_lg": "0 20px 50px rgba(0,0,0,0.45)",
+    "shadow": "#00000055",
+
+    # Badge colors
+    "badge_ok": "#22C55E",
+    "badge_fail": "#EF4444",
     "badge_warn": "#F59E0B",
-    "badge_pend": "#9CA3AF",
+    "badge_pend": "#7C8796",
 
     # CustomTkinter specific
-    "ctk_button": "#F57C00",
-    "ctk_button_hover": "#FF9800",
-    "ctk_entry_bg": "#FFFFFF",
-    "ctk_entry_border": "#E6E8EE",
+    "ctk_button": "#FF6B35",
+    "ctk_button_hover": "#FF5722",
+    "ctk_entry_bg": "#0F1A2F",
+    "ctk_entry_border": "#22314B",
 }
 
 # ==============================================================================
 #  NORDIC LIGHT RADII (for consistent corner radius)
 # ==============================================================================
 RADII = {
-    "card": 12,
+    "card": 16,
     "button": 10,
     "chip": 999,  # Fully rounded pills
 }
@@ -223,31 +230,31 @@ RADII = {
 # ==============================================================================
 #  CUSTOMTKINTER CONFIGURATION
 # ==============================================================================
-CTK_APPEARANCE = "light"  # "dark", "light", or "system"
+CTK_APPEARANCE = "dark"  # "dark", "light", or "system"
 CTK_COLOR_THEME = "blue"  # Default theme, we override with custom colors
 
 # Corner radius for CTk widgets
 CTK_CORNER_RADIUS = {
-    "button": 8,
-    "frame": 10,
-    "entry": 6,
-    "scrollbar": 6,
+    "button": 10,
+    "frame": 12,
+    "entry": 10,
+    "scrollbar": 10,
 }
 
 # ==============================================================================
 #  TYPOGRAPHY SYSTEM - Professional Financial Terminal
 # ==============================================================================
 FONTS = {
-    # Headers - Bold, impactful
+    # Headers
     "h1": ("Segoe UI Semibold", 22),
     "h2": ("Segoe UI Semibold", 16),
     "h3": ("Segoe UI Semibold", 13),
 
-    # Body text
+    # Body
     "body": ("Segoe UI", 11),
     "body_small": ("Segoe UI", 9),
 
-    # Numeric data - Monospace for perfect alignment
+    # Numeric data
     "numeric": ("Consolas", 11),
     "numeric_large": ("Consolas", 13),
     "numeric_small": ("Consolas", 9),
@@ -255,7 +262,7 @@ FONTS = {
     # Status text
     "status": ("Segoe UI Semibold", 10),
 
-    # Table headers - All caps style
+    # Table headers
     "table_header": ("Segoe UI Semibold", 10),
 
     # Terminal style
