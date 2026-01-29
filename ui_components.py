@@ -1113,14 +1113,13 @@ class SecondaryActionButton(ctk.CTkFrame):
 class RatesActionBar(ctk.CTkFrame):
     """
     Action bar for rates confirmation with metadata and buttons.
-    Left: metadata (last updated, data source)
-    Right: Re-run checks + Confirm rates buttons
+    Right: Confirm rates button
     """
 
     def __init__(
         self,
         master,
-        on_rerun_checks=None,
+        on_rerun_checks=None,  # Kept for backwards compatibility
         on_confirm_rates=None,
         **kwargs,
     ):
@@ -1136,25 +1135,12 @@ class RatesActionBar(ctk.CTkFrame):
             **kwargs,
         )
 
-        self._on_rerun = on_rerun_checks
         self._on_confirm = on_confirm_rates
         self._is_ready = False
 
         # Buttons container (right-aligned)
         right = ctk.CTkFrame(self, fg_color="transparent")
         right.pack(side="right", padx=16, pady=14)
-
-        # Re-run checks button (secondary)
-        self.rerun_btn = SecondaryActionButton(
-            right,
-            text="Re-run checks",
-            command=self._handle_rerun,
-            width=140,
-            height=44,
-            radius=12,
-            icon_text="\u21BB",  # ↻ refresh symbol
-        )
-        self.rerun_btn.pack(side="left", padx=(0, 10))
 
         # Confirm rates button (premium)
         self.confirm_btn = PremiumCTAButton(
@@ -1182,11 +1168,6 @@ class RatesActionBar(ctk.CTkFrame):
     def flash_confirmed(self):
         """Flash confirmed state on confirm button."""
         self.confirm_btn.flash_confirmed()
-
-    def _handle_rerun(self):
-        """Handle re-run checks button click."""
-        if callable(self._on_rerun):
-            self._on_rerun()
 
     def _handle_confirm(self):
         """Handle confirm rates button click."""
