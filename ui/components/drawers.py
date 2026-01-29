@@ -9,6 +9,7 @@ from datetime import datetime
 from ctk_compat import ctk, CTK_AVAILABLE
 
 from ui.theme import COLORS, FONTS, SPACING, RADII, ICONS
+from config import THEME  # Dark theme colors
 
 
 class CompactCalculationDrawer(tk.Toplevel):
@@ -32,7 +33,7 @@ class CompactCalculationDrawer(tk.Toplevel):
 
         # Window setup - compact, no decorations
         self.overrideredirect(True)
-        self.configure(bg=COLORS.SURFACE)
+        self.configure(bg=THEME["bg_card"])
 
         # Build content
         self._build_ui()
@@ -51,9 +52,9 @@ class CompactCalculationDrawer(tk.Toplevel):
         # Main container with border
         container = tk.Frame(
             self,
-            bg=COLORS.SURFACE,
+            bg=THEME["bg_card"],
             highlightthickness=1,
-            highlightbackground=COLORS.BORDER
+            highlightbackground=THEME["border"]
         )
         container.pack(fill="both", expand=True)
 
@@ -61,13 +62,13 @@ class CompactCalculationDrawer(tk.Toplevel):
         self._build_header(container)
 
         # Separator
-        tk.Frame(container, bg=COLORS.BORDER, height=1).pack(fill="x")
+        tk.Frame(container, bg=THEME["border"], height=1).pack(fill="x")
 
         # Funding Rate + Spread section
         self._build_funding_section(container)
 
         # Separator
-        tk.Frame(container, bg=COLORS.BORDER, height=1).pack(fill="x")
+        tk.Frame(container, bg=THEME["border"], height=1).pack(fill="x")
 
         # Collapsible components
         self._build_components_section(container)
@@ -77,7 +78,7 @@ class CompactCalculationDrawer(tk.Toplevel):
 
     def _build_header(self, parent):
         """Build header with title and value."""
-        header = tk.Frame(parent, bg=COLORS.SURFACE)
+        header = tk.Frame(parent, bg=THEME["bg_card"])
         header.pack(fill="x", padx=16, pady=12)
 
         # Title - different for Funding Rate vs NIBOR
@@ -92,8 +93,8 @@ class CompactCalculationDrawer(tk.Toplevel):
             header,
             text=title,
             font=("Segoe UI Semibold", 14),
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            fg=THEME["text"],
+            bg=THEME["bg_card"]
         ).pack(side="left")
 
         # Close button
@@ -101,52 +102,52 @@ class CompactCalculationDrawer(tk.Toplevel):
             header,
             text="✕",
             font=("Segoe UI", 12),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"],
             cursor="hand2"
         )
         close_btn.pack(side="right")
         close_btn.bind("<Button-1>", lambda e: self.close())
-        close_btn.bind("<Enter>", lambda e: close_btn.config(fg=COLORS.TEXT))
-        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=COLORS.TEXT_MUTED))
+        close_btn.bind("<Enter>", lambda e: close_btn.config(fg=THEME["text"]))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=THEME["text_muted"]))
 
         # Value (large, accent color)
         tk.Label(
             header,
             text=f"{display_value:.4f}%" if display_value else "—",
             font=("Consolas", 18, "bold"),
-            fg=COLORS.ACCENT,
-            bg=COLORS.SURFACE
+            fg=THEME["accent"],
+            bg=THEME["bg_card"]
         ).pack(side="right", padx=(0, 16))
 
     def _build_funding_section(self, parent):
         """Build Funding Rate + Spread section (spread only shown for NIBOR)."""
-        section = tk.Frame(parent, bg=COLORS.SURFACE)
+        section = tk.Frame(parent, bg=THEME["bg_card"])
         section.pack(fill="x", padx=16, pady=10)
 
         funding_rate = self._data.get("funding_rate", 0)
 
         # Funding Rate row
-        row1 = tk.Frame(section, bg=COLORS.SURFACE)
+        row1 = tk.Frame(section, bg=THEME["bg_card"])
         row1.pack(fill="x", pady=2)
         tk.Label(row1, text="Funding Rate", font=("Segoe UI", 11),
-                fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="left")
+                fg=THEME["text"], bg=THEME["bg_card"]).pack(side="left")
         tk.Label(row1, text=f"{funding_rate:.4f}%" if funding_rate else "—", font=("Consolas", 11),
-                fg=COLORS.TEXT, bg=COLORS.SURFACE).pack(side="right")
+                fg=THEME["text"], bg=THEME["bg_card"]).pack(side="right")
 
         # Spread row - only show for NIBOR (when show_spread=True)
         if self._show_spread:
             spread = self._data.get("spread", 0)
-            row2 = tk.Frame(section, bg=COLORS.SURFACE)
+            row2 = tk.Frame(section, bg=THEME["bg_card"])
             row2.pack(fill="x", pady=2)
             tk.Label(row2, text="+ Spread", font=("Segoe UI", 11),
-                    fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="left")
+                    fg=THEME["text_muted"], bg=THEME["bg_card"]).pack(side="left")
             tk.Label(row2, text=f"{spread:.4f}%", font=("Consolas", 11),
-                    fg=COLORS.TEXT_MUTED, bg=COLORS.SURFACE).pack(side="right")
+                    fg=THEME["text_muted"], bg=THEME["bg_card"]).pack(side="right")
 
     def _build_components_section(self, parent):
         """Build collapsible components (EUR, USD, NOK)."""
-        section = tk.Frame(parent, bg=COLORS.SURFACE)
+        section = tk.Frame(parent, bg=THEME["bg_card"])
         section.pack(fill="x", padx=16, pady=10)
 
         weights = self._data.get("weights", {})
@@ -165,11 +166,11 @@ class CompactCalculationDrawer(tk.Toplevel):
         value = self._data.get(data_key, 0)
 
         # Container for row + details
-        container = tk.Frame(parent, bg=COLORS.SURFACE)
+        container = tk.Frame(parent, bg=THEME["bg_card"])
         container.pack(fill="x", pady=2)
 
         # Main row (clickable)
-        row = tk.Frame(container, bg=COLORS.SURFACE, cursor="hand2")
+        row = tk.Frame(container, bg=THEME["bg_card"], cursor="hand2")
         row.pack(fill="x")
 
         # Expand/collapse indicator
@@ -177,8 +178,8 @@ class CompactCalculationDrawer(tk.Toplevel):
             row,
             text="▶",
             font=("Segoe UI", 8),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"]
         )
         indicator.pack(side="left", padx=(0, 6))
 
@@ -187,8 +188,8 @@ class CompactCalculationDrawer(tk.Toplevel):
             row,
             text=name,
             font=("Segoe UI", 11),
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE,
+            fg=THEME["text"],
+            bg=THEME["bg_card"],
             width=12,
             anchor="w"
         ).pack(side="left")
@@ -198,8 +199,8 @@ class CompactCalculationDrawer(tk.Toplevel):
             row,
             text=f"{weight*100:.0f}%",
             font=("Segoe UI", 10),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"],
             width=4,
             anchor="e"
         ).pack(side="left", padx=(4, 0))
@@ -209,30 +210,30 @@ class CompactCalculationDrawer(tk.Toplevel):
             row,
             text=f"{value:.4f}%" if value else "—",
             font=("Consolas", 11),
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            fg=THEME["text"],
+            bg=THEME["bg_card"]
         ).pack(side="right")
 
         # Details frame (hidden by default)
-        details_frame = tk.Frame(container, bg=COLORS.ROW_ZEBRA)
+        details_frame = tk.Frame(container, bg=THEME["bg_panel"])
 
         # Populate details
         details = detail_func()
         for label, val in details:
-            detail_row = tk.Frame(details_frame, bg=COLORS.ROW_ZEBRA)
+            detail_row = tk.Frame(details_frame, bg=THEME["bg_panel"])
             detail_row.pack(fill="x", padx=(20, 8), pady=1)
             tk.Label(detail_row, text=label, font=("Segoe UI", 10),
-                    fg=COLORS.TEXT_MUTED, bg=COLORS.ROW_ZEBRA).pack(side="left")
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(side="left")
             tk.Label(detail_row, text=val, font=("Consolas", 10),
-                    fg=COLORS.TEXT, bg=COLORS.ROW_ZEBRA).pack(side="right")
+                    fg=THEME["text"], bg=THEME["bg_panel"]).pack(side="right")
 
         # Add formula at bottom
         formula = self._get_formula(data_key)
         if formula:
-            formula_row = tk.Frame(details_frame, bg=COLORS.ROW_ZEBRA)
+            formula_row = tk.Frame(details_frame, bg=THEME["bg_panel"])
             formula_row.pack(fill="x", padx=(20, 8), pady=(4, 6))
             tk.Label(formula_row, text=formula, font=("Consolas", 9),
-                    fg=COLORS.TEXT_MUTED, bg=COLORS.ROW_ZEBRA).pack(side="left")
+                    fg=THEME["text_muted"], bg=THEME["bg_panel"]).pack(side="left")
 
         # Toggle function
         def toggle(e=None):
@@ -282,15 +283,15 @@ class CompactCalculationDrawer(tk.Toplevel):
 
     def _build_footer(self, parent):
         """Build footer with close hint."""
-        footer = tk.Frame(parent, bg=COLORS.CHIP_BG)
+        footer = tk.Frame(parent, bg=THEME["bg_main"])
         footer.pack(fill="x", side="bottom")
 
         tk.Label(
             footer,
             text="ESC or click outside to close",
             font=("Segoe UI", 9),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.CHIP_BG,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_main"],
             pady=6
         ).pack()
 
@@ -358,12 +359,12 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         drawer.close()
     """
 
-    # Status colors
+    # Status colors (using dark theme from config)
     STATUS_COLORS = {
-        "MATCHED": {"bg": "#E8F5E9", "fg": COLORS.SUCCESS},
-        "WARN": {"bg": COLORS.WARNING_BG, "fg": COLORS.WARNING},
-        "FAIL": {"bg": "#FFEBEE", "fg": COLORS.DANGER},
-        "PENDING": {"bg": COLORS.CHIP_BG, "fg": COLORS.TEXT_MUTED}
+        "MATCHED": {"bg": "#0d2818", "fg": "#22C55E"},  # Dark green, emerald text
+        "WARN": {"bg": "#2a1b14", "fg": "#F59E0B"},     # Dark amber
+        "FAIL": {"bg": "#2a1215", "fg": "#EF4444"},     # Dark red
+        "PENDING": {"bg": "#18243A", "fg": "#A8B3C7"}   # Dark card, muted text
     }
 
     def __init__(
@@ -393,19 +394,19 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         if CTK_AVAILABLE:
             super().__init__(
                 master,
-                fg_color=COLORS.SURFACE,
+                fg_color=THEME["bg_card"],
                 corner_radius=0,
                 border_width=1,
-                border_color=COLORS.BORDER,
+                border_color=THEME["border"],
                 width=width,
                 **kwargs
             )
         else:
             super().__init__(
                 master,
-                bg=COLORS.SURFACE,
+                bg=THEME["bg_card"],
                 highlightthickness=1,
-                highlightbackground=COLORS.BORDER,
+                highlightbackground=THEME["border"],
                 width=width,
                 **kwargs
             )
@@ -432,17 +433,17 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
     def _build_header(self):
         """Build sticky header with tenor, status, and close button."""
         if CTK_AVAILABLE:
-            self._header = ctk.CTkFrame(self, fg_color=COLORS.SURFACE, corner_radius=0)
+            self._header = ctk.CTkFrame(self, fg_color=THEME["bg_card"], corner_radius=0)
         else:
-            self._header = tk.Frame(self, bg=COLORS.SURFACE)
+            self._header = tk.Frame(self, bg=THEME["bg_card"])
         self._header.pack(fill="x", side="top")
 
         # Header content container
-        header_content = tk.Frame(self._header, bg=COLORS.SURFACE)
+        header_content = tk.Frame(self._header, bg=THEME["bg_card"])
         header_content.pack(fill="x", padx=SPACING.LG, pady=SPACING.MD)
 
         # Top row: Tenor title + Close button
-        top_row = tk.Frame(header_content, bg=COLORS.SURFACE)
+        top_row = tk.Frame(header_content, bg=THEME["bg_card"])
         top_row.pack(fill="x")
 
         # Tenor title (large)
@@ -450,8 +451,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             top_row,
             text="NIBOR 3M",
             font=FONTS.H3,
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE,
+            fg=THEME["text"],
+            bg=THEME["bg_card"],
             anchor="w"
         )
         self._tenor_label.pack(side="left")
@@ -461,19 +462,19 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             top_row,
             text=ICONS.CLOSE,
             font=(FONTS.BODY[0], 16),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"],
             cursor="hand2",
             padx=8,
             pady=4
         )
         close_btn.pack(side="right")
         close_btn.bind("<Button-1>", lambda e: self.close())
-        close_btn.bind("<Enter>", lambda e: close_btn.config(fg=COLORS.TEXT))
-        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=COLORS.TEXT_MUTED))
+        close_btn.bind("<Enter>", lambda e: close_btn.config(fg=THEME["text"]))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=THEME["text_muted"]))
 
         # Status badge row
-        status_row = tk.Frame(header_content, bg=COLORS.SURFACE)
+        status_row = tk.Frame(header_content, bg=THEME["bg_card"])
         status_row.pack(fill="x", pady=(SPACING.SM, 0))
 
         # Status badge
@@ -482,7 +483,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             text="MATCHED",
             font=FONTS.BUTTON_SM,
             fg=COLORS.SUCCESS,
-            bg="#E8F5E9",
+            bg=THEME["bg_main"],
             padx=10,
             pady=3
         )
@@ -493,14 +494,14 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             status_row,
             text="",
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"],
             anchor="w"
         )
         self._run_context.pack(side="left", padx=(SPACING.SM, 0))
 
         # Action buttons row
-        actions_row = tk.Frame(header_content, bg=COLORS.SURFACE)
+        actions_row = tk.Frame(header_content, bg=THEME["bg_card"])
         actions_row.pack(fill="x", pady=(SPACING.MD, 0))
 
         # Copy summary button
@@ -512,7 +513,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._evidence_btn.pack(side="left", padx=(SPACING.SM, 0))
 
         # Header separator
-        tk.Frame(self._header, bg=COLORS.BORDER, height=1).pack(fill="x", side="bottom")
+        tk.Frame(self._header, bg=THEME["border"], height=1).pack(fill="x", side="bottom")
 
     def _create_small_button(self, parent, text: str, command: Callable) -> tk.Label:
         """Create a small secondary action button."""
@@ -520,15 +521,15 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             parent,
             text=text,
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_SECONDARY,
-            bg=COLORS.CHIP_BG,
+            fg=THEME["text_secondary"],
+            bg=THEME["bg_card_2"],
             padx=10,
             pady=4,
             cursor="hand2"
         )
         btn.bind("<Button-1>", lambda e: command())
-        btn.bind("<Enter>", lambda e: btn.config(bg=COLORS.SURFACE_HOVER))
-        btn.bind("<Leave>", lambda e: btn.config(bg=COLORS.CHIP_BG))
+        btn.bind("<Enter>", lambda e: btn.config(bg=THEME["bg_hover"]))
+        btn.bind("<Leave>", lambda e: btn.config(bg=THEME["bg_card_2"]))
         return btn
 
     def _build_scrollable_content(self):
@@ -536,7 +537,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         # Create canvas for scrolling
         self._canvas = tk.Canvas(
             self,
-            bg=COLORS.SURFACE,
+            bg=THEME["bg_card"],
             highlightthickness=0,
             borderwidth=0
         )
@@ -547,7 +548,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         )
 
         # Scrollable frame
-        self._scroll_frame = tk.Frame(self._canvas, bg=COLORS.SURFACE)
+        self._scroll_frame = tk.Frame(self._canvas, bg=THEME["bg_card"])
 
         # Configure canvas
         self._canvas_window = self._canvas.create_window(
@@ -603,10 +604,10 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._result_section = section
 
         # Result card container
-        card = tk.Frame(section, bg=COLORS.SURFACE, highlightthickness=1, highlightbackground=COLORS.BORDER)
+        card = tk.Frame(section, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
         card.pack(fill="x", pady=(SPACING.SM, 0))
 
-        card_content = tk.Frame(card, bg=COLORS.SURFACE)
+        card_content = tk.Frame(card, bg=THEME["bg_card"])
         card_content.pack(fill="x", padx=SPACING.MD, pady=SPACING.MD)
 
         # App result
@@ -616,40 +617,40 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._result_excel_row = self._create_result_row(card_content, "Excel facit", "—")
 
         # Separator
-        tk.Frame(card_content, bg=COLORS.BORDER, height=1).pack(fill="x", pady=SPACING.SM)
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=SPACING.SM)
 
         # Delta + tolerance
-        delta_row = tk.Frame(card_content, bg=COLORS.SURFACE)
+        delta_row = tk.Frame(card_content, bg=THEME["bg_card"])
         delta_row.pack(fill="x", pady=(SPACING.XS, 0))
 
         tk.Label(
             delta_row,
             text=f"{ICONS.DELTA} (diff)",
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"]
         ).pack(side="left")
 
         self._result_delta = tk.Label(
             delta_row,
             text="0.0000",
             font=FONTS.NUMERIC,
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            fg=THEME["text"],
+            bg=THEME["bg_card"]
         )
         self._result_delta.pack(side="right")
 
     def _create_result_row(self, parent, label: str, value: str) -> Dict[str, tk.Label]:
         """Create a result row with label and value."""
-        row = tk.Frame(parent, bg=COLORS.SURFACE)
+        row = tk.Frame(parent, bg=THEME["bg_card"])
         row.pack(fill="x", pady=(SPACING.XS, 0))
 
         lbl = tk.Label(
             row,
             text=label,
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"]
         )
         lbl.pack(side="left")
 
@@ -657,8 +658,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             row,
             text=value,
             font=FONTS.NUMERIC_LG,
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            fg=THEME["text"],
+            bg=THEME["bg_card"]
         )
         val.pack(side="right")
 
@@ -670,7 +671,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._recon_section = section
 
         # Container for recon table
-        self._recon_container = tk.Frame(section, bg=COLORS.SURFACE)
+        self._recon_container = tk.Frame(section, bg=THEME["bg_card"])
         self._recon_container.pack(fill="x", pady=(SPACING.SM, 0))
 
     def _build_inputs_section(self):
@@ -679,7 +680,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._inputs_section = section
 
         # Container for inputs table
-        self._inputs_container = tk.Frame(section, bg=COLORS.SURFACE)
+        self._inputs_container = tk.Frame(section, bg=THEME["bg_card"])
         self._inputs_container.pack(fill="x", pady=(SPACING.SM, 0))
 
     def _build_steps_section(self):
@@ -688,7 +689,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._steps_section = section
 
         # Container for steps list
-        self._steps_container = tk.Frame(section, bg=COLORS.SURFACE)
+        self._steps_container = tk.Frame(section, bg=THEME["bg_card"])
         self._steps_container.pack(fill="x", pady=(SPACING.SM, 0))
 
     def _build_checks_section(self):
@@ -697,13 +698,13 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         self._checks_section = section
 
         # Container for checks list
-        self._checks_container = tk.Frame(section, bg=COLORS.SURFACE)
+        self._checks_container = tk.Frame(section, bg=THEME["bg_card"])
         self._checks_container.pack(fill="x", pady=(SPACING.SM, 0))
 
 
     def _create_section(self, title: str) -> tk.Frame:
         """Create a section container with title."""
-        section = tk.Frame(self._scroll_frame, bg=COLORS.SURFACE)
+        section = tk.Frame(self._scroll_frame, bg=THEME["bg_card"])
         section.pack(fill="x", padx=SPACING.LG, pady=(SPACING.LG, 0))
 
         # Section title
@@ -711,8 +712,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             section,
             text=title,
             font=FONTS.TABLE_HEADER,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"],
             anchor="w"
         ).pack(fill="x")
 
@@ -721,16 +722,16 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
     def _build_footer(self):
         """Build sticky footer with timestamp and re-run button."""
         if CTK_AVAILABLE:
-            self._footer = ctk.CTkFrame(self, fg_color=COLORS.SURFACE, corner_radius=0)
+            self._footer = ctk.CTkFrame(self, fg_color=THEME["bg_card"], corner_radius=0)
         else:
-            self._footer = tk.Frame(self, bg=COLORS.SURFACE)
+            self._footer = tk.Frame(self, bg=THEME["bg_card"])
         self._footer.pack(fill="x", side="bottom")
 
         # Footer separator
-        tk.Frame(self._footer, bg=COLORS.BORDER, height=1).pack(fill="x", side="top")
+        tk.Frame(self._footer, bg=THEME["border"], height=1).pack(fill="x", side="top")
 
         # Footer content
-        footer_content = tk.Frame(self._footer, bg=COLORS.SURFACE)
+        footer_content = tk.Frame(self._footer, bg=THEME["bg_card"])
         footer_content.pack(fill="x", padx=SPACING.LG, pady=SPACING.MD)
 
         # Last validated timestamp
@@ -738,8 +739,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             footer_content,
             text="Last validated: —",
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"]
         )
         self._last_validated.pack(side="left")
 
@@ -749,9 +750,9 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 footer_content,
                 text="Re-run checks",
                 font=FONTS.BUTTON_SM,
-                fg_color=COLORS.CHIP_BG,
-                text_color=COLORS.TEXT_SECONDARY,
-                hover_color=COLORS.SURFACE_HOVER,
+                fg_color=THEME["bg_card_2"],
+                text_color=THEME["text_secondary"],
+                hover_color=THEME["bg_hover"],
                 corner_radius=RADII.SM,
                 height=28,
                 width=100,
@@ -762,10 +763,10 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 footer_content,
                 text="Re-run checks",
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_SECONDARY,
-                bg=COLORS.CHIP_BG,
-                activebackground=COLORS.SURFACE_HOVER,
-                activeforeground=COLORS.TEXT,
+                fg=THEME["text_secondary"],
+                bg=THEME["bg_card_2"],
+                activebackground=THEME["bg_hover"],
+                activeforeground=THEME["text"],
                 relief="flat",
                 cursor="hand2",
                 padx=10,
@@ -854,9 +855,9 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         # Evidence button state
         has_evidence = bool(data.get("evidence_path"))
         if has_evidence:
-            self._evidence_btn.config(fg=COLORS.TEXT_SECONDARY, cursor="hand2")
+            self._evidence_btn.config(fg=THEME["text_secondary"], cursor="hand2")
         else:
-            self._evidence_btn.config(fg=COLORS.TEXT_PLACEHOLDER, cursor="arrow")
+            self._evidence_btn.config(fg=THEME["text_muted"], cursor="arrow")
 
     def _update_result_section(self, data: Dict[str, Any]):
         """Update the result card with calculation results."""
@@ -888,7 +889,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             delta_color = COLORS.SUCCESS if delta < 0.0001 else COLORS.DANGER
             self._result_delta.config(text=f"{delta:.4f}", fg=delta_color)
         else:
-            self._result_delta.config(text="—", fg=COLORS.TEXT_MUTED)
+            self._result_delta.config(text="—", fg=THEME["text_muted"])
 
     def _update_recon_section(self, data: Dict[str, Any]):
         """Update the reconciliation section - ONLY show diffs, not matches."""
@@ -904,8 +905,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 self._recon_container,
                 text="No reconciliation data available",
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.SURFACE
+                fg=THEME["text_muted"],
+                bg=THEME["bg_card"]
             ).pack(anchor="w", pady=SPACING.SM)
             return
 
@@ -919,7 +920,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
         # If everything matches, show success message
         if not input_diffs and not output_diffs:
-            success_frame = tk.Frame(self._recon_container, bg="#E8F5E9")
+            success_frame = tk.Frame(self._recon_container, bg=THEME["bg_panel"])
             success_frame.pack(fill="x", pady=SPACING.SM)
 
             tk.Label(
@@ -927,7 +928,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 text=f"{ICONS.CHECK} All {total_inputs} inputs match Excel",
                 font=FONTS.BODY_SM,
                 fg=COLORS.SUCCESS,
-                bg="#E8F5E9",
+                bg=THEME["bg_panel"],
                 padx=SPACING.MD,
                 pady=SPACING.SM
             ).pack(anchor="w")
@@ -938,7 +939,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     text=f"{ICONS.CHECK} Formula outputs verified ({total_outputs} checks)",
                     font=FONTS.BODY_SM,
                     fg=COLORS.SUCCESS,
-                    bg="#E8F5E9",
+                    bg=THEME["bg_panel"],
                     padx=SPACING.MD
                 ).pack(anchor="w", pady=(0, SPACING.SM))
             return
@@ -954,7 +955,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 unique_labels.append(label)
 
         # Header showing what differs
-        header_frame = tk.Frame(self._recon_container, bg="#FFEBEE")
+        header_frame = tk.Frame(self._recon_container, bg=THEME["bg_panel"])
         header_frame.pack(fill="x", pady=SPACING.SM)
 
         tk.Label(
@@ -962,7 +963,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             text=f"{ICONS.CROSS} Diff: {', '.join(unique_labels)}",
             font=FONTS.TABLE_HEADER,
             fg=COLORS.DANGER,
-            bg="#FFEBEE",
+            bg=THEME["bg_panel"],
             padx=SPACING.MD,
             pady=SPACING.SM
         ).pack(anchor="w")
@@ -975,7 +976,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         excel_value = item.get("excel_value")
         decimals = item.get("decimals", 4)
 
-        row_bg = "#FFEBEE"  # Light red for diff rows
+        row_bg = THEME["bg_panel"]  # Dark background for diff rows
         row = tk.Frame(parent, bg=row_bg)
         row.pack(fill="x")
 
@@ -997,7 +998,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             row,
             text=cell,
             font=FONTS.TABLE_CELL_MONO,
-            fg=COLORS.TEXT_MUTED,
+            fg=THEME["text_muted"],
             bg=row_bg,
             width=4,
             anchor="w",
@@ -1011,7 +1012,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             row,
             text=gui_str,
             font=FONTS.TABLE_CELL_MONO,
-            fg=COLORS.TEXT,
+            fg=THEME["text"],
             bg=row_bg,
             width=8,
             anchor="e",
@@ -1025,7 +1026,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             row,
             text=excel_str,
             font=FONTS.TABLE_CELL_MONO,
-            fg=COLORS.TEXT,
+            fg=THEME["text"],
             bg=row_bg,
             width=8,
             anchor="e",
@@ -1057,15 +1058,15 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
     def _add_recon_section_header(self, parent, text: str):
         """Add a section header in the recon table."""
-        header = tk.Frame(parent, bg=COLORS.TABLE_HEADER_BG)
+        header = tk.Frame(parent, bg=THEME["bg_main"])
         header.pack(fill="x", pady=(SPACING.SM, 0))
 
         tk.Label(
             header,
             text=text,
             font=FONTS.TABLE_HEADER,
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.TABLE_HEADER_BG,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_main"],
             anchor="w",
             padx=SPACING.SM,
             pady=SPACING.XS
@@ -1080,7 +1081,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         weights = data.get("weights", {})
 
         # === 3-COLUMN HEADER: EUR | USD | NOK ===
-        columns_frame = tk.Frame(self._inputs_container, bg=COLORS.SURFACE)
+        columns_frame = tk.Frame(self._inputs_container, bg=THEME["bg_card"])
         columns_frame.pack(fill="x", pady=(0, SPACING.SM))
 
         # Configure 3 equal columns
@@ -1132,7 +1133,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         nok_col.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
 
         # === FUNDING CALCULATION SUMMARY ===
-        calc_frame = tk.Frame(self._inputs_container, bg=COLORS.ROW_ZEBRA)
+        calc_frame = tk.Frame(self._inputs_container, bg=THEME["bg_panel"])
         calc_frame.pack(fill="x", pady=(SPACING.SM, 0))
 
         # Funding Rate row
@@ -1144,7 +1145,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             f"{data.get('spread', 0):.2f}%", muted=True)
 
         # Separator
-        tk.Frame(calc_frame, bg=COLORS.BORDER, height=1).pack(fill="x", padx=SPACING.SM)
+        tk.Frame(calc_frame, bg=THEME["border"], height=1).pack(fill="x", padx=SPACING.SM)
 
         # Final NIBOR row
         self._add_summary_row(calc_frame, f"NIBOR {tenor_key.upper()}",
@@ -1153,18 +1154,18 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
     def _create_currency_column(self, parent, title: str, source: str, value, weight: float, details: list) -> tk.Frame:
         """Create a currency column with header, source badge, value, weight, and details."""
-        col = tk.Frame(parent, bg=COLORS.SURFACE, highlightthickness=1, highlightbackground=COLORS.BORDER)
+        col = tk.Frame(parent, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
 
         # Header with title
-        header = tk.Frame(col, bg=COLORS.TABLE_HEADER_BG)
+        header = tk.Frame(col, bg=THEME["bg_main"])
         header.pack(fill="x")
 
         tk.Label(
             header,
             text=title,
             font=FONTS.TABLE_HEADER,
-            fg=COLORS.TEXT,
-            bg=COLORS.TABLE_HEADER_BG,
+            fg=THEME["text"],
+            bg=THEME["bg_main"],
             pady=SPACING.XS
         ).pack()
 
@@ -1173,8 +1174,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             header,
             text=f"░ {source}",
             font=("Segoe UI", 8),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.TABLE_HEADER_BG,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_main"],
             pady=2
         )
         source_badge.pack()
@@ -1185,40 +1186,40 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             col,
             text=value_str,
             font=("Consolas", 13, "bold"),
-            fg=COLORS.ACCENT,
-            bg=COLORS.SURFACE,
+            fg=THEME["accent"],
+            bg=THEME["bg_card"],
             pady=SPACING.SM
         ).pack()
 
         # Weight (always visible)
         weight_str = f"{weight * 100:.0f}%"
-        weight_frame = tk.Frame(col, bg=COLORS.CHIP_BG)
+        weight_frame = tk.Frame(col, bg=THEME["bg_card_2"])
         weight_frame.pack(pady=(0, SPACING.SM))
         tk.Label(
             weight_frame,
             text=f"Weight: {weight_str}",
             font=("Segoe UI", 9),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.CHIP_BG,
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card_2"],
             padx=SPACING.SM,
             pady=2
         ).pack()
 
         # Details (spot, pips, rate, days)
         if details:
-            details_frame = tk.Frame(col, bg=COLORS.SURFACE)
+            details_frame = tk.Frame(col, bg=THEME["bg_card"])
             details_frame.pack(fill="x", padx=SPACING.XS, pady=(0, SPACING.XS))
 
             for label, val, src in details:
-                row = tk.Frame(details_frame, bg=COLORS.SURFACE)
+                row = tk.Frame(details_frame, bg=THEME["bg_card"])
                 row.pack(fill="x", pady=1)
 
                 tk.Label(
                     row,
                     text=label,
                     font=("Segoe UI", 9),
-                    fg=COLORS.TEXT_MUTED,
-                    bg=COLORS.SURFACE,
+                    fg=THEME["text_muted"],
+                    bg=THEME["bg_card"],
                     anchor="w",
                     width=5
                 ).pack(side="left")
@@ -1227,8 +1228,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                     row,
                     text=val,
                     font=("Consolas", 9),
-                    fg=COLORS.TEXT,
-                    bg=COLORS.SURFACE,
+                    fg=THEME["text"],
+                    bg=THEME["bg_card"],
                     anchor="e"
                 ).pack(side="right")
 
@@ -1236,7 +1237,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
 
     def _add_summary_row(self, parent, label: str, value: str, muted: bool = False, bold: bool = False, accent: bool = False):
         """Add a summary row to the calculation frame."""
-        row = tk.Frame(parent, bg=COLORS.ROW_ZEBRA)
+        row = tk.Frame(parent, bg=THEME["bg_panel"])
         row.pack(fill="x", padx=SPACING.SM, pady=SPACING.XS)
 
         label_font = FONTS.TABLE_HEADER if bold else FONTS.BODY_SM
@@ -1246,16 +1247,16 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             row,
             text=label,
             font=label_font,
-            fg=COLORS.TEXT_MUTED if muted else COLORS.TEXT,
-            bg=COLORS.ROW_ZEBRA
+            fg=THEME["text_muted"] if muted else THEME["text"],
+            bg=THEME["bg_panel"]
         ).pack(side="left")
 
         tk.Label(
             row,
             text=value,
             font=value_font,
-            fg=COLORS.ACCENT if accent else (COLORS.TEXT_MUTED if muted else COLORS.TEXT),
-            bg=COLORS.ROW_ZEBRA
+            fg=THEME["accent"] if accent else (THEME["text_muted"] if muted else THEME["text"]),
+            bg=THEME["bg_panel"]
         ).pack(side="right")
 
     def _update_steps_section(self, data: Dict[str, Any]):
@@ -1291,15 +1292,15 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         ]
 
         for step_label, step_calc in steps:
-            row = tk.Frame(self._steps_container, bg=COLORS.SURFACE)
+            row = tk.Frame(self._steps_container, bg=THEME["bg_card"])
             row.pack(fill="x", pady=(SPACING.XS, 0))
 
             tk.Label(
                 row,
                 text=step_label,
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.SURFACE,
+                fg=THEME["text_muted"],
+                bg=THEME["bg_card"],
                 anchor="w"
             ).pack(side="left")
 
@@ -1307,8 +1308,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 row,
                 text=step_calc,
                 font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT,
-                bg=COLORS.SURFACE,
+                fg=THEME["text"],
+                bg=THEME["bg_card"],
                 anchor="e"
             ).pack(side="right")
 
@@ -1326,8 +1327,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 self._checks_container,
                 text="No validation data available",
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.SURFACE
+                fg=THEME["text_muted"],
+                bg=THEME["bg_card"]
             ).pack(anchor="w", pady=SPACING.SM)
             return
 
@@ -1345,14 +1346,14 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
         # Container
         item = tk.Frame(
             self._checks_container,
-            bg=COLORS.SURFACE,
+            bg=THEME["bg_card"],
             highlightthickness=1,
-            highlightbackground=COLORS.BORDER
+            highlightbackground=THEME["border"]
         )
         item.pack(fill="x", pady=(SPACING.XS, 0))
 
         # Header row (clickable)
-        header = tk.Frame(item, bg=COLORS.SURFACE, cursor="hand2")
+        header = tk.Frame(item, bg=THEME["bg_card"], cursor="hand2")
         header.pack(fill="x", padx=SPACING.SM, pady=SPACING.SM)
 
         # Expand/collapse indicator
@@ -1360,8 +1361,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             header,
             text="▶",
             font=("Segoe UI", 8),
-            fg=COLORS.TEXT_MUTED,
-            bg=COLORS.SURFACE
+            fg=THEME["text_muted"],
+            bg=THEME["bg_card"]
         )
         expand_indicator.pack(side="left", padx=(0, 4))
 
@@ -1374,7 +1375,7 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             text=icon_text,
             font=FONTS.BODY,
             fg=icon_color,
-            bg=COLORS.SURFACE
+            bg=THEME["bg_card"]
         ).pack(side="left")
 
         # Check name
@@ -1382,8 +1383,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             header,
             text=name,
             font=FONTS.BODY_SM,
-            fg=COLORS.TEXT,
-            bg=COLORS.SURFACE
+            fg=THEME["text"],
+            bg=THEME["bg_card"]
         ).pack(side="left", padx=(SPACING.XS, 0))
 
         # Status text
@@ -1393,11 +1394,11 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
             text=status_text,
             font=FONTS.BUTTON_SM,
             fg=icon_color,
-            bg=COLORS.SURFACE
+            bg=THEME["bg_card"]
         ).pack(side="right")
 
         # Details container (collapsed by default - click to expand)
-        details = tk.Frame(item, bg=COLORS.ROW_ZEBRA)
+        details = tk.Frame(item, bg=THEME["bg_panel"])
 
         # Observed vs Expected
         if gui_value is not None:
@@ -1405,8 +1406,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 details,
                 text=f"Observed: {gui_value:.4f}",
                 font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT,
-                bg=COLORS.ROW_ZEBRA,
+                fg=THEME["text"],
+                bg=THEME["bg_panel"],
                 padx=SPACING.SM,
                 pady=SPACING.XS
             ).pack(anchor="w")
@@ -1416,8 +1417,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 details,
                 text=f"Expected: {excel_value:.4f}",
                 font=FONTS.TABLE_CELL_MONO,
-                fg=COLORS.TEXT,
-                bg=COLORS.ROW_ZEBRA,
+                fg=THEME["text"],
+                bg=THEME["bg_panel"],
                 padx=SPACING.SM,
                 pady=SPACING.XS
             ).pack(anchor="w")
@@ -1427,8 +1428,8 @@ class CalculationDrawer(ctk.CTkFrame if CTK_AVAILABLE else tk.Frame):
                 details,
                 text=f"({description})",
                 font=FONTS.BODY_SM,
-                fg=COLORS.TEXT_MUTED,
-                bg=COLORS.ROW_ZEBRA,
+                fg=THEME["text_muted"],
+                bg=THEME["bg_panel"],
                 padx=SPACING.SM,
                 pady=SPACING.XS
             ).pack(anchor="w")
