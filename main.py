@@ -982,8 +982,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="|",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Consolas", 9)
-        ).pack(side="left", padx=6, pady=4)
+            font=("Consolas", 12)
+        ).pack(side="left", padx=8, pady=4)
 
         # FIXING label
         ctk.CTkLabel(
@@ -991,8 +991,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="FIXING",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 7)
-        ).pack(side="left", padx=(0, 4), pady=4)
+            font=("Segoe UI", 9)
+        ).pack(side="left", padx=(0, 6), pady=4)
 
         # Fixing countdown (monospace for stability)
         self._nibor_fixing_status = ctk.CTkLabel(
@@ -1000,7 +1000,7 @@ class NiborTerminalCTK(ctk.CTk):
             text="--:--:--",
             text_color=THEME["text"],
             fg_color=label_bg,
-            font=("Consolas", 9)
+            font=("Consolas", 12)
         )
         self._nibor_fixing_status.pack(side="left", pady=4)
 
@@ -1010,9 +1010,9 @@ class NiborTerminalCTK(ctk.CTk):
             text="",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 7)
+            font=("Segoe UI", 9)
         )
-        self._nibor_fixing_indicator.pack(side="left", padx=(6, 8), pady=4)
+        self._nibor_fixing_indicator.pack(side="left", padx=(8, 10), pady=4)
 
         # Align the analog clock (branding header) so this chip sits centered under it.
         # This matters more in Tkinter fallback where the chip background is very explicit.
