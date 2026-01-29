@@ -843,9 +843,9 @@ class NiborTerminalCTK(ctk.CTk):
         title_container.place(relx=0.5, rely=0.5, anchor="center")
 
         # Right-aligned analog clock (branding header)
-        # Placed before the orange accent line, as requested.
+        # Placed on branding_header directly for better positioning
         self._branding_clock_analog = AnalogClock(
-            branding_inner,
+            branding_header,
             diameter=105,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
@@ -854,7 +854,7 @@ class NiborTerminalCTK(ctk.CTk):
             second_hand_color=THEME["accent"],
         )
         # Pin to top-right corner of the branding banner.
-        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=-25, anchor="ne")
+        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-20, y=5, anchor="ne")
 
         tk.Label(
             title_container,
