@@ -71,15 +71,15 @@ class Colors:
     ROW_ZEBRA: str = "#FAFBFC"          # Alternating row color
     TABLE_HEADER_BG: str = "#F8FAFC"    # Table header background
 
-    # Navigation - Premium slate sidebar
-    NAV_BG: str = "#1E293B"             # Sidebar background (slate-800)
-    NAV_BG_DARK: str = "#0F172A"        # Darker sidebar variant
-    NAV_ACTIVE_BG: str = "#334155"      # Active nav item background (slate-700)
-    NAV_HOVER_BG: str = "#293548"       # Nav item hover
-    NAV_INDICATOR: str = "#FF6B35"      # Active indicator (orange)
-    NAV_TEXT: str = "#F1F5F9"           # Sidebar text (light)
-    NAV_TEXT_MUTED: str = "#94A3B8"     # Sidebar muted text
-    NAV_DIVIDER: str = "#334155"        # Sidebar divider
+    # Navigation - Dark sidebar matching app theme with orange accents
+    NAV_BG: str = "#0D1520"             # Sidebar background (matches app)
+    NAV_BG_DARK: str = "#080C14"        # Darker sidebar variant
+    NAV_ACTIVE_BG: str = "#1A2332"      # Active nav item (subtle lift)
+    NAV_HOVER_BG: str = "#151D2A"       # Nav item hover
+    NAV_INDICATOR: str = "#FF6B00"      # Active indicator (Swedbank orange)
+    NAV_TEXT: str = "#E5E7EB"           # Sidebar text (light)
+    NAV_TEXT_MUTED: str = "#6B7280"     # Sidebar muted text
+    NAV_DIVIDER: str = "#1F2937"        # Sidebar divider
 
     # Shadows
     SHADOW_COLOR: str = "rgba(15, 23, 42, 0.08)"

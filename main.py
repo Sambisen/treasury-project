@@ -1665,13 +1665,13 @@ class NiborTerminalCTK(ctk.CTk):
 
             try:
                 if btn_key == key:
-                    # Active state: Orange indicator with darker background
+                    # Active state: Orange text with subtle background
                     btn.configure(
-                        text_color=self._sidebar_colors["text"],
+                        text_color=self._sidebar_colors["indicator"],  # Orange text
                         fg_color=self._sidebar_colors["active"],
                         font=("Segoe UI Semibold", 13),
-                        border_width=0,
-                        border_color=self._sidebar_colors["indicator"]
+                        border_width=2,
+                        border_color=self._sidebar_colors["indicator"]  # Orange left border
                     )
                 else:
                     # Inactive state: Light text, transparent background
@@ -1679,7 +1679,8 @@ class NiborTerminalCTK(ctk.CTk):
                         text_color=self._sidebar_colors["text"],
                         fg_color="transparent",
                         font=("Segoe UI", 13),
-                        border_width=0
+                        border_width=0,
+                        border_color="transparent"
                     )
                 # Force button to redraw
                 btn.update_idletasks()
