@@ -1358,16 +1358,28 @@ class NiborTerminalCTK(ctk.CTk):
             mins = (secs_until % 3600) // 60
             secs = secs_until % 60
             countdown_str = f"{hrs}:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["text"])
-            self._nibor_fixing_indicator.configure(text="until open", text_color=THEME["text_muted"])
+
+            # Color changes as it gets closer: normal → orange (30min) → red (10min)
+            if secs_until <= 600:  # Last 10 minutes - red/urgent
+                color = THEME["bad"]
+                indicator_text = "⚠ SOON"
+            elif secs_until <= 1800:  # Last 30 minutes - orange/warning
+                color = THEME["accent"]
+                indicator_text = "● soon"
+            else:
+                color = THEME["text"]
+                indicator_text = "until open"
+
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=color)
+            self._nibor_fixing_indicator.configure(text=indicator_text, text_color=color if secs_until <= 1800 else THEME["text_muted"])
         elif current_seconds < fixing_end:
-            # FIXING WINDOW OPEN - accent color only here
+            # FIXING WINDOW OPEN - green to indicate active
             secs_left = fixing_end - current_seconds
             mins = secs_left // 60
             secs = secs_left % 60
             countdown_str = f"0:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["accent"])
-            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["accent"])
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["good"])
+            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["good"])
         else:
             # After fixing window - closed
             self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["text_muted"])
