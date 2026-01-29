@@ -6,7 +6,6 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime, timedelta
 import math
-import customtkinter as ctk
 
 try:
     import matplotlib
@@ -364,8 +363,8 @@ class TrendChart(tk.Frame):
         self.canvas.draw()
 
 
-class TrendPopup(ctk.CTkToplevel):
-    """Popup with trend chart - Professional dark theme with CustomTkinter."""
+class TrendPopup(tk.Toplevel):
+    """Popup with trend chart - Professional dark theme matching app design."""
 
     # Professional dark theme colors (Bloomberg/Reuters style)
     DARK_BG = "#0B1220"            # Main background (matches app)
@@ -393,18 +392,16 @@ class TrendPopup(ctk.CTkToplevel):
         super().__init__(parent)
         self.title("NIBOR History")
         self.geometry("1200x750")
-        self.configure(fg_color=self.DARK_BG)
+        self.configure(bg=self.DARK_BG)
         self.transient(parent)
         self.minsize(1000, 650)
 
         # Data storage
         self._contrib_data = []
         self._fixing_data = []
-        self._current_view = "chart"
+        self._current_view = "chart"  # Start with chart
         self._hover_annotation = None
         self._data_loaded = False
-        self.chart = None
-        self._chart_initialized = False
 
         # Center window
         self.update_idletasks()
@@ -412,206 +409,225 @@ class TrendPopup(ctk.CTkToplevel):
         y = parent.winfo_rooty() + (parent.winfo_height() - 750) // 2
         self.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-        # Build UI after window is fully visible
-        self.after(50, self._safe_build_ui)
-
-    def _safe_build_ui(self):
-        """Ensure window is ready before building UI."""
-        try:
-            self.wait_visibility()
-        except Exception:
-            pass
-        self._build_ui()
-
-    def _build_ui(self):
-        """Build all UI components after window is initialized."""
         # ==========================
-        # HEADER
+        # HEADER - Professional dark design
         # ==========================
-        header = ctk.CTkFrame(self, fg_color=self.DARK_CARD, corner_radius=0)
+        header = tk.Frame(self, bg=self.DARK_CARD, highlightthickness=0)
         header.pack(fill="x")
 
-        header_inner = ctk.CTkFrame(header, fg_color="transparent")
+        # Subtle border line
+        tk.Frame(self, bg=self.DARK_BORDER, height=1).pack(fill="x")
+
+        header_inner = tk.Frame(header, bg=self.DARK_CARD)
         header_inner.pack(fill="x", padx=28, pady=16)
 
-        # Title
-        ctk.CTkLabel(header_inner, text="NIBOR HISTORY",
-                    text_color=self.DARK_TEXT,
-                    font=("Segoe UI", 20, "bold")).pack(side="left")
+        # Title - Clean text only
+        tk.Label(header_inner, text="NIBOR HISTORY",
+                fg=self.DARK_TEXT, bg=self.DARK_CARD,
+                font=("Segoe UI Semibold", 18)).pack(side="left")
 
-        # View toggle
+        # View toggle - Dark segmented control style
+        toggle_container = tk.Frame(header_inner, bg=self.DARK_BORDER, padx=1, pady=1)
+        toggle_container.pack(side="left", padx=50)
+
+        toggle_inner = tk.Frame(toggle_container, bg=self.DARK_CARD_2)
+        toggle_inner.pack()
+
         self._view_btns = {}
-        toggle_frame = ctk.CTkFrame(header_inner, fg_color=self.DARK_CARD_2, corner_radius=8)
-        toggle_frame.pack(side="left", padx=50)
-
-        chart_btn = ctk.CTkButton(toggle_frame, text="Chart", width=80,
-                                 command=lambda: self._switch_view("chart"),
-                                 font=("Segoe UI", 13, "bold"),
-                                 fg_color=self.DARK_CARD, text_color=self.SWEDBANK_ORANGE,
-                                 hover_color=self.HOVER_BG, corner_radius=6)
-        chart_btn.pack(side="left", padx=2, pady=2)
+        # Chart button
+        chart_btn = tk.Button(toggle_inner, text="Chart",
+                             command=lambda: self._switch_view("chart"),
+                             font=("Segoe UI", 10, "bold"),
+                             relief="flat", bd=0, padx=20, pady=7, cursor="hand2",
+                             highlightthickness=0)
+        chart_btn.pack(side="left")
         self._view_btns["chart"] = chart_btn
 
-        table_btn = ctk.CTkButton(toggle_frame, text="Table", width=80,
-                                 command=lambda: self._switch_view("table"),
-                                 font=("Segoe UI", 13, "bold"),
-                                 fg_color="transparent", text_color=self.DARK_MUTED,
-                                 hover_color=self.HOVER_BG, corner_radius=6)
-        table_btn.pack(side="left", padx=2, pady=2)
+        # Table button
+        table_btn = tk.Button(toggle_inner, text="Table",
+                             command=lambda: self._switch_view("table"),
+                             font=("Segoe UI", 10, "bold"),
+                             relief="flat", bd=0, padx=20, pady=7, cursor="hand2",
+                             highlightthickness=0)
+        table_btn.pack(side="left")
         self._view_btns["table"] = table_btn
 
-        # Source toggles with switches
-        source_frame = ctk.CTkFrame(header_inner, fg_color="transparent")
-        source_frame.pack(side="left", padx=30)
+        self._update_view_buttons()
+
+        # Source toggles - Dark pill buttons
+        source_frame = tk.Frame(header_inner, bg=self.DARK_CARD)
+        source_frame.pack(side="left", padx=20)
 
         self._show_contrib_var = tk.BooleanVar(master=self, value=True)
         self._show_fixing_var = tk.BooleanVar(master=self, value=True)
 
-        ctk.CTkLabel(source_frame, text="Swedbank", text_color=self.SWEDBANK_ORANGE,
-                    font=("Segoe UI", 12, "bold")).pack(side="left", padx=(0, 5))
-        self._swedbank_switch = ctk.CTkSwitch(source_frame, text="", variable=self._show_contrib_var,
-                                              command=self._on_source_change, width=40,
-                                              progress_color=self.SWEDBANK_ORANGE,
-                                              button_color=self.DARK_TEXT,
-                                              fg_color=self.DARK_CARD_2,
-                                              font=("Segoe UI", 10))
-        self._swedbank_switch.pack(side="left", padx=(0, 20))
+        # Swedbank toggle - Dark with orange accent
+        self._swedbank_btn = tk.Label(source_frame, text="● Swedbank",
+                                     fg=self.SWEDBANK_ORANGE, bg="#2D1A0A",
+                                     font=("Segoe UI", 10, "bold"),
+                                     padx=12, pady=5, cursor="hand2")
+        self._swedbank_btn.pack(side="left", padx=3)
+        self._swedbank_btn.bind("<Button-1>", lambda e: self._toggle_source("swedbank"))
 
-        ctk.CTkLabel(source_frame, text="Fixing", text_color=self.FIXING_BLUE,
-                    font=("Segoe UI", 12, "bold")).pack(side="left", padx=(0, 5))
-        self._fixing_switch = ctk.CTkSwitch(source_frame, text="", variable=self._show_fixing_var,
-                                           command=self._on_source_change, width=40,
-                                           progress_color=self.FIXING_BLUE,
-                                           button_color=self.DARK_TEXT,
-                                           fg_color=self.DARK_CARD_2,
-                                           font=("Segoe UI", 10))
-        self._fixing_switch.pack(side="left")
+        # Fixing toggle - Dark with blue accent
+        self._fixing_btn = tk.Label(source_frame, text="● Fixing",
+                                   fg=self.FIXING_BLUE, bg="#0D1B2A",
+                                   font=("Segoe UI", 10, "bold"),
+                                   padx=12, pady=5, cursor="hand2")
+        self._fixing_btn.pack(side="left", padx=3)
+        self._fixing_btn.bind("<Button-1>", lambda e: self._toggle_source("fixing"))
 
-        # Close button
-        close_btn = ctk.CTkButton(header_inner, text="✕", width=36, height=36,
-                                 command=self.destroy,
-                                 font=("Segoe UI", 18),
-                                 fg_color="transparent", text_color=self.DARK_MUTED,
-                                 hover_color="#3D1518", corner_radius=8)
+        # Close button - Clean circle
+        close_btn = tk.Label(header_inner, text="×", font=("Segoe UI", 22, "bold"),
+                            fg=self.DARK_MUTED, bg=self.DARK_CARD, cursor="hand2")
         close_btn.pack(side="right")
+        close_btn.bind("<Button-1>", lambda e: self.destroy())
+        close_btn.bind("<Enter>", lambda e: close_btn.config(fg="#EF4444"))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=self.DARK_MUTED))
 
         # ==========================
-        # CONTENT AREA
+        # CONTENT AREA - Use grid for instant view switching
         # ==========================
-        self._content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self._content_frame.pack(fill="both", expand=True, padx=28, pady=(20, 10))
+        self._content_frame = tk.Frame(self, bg=self.DARK_BG)
+        self._content_frame.pack(fill="both", expand=True, padx=28, pady=20)
         self._content_frame.grid_rowconfigure(0, weight=1)
         self._content_frame.grid_columnconfigure(0, weight=1)
 
-        # Chart view
-        self._chart_frame = ctk.CTkFrame(self._content_frame, fg_color="transparent")
+        # Chart view - show loading first
+        self._chart_frame = tk.Frame(self._content_frame, bg=self.DARK_BG)
+        self.chart = None
+        self._chart_initialized = False
 
-        # Loading indicator
-        self._loading_frame = ctk.CTkFrame(self._chart_frame, fg_color=self.DARK_CARD, corner_radius=12)
+        # Loading indicator (shown while chart initializes)
+        self._loading_frame = tk.Frame(self._chart_frame, bg=self.DARK_CARD)
         self._loading_frame.pack(fill="both", expand=True)
-        ctk.CTkLabel(self._loading_frame, text="Loading...",
-                    text_color=self.DARK_MUTED,
-                    font=("Segoe UI", 14)).pack(expand=True)
+        tk.Label(self._loading_frame, text="Loading...",
+                fg=self.DARK_MUTED, bg=self.DARK_CARD,
+                font=("Segoe UI", 11)).pack(expand=True)
 
-        # Table view
-        self._table_frame = ctk.CTkFrame(self._content_frame, fg_color="transparent")
+        # Table view - create structure only (fast)
+        self._table_frame = tk.Frame(self._content_frame, bg=self.DARK_BG)
         self._create_rates_table()
 
-        # Grid layout for switching
+        # Place both in same grid cell - use tkraise for instant switching
         self._chart_frame.grid(row=0, column=0, sticky="nsew")
         self._table_frame.grid(row=0, column=0, sticky="nsew")
-        self._chart_frame.tkraise()
+        self._chart_frame.tkraise()  # Show chart by default
 
         # ==========================
-        # FOOTER
+        # FOOTER - Minimal dark
         # ==========================
-        footer = ctk.CTkFrame(self, fg_color=self.DARK_CARD, corner_radius=0, height=45)
+        tk.Frame(self, bg=self.DARK_BORDER, height=1).pack(fill="x", side="bottom")
+        footer = tk.Frame(self, bg=self.DARK_CARD)
         footer.pack(fill="x", side="bottom")
 
-        footer_inner = ctk.CTkFrame(footer, fg_color="transparent")
+        footer_inner = tk.Frame(footer, bg=self.DARK_CARD)
         footer_inner.pack(fill="x", padx=28, pady=10)
 
-        self._status_label = ctk.CTkLabel(footer_inner, text="Loading...",
-                                         text_color=self.DARK_MUTED,
-                                         font=("Segoe UI", 12))
+        self._status_label = tk.Label(footer_inner, text="Loading...",
+                                     fg=self.DARK_MUTED, bg=self.DARK_CARD,
+                                     font=("Segoe UI", 9))
         self._status_label.pack(side="left")
 
-        self._hover_label = ctk.CTkLabel(footer_inner, text="",
-                                        text_color=self.SWEDBANK_ORANGE,
-                                        font=("Segoe UI", 12, "bold"))
+        # Hover info
+        self._hover_label = tk.Label(footer_inner, text="",
+                                    fg=self.SWEDBANK_ORANGE, bg=self.DARK_CARD,
+                                    font=("Segoe UI Semibold", 10))
         self._hover_label.pack(side="right")
 
         # Bindings
         self.bind("<Escape>", lambda e: self.destroy())
         self.focus_set()
 
-        # Load data
+        # Show window immediately, then load data
+        self.update_idletasks()
+        self.deiconify()
         self.after(1, self._load_data)
+
+    def _toggle_source(self, source):
+        """Toggle source button state."""
+        if source == "swedbank":
+            new_val = not self._show_contrib_var.get()
+            self._show_contrib_var.set(new_val)
+            if new_val:
+                self._swedbank_btn.config(bg="#2D1A0A", fg=self.SWEDBANK_ORANGE)
+            else:
+                self._swedbank_btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
+        else:
+            new_val = not self._show_fixing_var.get()
+            self._show_fixing_var.set(new_val)
+            if new_val:
+                self._fixing_btn.config(bg="#0D1B2A", fg=self.FIXING_BLUE)
+            else:
+                self._fixing_btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
+
+        self._on_source_change()
 
     def _setup_light_chart(self):
         """Create a professional dark-themed matplotlib chart with hover support."""
         if not MATPLOTLIB_AVAILABLE:
-            ctk.CTkLabel(self._chart_frame, text="Matplotlib not installed",
-                        text_color=self.DARK_MUTED).pack(pady=40)
+            tk.Label(self._chart_frame, text="Matplotlib not installed",
+                    fg=self.DARK_MUTED, bg=self.DARK_BG).pack(pady=40)
             return
 
         # Chart container - Dark card style
-        chart_container = ctk.CTkFrame(self._chart_frame, fg_color=self.DARK_CARD, corner_radius=12)
+        chart_container = tk.Frame(self._chart_frame, bg=self.DARK_CARD,
+                                  highlightthickness=1, highlightbackground=self.DARK_BORDER)
         chart_container.pack(fill="both", expand=True)
 
         # Controls bar inside chart
-        controls = ctk.CTkFrame(chart_container, fg_color="transparent")
+        controls = tk.Frame(chart_container, bg=self.DARK_CARD)
         controls.pack(fill="x", padx=24, pady=(16, 8))
 
-        # Time range buttons
-        range_frame = ctk.CTkFrame(controls, fg_color=self.DARK_CARD_2, corner_radius=8)
-        range_frame.pack(side="left")
+        # Time range - Dark segmented control style
+        range_container = tk.Frame(controls, bg=self.DARK_BORDER, padx=1, pady=1)
+        range_container.pack(side="left")
+
+        range_inner = tk.Frame(range_container, bg=self.DARK_CARD_2)
+        range_inner.pack()
 
         self._range_var = tk.StringVar(master=self, value="3M")
         self._range_btns = {}
         for label in ["1M", "3M", "1Y", "MAX"]:
-            is_selected = (label == "3M")
-            btn = ctk.CTkButton(range_frame, text=label, width=50,
-                               command=lambda l=label: self._set_range(l),
-                               font=("Segoe UI", 12, "bold"),
-                               fg_color=self.SWEDBANK_ORANGE if is_selected else "transparent",
-                               text_color="white" if is_selected else self.DARK_MUTED,
-                               hover_color=self.HOVER_BG, corner_radius=6)
-            btn.pack(side="left", padx=2, pady=2)
+            btn = tk.Button(range_inner, text=label,
+                           command=lambda l=label: self._set_range(l),
+                           font=("Segoe UI", 9, "bold"),
+                           relief="flat", bd=0, padx=12, pady=5, cursor="hand2",
+                           highlightthickness=0)
+            btn.pack(side="left")
             self._range_btns[label] = btn
 
-        # Tenor buttons
-        tenor_frame = ctk.CTkFrame(controls, fg_color="transparent")
-        tenor_frame.pack(side="right")
+        self._update_range_buttons()
 
-        ctk.CTkLabel(tenor_frame, text="Tenors:", text_color=self.DARK_MUTED,
-                    font=("Segoe UI", 11)).pack(side="left", padx=(0, 10))
+        # Tenor pills - Dark tag style with vibrant colors
+        tenor_frame = tk.Frame(controls, bg=self.DARK_CARD)
+        tenor_frame.pack(side="right")
 
         self._tenor_vars = {}
         self._tenor_btns = {}
+        # Dark theme tenor colors: (fg_active, bg_active)
         tenor_colors = {
-            '1m': self.SWEDBANK_ORANGE,
-            '2m': '#34D399',
-            '3m': self.FIXING_BLUE,
-            '6m': '#FBBF24'
+            '1m': ('#FF6B00', '#2D1A0A'),  # Orange (Swedbank)
+            '2m': ('#34D399', '#0D2818'),  # Green
+            '3m': ('#60A5FA', '#0D1B2A'),  # Blue
+            '6m': ('#FBBF24', '#2D2406')   # Yellow
         }
         for tenor in ['1m', '2m', '3m', '6m']:
             var = tk.BooleanVar(master=self, value=(tenor == '3m'))
             self._tenor_vars[tenor] = var
-            color = tenor_colors.get(tenor, self.DARK_TEXT)
-            is_selected = (tenor == '3m')
+            fg_color, bg_color = tenor_colors.get(tenor, (self.DARK_TEXT, self.DARK_CARD_2))
 
-            btn = ctk.CTkButton(tenor_frame, text=tenor.upper(), width=45,
-                               command=lambda t=tenor: self._toggle_tenor(t),
-                               font=("Segoe UI", 11, "bold"),
-                               fg_color=color if is_selected else self.DARK_CARD_2,
-                               text_color="white" if is_selected else self.DARK_MUTED,
-                               hover_color=self.HOVER_BG, corner_radius=6)
+            btn = tk.Label(tenor_frame, text=tenor.upper(),
+                          fg=fg_color if tenor == '3m' else self.DARK_MUTED,
+                          bg=bg_color if tenor == '3m' else self.DARK_CARD_2,
+                          font=("Segoe UI", 9, "bold"),
+                          padx=10, pady=4, cursor="hand2")
             btn.pack(side="left", padx=2)
+            btn.bind("<Button-1>", lambda e, t=tenor: self._toggle_tenor(t))
             self._tenor_btns[tenor] = btn
 
-        # Matplotlib figure - Dark theme with better DPI
-        self.fig = Figure(figsize=(10, 4), dpi=100, facecolor=self.DARK_CARD)
+        # Matplotlib figure - Dark theme
+        self.fig = Figure(figsize=(8, 3.5), dpi=72, facecolor=self.DARK_CARD)
         self.ax = self.fig.add_subplot(111)
         self._style_dark_axes()
 
@@ -622,43 +638,44 @@ class TrendPopup(ctk.CTkToplevel):
         self.canvas.mpl_connect('motion_notify_event', self._on_hover)
 
     def _create_rates_table(self):
-        """Create the scrollable rates table using CTkScrollableFrame."""
+        """Create the scrollable rates table - Pre-built for speed."""
         # Table container - Dark card
-        self._table_container = ctk.CTkFrame(self._table_frame, fg_color=self.DARK_CARD, corner_radius=12)
+        self._table_container = tk.Frame(self._table_frame, bg=self.DARK_CARD,
+                                  highlightthickness=1, highlightbackground=self.DARK_BORDER)
         self._table_container.pack(fill="both", expand=True)
 
-        # Header row - Date | Swedbank | Fixing
-        header_frame = ctk.CTkFrame(self._table_container, fg_color=self.DARK_CARD_2, corner_radius=0)
-        header_frame.pack(fill="x", padx=2, pady=(2, 0))
+        # Header row - Date | Swedbank | Fixing (dark)
+        header_frame = tk.Frame(self._table_container, bg=self.DARK_CARD_2)
+        header_frame.pack(fill="x")
 
         # Fixed width columns
-        ctk.CTkLabel(header_frame, text="DATE", text_color=self.DARK_MUTED, width=140,
-                    font=("Segoe UI", 11, "bold"), anchor="w").pack(side="left", padx=(24, 10), pady=12)
-        ctk.CTkLabel(header_frame, text="SWEDBANK", text_color=self.SWEDBANK_ORANGE, width=120,
-                    font=("Segoe UI", 11, "bold"), anchor="center").pack(side="left", padx=10, pady=12)
-        ctk.CTkLabel(header_frame, text="FIXING", text_color=self.FIXING_BLUE, width=120,
-                    font=("Segoe UI", 11, "bold"), anchor="center").pack(side="left", padx=10, pady=12)
+        tk.Label(header_frame, text="DATE", fg=self.DARK_MUTED, bg=self.DARK_CARD_2,
+                font=("Segoe UI", 9, "bold"), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=12)
+        tk.Label(header_frame, text="SWEDBANK", fg=self.SWEDBANK_ORANGE, bg=self.DARK_CARD_2,
+                font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
+        tk.Label(header_frame, text="FIXING", fg=self.FIXING_BLUE, bg=self.DARK_CARD_2,
+                font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
 
-        # Scrollable area using regular tkinter (CTkScrollableFrame has font init issues)
-        scroll_container = tk.Frame(self._table_container, bg=self.DARK_CARD)
-        scroll_container.pack(fill="both", expand=True, padx=2, pady=2)
+        # Separator line
+        tk.Frame(self._table_container, bg=self.DARK_BORDER, height=1).pack(fill="x")
 
-        canvas = tk.Canvas(scroll_container, bg=self.DARK_CARD, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=canvas.yview)
-        self._table_scroll_frame = tk.Frame(canvas, bg=self.DARK_CARD)
+        # Scrollable area
+        self._table_canvas = tk.Canvas(self._table_container, bg=self.DARK_CARD, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self._table_container, orient="vertical", command=self._table_canvas.yview)
+        self._table_scroll_frame = tk.Frame(self._table_canvas, bg=self.DARK_CARD)
 
         self._table_scroll_frame.bind("<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self._table_scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+            lambda e: self._table_canvas.configure(scrollregion=self._table_canvas.bbox("all")))
+        self._table_canvas.create_window((0, 0), window=self._table_scroll_frame, anchor="nw")
+        self._table_canvas.configure(yscrollcommand=scrollbar.set)
 
-        canvas.pack(side="left", fill="both", expand=True)
+        self._table_canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
         # Mouse wheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            self._table_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self._table_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
     def _populate_table(self):
         """Build table with Date | Swedbank | Fixing columns - called once on data load."""
@@ -696,9 +713,11 @@ class TrendPopup(ctk.CTkToplevel):
                     pass
 
         if not date_map:
-            tk.Label(self._table_scroll_frame, text="No data available",
+            empty_frame = tk.Frame(self._table_scroll_frame, bg=self.DARK_CARD)
+            empty_frame.pack(fill="x", pady=60)
+            tk.Label(empty_frame, text="No data available",
                     fg=self.DARK_MUTED, bg=self.DARK_CARD,
-                    font=("Segoe UI", 14)).pack(pady=60)
+                    font=("Segoe UI", 12)).pack()
             return
 
         # Sort by date descending
@@ -709,17 +728,16 @@ class TrendPopup(ctk.CTkToplevel):
             swedbank_rate = data['swedbank']
             fixing_rate = data['fixing']
 
-            # Subtle alternating rows
+            # Subtle alternating rows (dark theme)
             bg_color = self.DARK_CARD if i % 2 == 0 else self.DARK_CARD_2
 
-            row_frame = tk.Frame(self._table_scroll_frame, bg=bg_color, height=40)
+            row_frame = tk.Frame(self._table_scroll_frame, bg=bg_color)
             row_frame.pack(fill="x")
-            row_frame.pack_propagate(False)
 
             # Date
             date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)
-            tk.Label(row_frame, text=date_str, fg=self.DARK_TEXT, bg=bg_color, width=16,
-                    font=("Consolas", 12), anchor="w").pack(side="left", padx=(24, 10))
+            tk.Label(row_frame, text=date_str, fg=self.DARK_TEXT, bg=bg_color,
+                    font=("Consolas", 10), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=8)
 
             # Swedbank rate
             if swedbank_rate is not None:
@@ -728,8 +746,8 @@ class TrendPopup(ctk.CTkToplevel):
             else:
                 sw_str = "-"
                 sw_color = self.DARK_MUTED
-            tk.Label(row_frame, text=sw_str, fg=sw_color, bg=bg_color, width=14,
-                    font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
+            tk.Label(row_frame, text=sw_str, fg=sw_color, bg=bg_color,
+                    font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
             # Fixing rate
             if fixing_rate is not None:
@@ -738,10 +756,10 @@ class TrendPopup(ctk.CTkToplevel):
             else:
                 fx_str = "-"
                 fx_color = self.DARK_MUTED
-            tk.Label(row_frame, text=fx_str, fg=fx_color, bg=bg_color, width=14,
-                    font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
+            tk.Label(row_frame, text=fx_str, fg=fx_color, bg=bg_color,
+                    font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
-        self._status_label.configure(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
+        self._status_label.config(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
     def _switch_view(self, view_name):
         """Switch between chart and table view - instant with tkraise."""
@@ -757,9 +775,9 @@ class TrendPopup(ctk.CTkToplevel):
         """Update visual state of view toggle buttons."""
         for view_name, btn in self._view_btns.items():
             if view_name == self._current_view:
-                btn.configure(fg_color=self.DARK_CARD, text_color=self.SWEDBANK_ORANGE)
+                btn.config(bg=self.DARK_CARD, fg=self.SWEDBANK_ORANGE)
             else:
-                btn.configure(fg_color="transparent", text_color=self.DARK_MUTED)
+                btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
     def _on_source_change(self, event=None):
         """Handle source checkbox change."""
@@ -815,21 +833,21 @@ class TrendPopup(ctk.CTkToplevel):
             new_val = not var.get()
             var.set(new_val)
 
-            # Dark theme tenor colors
+            # Dark theme tenor colors: (fg_active, bg_active)
             tenor_colors = {
-                '1m': self.SWEDBANK_ORANGE,
-                '2m': '#34D399',
-                '3m': self.FIXING_BLUE,
-                '6m': '#FBBF24'
+                '1m': ('#FF6B00', '#2D1A0A'),  # Orange (Swedbank)
+                '2m': ('#34D399', '#0D2818'),  # Green
+                '3m': ('#60A5FA', '#0D1B2A'),  # Blue
+                '6m': ('#FBBF24', '#2D2406')   # Yellow
             }
-            color = tenor_colors.get(tenor, self.DARK_TEXT)
+            fg_color, bg_color = tenor_colors.get(tenor, (self.DARK_TEXT, self.DARK_CARD_2))
 
             btn = self._tenor_btns.get(tenor)
             if btn:
                 if new_val:
-                    btn.configure(fg_color=color, text_color="white")
+                    btn.config(fg=fg_color, bg=bg_color)
                 else:
-                    btn.configure(fg_color=self.DARK_CARD_2, text_color=self.DARK_MUTED)
+                    btn.config(fg=self.DARK_MUTED, bg=self.DARK_CARD_2)
 
             self._redraw_chart()
             # Also update table when tenor changes
@@ -841,9 +859,9 @@ class TrendPopup(ctk.CTkToplevel):
         current = self._range_var.get()
         for label, btn in self._range_btns.items():
             if label == current:
-                btn.configure(fg_color=self.SWEDBANK_ORANGE, text_color="white")
+                btn.config(bg=self.SWEDBANK_ORANGE, fg="white")
             else:
-                btn.configure(fg_color="transparent", text_color=self.DARK_MUTED)
+                btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
     def _redraw_chart(self):
         """Main chart drawing logic with professional dark theme."""
@@ -979,7 +997,7 @@ class TrendPopup(ctk.CTkToplevel):
         """Handle mouse hover to show rate and date."""
         if event.inaxes != self.ax or not hasattr(self, '_plot_lines'):
             if hasattr(self, '_hover_label'):
-                self._hover_label.configure(text="")
+                self._hover_label.config(text="")
             return
 
         # Find closest point
@@ -1003,9 +1021,9 @@ class TrendPopup(ctk.CTkToplevel):
         if closest_info and closest_dist < 5:
             d, r, label, source = closest_info
             date_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
-            self._hover_label.configure(text=f"{date_str}  ·  {label}: {r:.4f}%")
+            self._hover_label.config(text=f"{date_str}  ·  {label}: {r:.4f}%")
         else:
-            self._hover_label.configure(text="")
+            self._hover_label.config(text="")
 
     def _load_data(self):
         """Load data and show chart, pre-build table in background."""
@@ -1030,7 +1048,7 @@ class TrendPopup(ctk.CTkToplevel):
         # Update status
         contrib_count = len(self._contrib_data)
         fixing_count = len(self._fixing_data)
-        self._status_label.configure(text=f"Swedbank: {contrib_count}  ·  Fixing: {fixing_count} dates")
+        self._status_label.config(text=f"Swedbank: {contrib_count}  ·  Fixing: {fixing_count} dates")
 
         # Pre-build table in background for instant switching later
         self.after_idle(self._populate_table)
