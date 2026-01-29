@@ -422,7 +422,7 @@ class TrendPopup(ctk.CTkToplevel):
         # Title - Clean text only
         ctk.CTkLabel(header_inner, text="NIBOR HISTORY",
                     text_color=self.DARK_TEXT,
-                    font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold")).pack(side="left")
+                    font=("Segoe UI", 20, "bold")).pack(side="left")
 
         # View toggle - Segmented button style
         self._view_btns = {}
@@ -431,7 +431,7 @@ class TrendPopup(ctk.CTkToplevel):
 
         chart_btn = ctk.CTkButton(toggle_frame, text="Chart", width=80,
                                  command=lambda: self._switch_view("chart"),
-                                 font=ctk.CTkFont(size=13, weight="bold"),
+                                 font=("Segoe UI", 13, "bold"),
                                  fg_color=self.DARK_CARD, text_color=self.SWEDBANK_ORANGE,
                                  hover_color=self.HOVER_BG, corner_radius=6)
         chart_btn.pack(side="left", padx=2, pady=2)
@@ -439,7 +439,7 @@ class TrendPopup(ctk.CTkToplevel):
 
         table_btn = ctk.CTkButton(toggle_frame, text="Table", width=80,
                                  command=lambda: self._switch_view("table"),
-                                 font=ctk.CTkFont(size=13, weight="bold"),
+                                 font=("Segoe UI", 13, "bold"),
                                  fg_color="transparent", text_color=self.DARK_MUTED,
                                  hover_color=self.HOVER_BG, corner_radius=6)
         table_btn.pack(side="left", padx=2, pady=2)
@@ -454,7 +454,7 @@ class TrendPopup(ctk.CTkToplevel):
 
         # Swedbank switch
         ctk.CTkLabel(source_frame, text="Swedbank", text_color=self.SWEDBANK_ORANGE,
-                    font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 5))
+                    font=("Segoe UI", 12, "bold")).pack(side="left", padx=(0, 5))
         self._swedbank_switch = ctk.CTkSwitch(source_frame, text="", variable=self._show_contrib_var,
                                               command=self._on_source_change, width=40,
                                               progress_color=self.SWEDBANK_ORANGE,
@@ -464,7 +464,7 @@ class TrendPopup(ctk.CTkToplevel):
 
         # Fixing switch
         ctk.CTkLabel(source_frame, text="Fixing", text_color=self.FIXING_BLUE,
-                    font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 5))
+                    font=("Segoe UI", 12, "bold")).pack(side="left", padx=(0, 5))
         self._fixing_switch = ctk.CTkSwitch(source_frame, text="", variable=self._show_fixing_var,
                                            command=self._on_source_change, width=40,
                                            progress_color=self.FIXING_BLUE,
@@ -475,7 +475,7 @@ class TrendPopup(ctk.CTkToplevel):
         # Close button
         close_btn = ctk.CTkButton(header_inner, text="✕", width=36, height=36,
                                  command=self.destroy,
-                                 font=ctk.CTkFont(size=18),
+                                 font=("Segoe UI", 18),
                                  fg_color="transparent", text_color=self.DARK_MUTED,
                                  hover_color="#3D1518", corner_radius=8)
         close_btn.pack(side="right")
@@ -498,7 +498,7 @@ class TrendPopup(ctk.CTkToplevel):
         self._loading_frame.pack(fill="both", expand=True)
         ctk.CTkLabel(self._loading_frame, text="Loading...",
                     text_color=self.DARK_MUTED,
-                    font=ctk.CTkFont(size=14)).pack(expand=True)
+                    font=("Segoe UI", 14)).pack(expand=True)
 
         # Table view - create structure only (fast)
         self._table_frame = ctk.CTkFrame(self._content_frame, fg_color="transparent")
@@ -520,13 +520,13 @@ class TrendPopup(ctk.CTkToplevel):
 
         self._status_label = ctk.CTkLabel(footer_inner, text="Loading...",
                                          text_color=self.DARK_MUTED,
-                                         font=ctk.CTkFont(size=12))
+                                         font=("Segoe UI", 12))
         self._status_label.pack(side="left")
 
         # Hover info
         self._hover_label = ctk.CTkLabel(footer_inner, text="",
                                         text_color=self.SWEDBANK_ORANGE,
-                                        font=ctk.CTkFont(size=12, weight="bold"))
+                                        font=("Segoe UI", 12, "bold"))
         self._hover_label.pack(side="right")
 
         # Bindings
@@ -563,7 +563,7 @@ class TrendPopup(ctk.CTkToplevel):
             is_selected = (label == "3M")
             btn = ctk.CTkButton(range_frame, text=label, width=50,
                                command=lambda l=label: self._set_range(l),
-                               font=ctk.CTkFont(size=12, weight="bold"),
+                               font=("Segoe UI", 12, "bold"),
                                fg_color=self.SWEDBANK_ORANGE if is_selected else "transparent",
                                text_color="white" if is_selected else self.DARK_MUTED,
                                hover_color=self.HOVER_BG, corner_radius=6)
@@ -575,7 +575,7 @@ class TrendPopup(ctk.CTkToplevel):
         tenor_frame.pack(side="right")
 
         ctk.CTkLabel(tenor_frame, text="Tenors:", text_color=self.DARK_MUTED,
-                    font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 10))
+                    font=("Segoe UI", 11)).pack(side="left", padx=(0, 10))
 
         self._tenor_vars = {}
         self._tenor_btns = {}
@@ -594,7 +594,7 @@ class TrendPopup(ctk.CTkToplevel):
 
             btn = ctk.CTkButton(tenor_frame, text=tenor.upper(), width=45,
                                command=lambda t=tenor: self._toggle_tenor(t),
-                               font=ctk.CTkFont(size=11, weight="bold"),
+                               font=("Segoe UI", 11, "bold"),
                                fg_color=color if is_selected else self.DARK_CARD_2,
                                text_color="white" if is_selected else self.DARK_MUTED,
                                hover_color=self.HOVER_BG, corner_radius=6)
@@ -624,11 +624,11 @@ class TrendPopup(ctk.CTkToplevel):
 
         # Fixed width columns
         ctk.CTkLabel(header_frame, text="DATE", text_color=self.DARK_MUTED, width=140,
-                    font=ctk.CTkFont(size=11, weight="bold"), anchor="w").pack(side="left", padx=(24, 10), pady=12)
+                    font=("Segoe UI", 11, "bold"), anchor="w").pack(side="left", padx=(24, 10), pady=12)
         ctk.CTkLabel(header_frame, text="SWEDBANK", text_color=self.SWEDBANK_ORANGE, width=120,
-                    font=ctk.CTkFont(size=11, weight="bold"), anchor="center").pack(side="left", padx=10, pady=12)
+                    font=("Segoe UI", 11, "bold"), anchor="center").pack(side="left", padx=10, pady=12)
         ctk.CTkLabel(header_frame, text="FIXING", text_color=self.FIXING_BLUE, width=120,
-                    font=ctk.CTkFont(size=11, weight="bold"), anchor="center").pack(side="left", padx=10, pady=12)
+                    font=("Segoe UI", 11, "bold"), anchor="center").pack(side="left", padx=10, pady=12)
 
         # Scrollable area using CTkScrollableFrame
         self._table_scroll_frame = ctk.CTkScrollableFrame(self._table_container,
@@ -675,7 +675,7 @@ class TrendPopup(ctk.CTkToplevel):
         if not date_map:
             ctk.CTkLabel(self._table_scroll_frame, text="No data available",
                         text_color=self.DARK_MUTED,
-                        font=ctk.CTkFont(size=14)).pack(pady=60)
+                        font=("Segoe UI", 14)).pack(pady=60)
             return
 
         # Sort by date descending
@@ -696,7 +696,7 @@ class TrendPopup(ctk.CTkToplevel):
             # Date
             date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)
             ctk.CTkLabel(row_frame, text=date_str, text_color=self.DARK_TEXT, width=140,
-                        font=ctk.CTkFont(family="Consolas", size=12), anchor="w").pack(side="left", padx=(24, 10))
+                        font=("Consolas", 12), anchor="w").pack(side="left", padx=(24, 10))
 
             # Swedbank rate
             if swedbank_rate is not None:
@@ -706,7 +706,7 @@ class TrendPopup(ctk.CTkToplevel):
                 sw_str = "-"
                 sw_color = self.DARK_MUTED
             ctk.CTkLabel(row_frame, text=sw_str, text_color=sw_color, width=120,
-                        font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), anchor="center").pack(side="left", padx=10)
+                        font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
 
             # Fixing rate
             if fixing_rate is not None:
@@ -716,7 +716,7 @@ class TrendPopup(ctk.CTkToplevel):
                 fx_str = "-"
                 fx_color = self.DARK_MUTED
             ctk.CTkLabel(row_frame, text=fx_str, text_color=fx_color, width=120,
-                        font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), anchor="center").pack(side="left", padx=10)
+                        font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
 
         self._status_label.configure(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
