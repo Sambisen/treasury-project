@@ -814,9 +814,9 @@ class NiborTerminalCTK(ctk.CTk):
         hpad = CURRENT_MODE["hpad"]
 
         # ====================================================================
-        # BRANDING HEADER - Premium dark header with Swedbank accent
+        # BRANDING HEADER - Dark header matching app background
         # ====================================================================
-        BRANDING_BG = THEME["bg_card"]
+        BRANDING_BG = THEME["bg_main"]
         SWEDBANK_ORANGE = THEME["accent"]
 
         # Taller branding header to make room for the larger analog clock.
@@ -1665,22 +1665,18 @@ class NiborTerminalCTK(ctk.CTk):
 
             try:
                 if btn_key == key:
-                    # Active state: Orange text with subtle background
+                    # Active state: Orange text with subtle background, no border
                     btn.configure(
                         text_color=self._sidebar_colors["indicator"],  # Orange text
                         fg_color=self._sidebar_colors["active"],
-                        font=("Segoe UI Semibold", 13),
-                        border_width=2,
-                        border_color=self._sidebar_colors["indicator"]  # Orange left border
+                        font=("Segoe UI Semibold", 13)
                     )
                 else:
                     # Inactive state: Light text, transparent background
                     btn.configure(
                         text_color=self._sidebar_colors["text"],
                         fg_color="transparent",
-                        font=("Segoe UI", 13),
-                        border_width=0,
-                        border_color="transparent"
+                        font=("Segoe UI", 13)
                     )
                 # Force button to redraw
                 btn.update_idletasks()
