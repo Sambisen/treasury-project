@@ -142,6 +142,9 @@ class DashboardPage(BaseFrame):
         # Initialize match data for all tenors (ensures button state works on first update)
         self._match_data = {}
 
+        # Track if a fresh calculation has been performed (not just loaded from last approved)
+        self._calculation_performed = False
+
         # Track loading state to avoid validation during loading
         self._is_loading = False
 
@@ -2221,9 +2224,13 @@ class DashboardPage(BaseFrame):
                 pass
             self._compact_drawer = None
 
-        # Only open drawer if calculation has been performed
+        # Only open drawer if a fresh calculation has been performed (not just last approved data)
+        if not getattr(self, '_calculation_performed', False):
+            log.info(f"[Dashboard] No calculation performed yet - run calculation first")
+            return
+
         if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
-            log.info(f"[Dashboard] No calculation data for {tenor_key} - run calculation first")
+            log.info(f"[Dashboard] No calculation data for {tenor_key}")
             return
 
         data = self.app.funding_calc_data.get(tenor_key, {})
@@ -2545,6 +2552,9 @@ class DashboardPage(BaseFrame):
 
         if not hasattr(self.app, 'impl_calc_data'):
             return
+
+        # Mark that a fresh calculation has been performed
+        self._calculation_performed = True
 
         # Get selected calculation model (default: swedbank)
         selected_model = self.calc_model_var.get() if hasattr(self, 'calc_model_var') else "swedbank"
@@ -3342,6 +3352,10 @@ class DashboardPage(BaseFrame):
 
     def _get_nibor_tooltip(self, tenor_key):
         """Get NIBOR rate with 4 decimal precision for tooltip."""
+        # Only show tooltip if a fresh calculation has been performed
+        if not getattr(self, '_calculation_performed', False):
+            return None
+
         calc_data = getattr(self.app, 'funding_calc_data', {})
         tenor_data = calc_data.get(tenor_key, {})
         final_rate = tenor_data.get('final_rate')
@@ -3351,10 +3365,8 @@ class DashboardPage(BaseFrame):
 
     def _get_chg_tooltip(self, tenor_key):
         """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
-        # Only show tooltip if calculation has been performed
-        calc_data = getattr(self.app, 'funding_calc_data', {})
-        tenor_data = calc_data.get(tenor_key, {})
-        if not tenor_data.get('final_rate'):
+        # Only show tooltip if a fresh calculation has been performed (not just last approved data)
+        if not getattr(self, '_calculation_performed', False):
             return None  # No calculation done yet
 
         # Check if excel engine is available
@@ -3384,6 +3396,10 @@ class DashboardPage(BaseFrame):
 
     def _get_funding_tooltip(self, tenor_key):
         """Get Funding Rate breakdown: EUR/USD implied (4 dec), NOK (2 dec)."""
+        # Only show tooltip if a fresh calculation has been performed
+        if not getattr(self, '_calculation_performed', False):
+            return None
+
         calc_data = getattr(self.app, 'funding_calc_data', {})
         tenor_data = calc_data.get(tenor_key, {})
 
@@ -3536,9 +3552,13 @@ class DashboardPage(BaseFrame):
         """Open the calculation drawer for a specific tenor."""
         from config import RECON_CELL_MAPPING
 
-        # Only open drawer if calculation has been performed
+        # Only open drawer if a fresh calculation has been performed (not just last approved data)
+        if not getattr(self, '_calculation_performed', False):
+            log.info(f"[Dashboard] No calculation performed yet - run calculation first")
+            return
+
         if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
-            log.info(f"[Dashboard] No calculation data for {tenor_key} - run calculation first")
+            log.info(f"[Dashboard] No calculation data for {tenor_key}")
             return
 
         data = self.app.funding_calc_data.get(tenor_key)
