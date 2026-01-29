@@ -975,8 +975,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="|",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Consolas", 14)
-        ).pack(side="left", padx=10, pady=6)
+            font=("Consolas", 11)
+        ).pack(side="left", padx=8, pady=6)
 
         # FIXING label
         ctk.CTkLabel(
@@ -984,8 +984,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="FIXING",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 9)
-        ).pack(side="left", padx=(0, 8), pady=6)
+            font=("Segoe UI", 8)
+        ).pack(side="left", padx=(0, 6), pady=6)
 
         # Fixing countdown (monospace for stability)
         self._nibor_fixing_status = ctk.CTkLabel(
@@ -993,7 +993,7 @@ class NiborTerminalCTK(ctk.CTk):
             text="--:--:--",
             text_color=THEME["text"],
             fg_color=label_bg,
-            font=("Consolas", 14)
+            font=("Consolas", 11)
         )
         self._nibor_fixing_status.pack(side="left", pady=6)
 
@@ -1003,7 +1003,7 @@ class NiborTerminalCTK(ctk.CTk):
             text="",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 9)
+            font=("Segoe UI", 8)
         )
         self._nibor_fixing_indicator.pack(side="left", padx=(8, 10), pady=6)
 
@@ -1312,36 +1312,29 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _load_branding_logo(self):
         """Load branding logo after window is fully initialized."""
-        logo_paths = [
-            APP_DIR / "assets" / "swedbank_logo.png",
-            Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png"),
-            Path.home() / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png",
-            DATA_DIR / "Nibor" / "Historik" / "2025" / "Picture1.png",
-        ]
+        # Always use local assets path
+        logo_path = APP_DIR / "assets" / "swedbank_logo.png"
 
-        for logo_path in logo_paths:
-            try:
-                log.info(f"Trying logo path: {logo_path} (exists={logo_path.exists()})")
-                if logo_path.exists():
-                    logo_img = Image.open(logo_path)
-                    # Resize to 70px height, maintain aspect ratio
-                    aspect = logo_img.width / logo_img.height
-                    new_height = 70
-                    new_width = int(new_height * aspect)
-                    logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        try:
+            log.info(f"Loading logo from: {logo_path}")
+            if logo_path.exists():
+                logo_img = Image.open(logo_path)
+                # Resize to 70px height, maintain aspect ratio
+                aspect = logo_img.width / logo_img.height
+                new_height = 70
+                new_width = int(new_height * aspect)
+                logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-                    # Create PhotoImage with explicit master reference
-                    self._branding_logo = ImageTk.PhotoImage(logo_img, master=self)
+                # Create PhotoImage with explicit master reference
+                self._branding_logo = ImageTk.PhotoImage(logo_img, master=self)
 
-                    # Update the placeholder label
-                    self._logo_label.configure(image=self._branding_logo)
-                    log.info(f"SUCCESS: Loaded branding logo from: {logo_path}")
-                    return
-            except Exception as e:
-                log.warning(f"Could not load logo from {logo_path}: {e}")
-                continue
-
-        log.error("Could not load branding logo from any path")
+                # Update the placeholder label
+                self._logo_label.configure(image=self._branding_logo)
+                log.info(f"SUCCESS: Loaded branding logo from: {logo_path}")
+            else:
+                log.error(f"Logo file not found: {logo_path}")
+        except Exception as e:
+            log.error(f"Could not load logo from {logo_path}: {e}")
 
     def _update_header_clock(self):
         """Update the header clock and NIBOR fixing countdown every second."""
