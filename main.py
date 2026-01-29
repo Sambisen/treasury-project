@@ -838,9 +838,9 @@ class NiborTerminalCTK(ctk.CTk):
         # Delay logo loading until window is fully initialized
         self.after(100, self._load_branding_logo)
 
-        # Title text (centered, 2 lines)
+        # Title text (centered in the middle of the entire GUI)
         title_container = tk.Frame(branding_inner, bg=BRANDING_BG)
-        title_container.pack(expand=True)
+        title_container.place(relx=0.5, rely=0.5, anchor="center")
 
         # Right-aligned analog clock (branding header)
         # Placed before the orange accent line, as requested.
@@ -854,7 +854,7 @@ class NiborTerminalCTK(ctk.CTk):
             second_hand_color=THEME["accent"],
         )
         # Pin to top-right corner of the branding banner.
-        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=-4, anchor="ne")
+        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=-10, anchor="ne")
 
         tk.Label(
             title_container,
