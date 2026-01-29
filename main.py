@@ -839,7 +839,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Placed before the orange accent line, as requested.
         self._branding_clock_analog = AnalogClock(
             branding_inner,
-            diameter=90,
+            diameter=60,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
             tick_color=THEME["text_muted"],
@@ -975,8 +975,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="|",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Consolas", 11)
-        ).pack(side="left", padx=8, pady=6)
+            font=("Consolas", 9)
+        ).pack(side="left", padx=6, pady=4)
 
         # FIXING label
         ctk.CTkLabel(
@@ -984,8 +984,8 @@ class NiborTerminalCTK(ctk.CTk):
             text="FIXING",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 8)
-        ).pack(side="left", padx=(0, 6), pady=6)
+            font=("Segoe UI", 7)
+        ).pack(side="left", padx=(0, 4), pady=4)
 
         # Fixing countdown (monospace for stability)
         self._nibor_fixing_status = ctk.CTkLabel(
@@ -993,9 +993,9 @@ class NiborTerminalCTK(ctk.CTk):
             text="--:--:--",
             text_color=THEME["text"],
             fg_color=label_bg,
-            font=("Consolas", 11)
+            font=("Consolas", 9)
         )
-        self._nibor_fixing_status.pack(side="left", pady=6)
+        self._nibor_fixing_status.pack(side="left", pady=4)
 
         # Fixing indicator
         self._nibor_fixing_indicator = ctk.CTkLabel(
@@ -1003,9 +1003,9 @@ class NiborTerminalCTK(ctk.CTk):
             text="",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 8)
+            font=("Segoe UI", 7)
         )
-        self._nibor_fixing_indicator.pack(side="left", padx=(8, 10), pady=6)
+        self._nibor_fixing_indicator.pack(side="left", padx=(6, 8), pady=4)
 
         # Align the analog clock (branding header) so this chip sits centered under it.
         # This matters more in Tkinter fallback where the chip background is very explicit.
@@ -1312,8 +1312,7 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _load_branding_logo(self):
         """Load branding logo after window is fully initialized."""
-        # Always use local assets path
-        logo_path = APP_DIR / "assets" / "swedbank_logo.png"
+        logo_path = Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png")
 
         try:
             log.info(f"Loading logo from: {logo_path}")
