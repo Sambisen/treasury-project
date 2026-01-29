@@ -839,7 +839,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Placed before the orange accent line, as requested.
         self._branding_clock_analog = AnalogClock(
             branding_inner,
-            diameter=60,
+            diameter=120,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
             tick_color=THEME["text_muted"],
@@ -1039,25 +1039,6 @@ class NiborTerminalCTK(ctk.CTk):
                 anchor="w"
             ).pack(side="left", padx=15, pady=8)
 
-        # ====================================================================
-        # LAST APPROVED INFO BANNER - Shows when displaying last approved data
-        # ====================================================================
-        self.last_approved_banner = tk.Frame(
-            self,
-            bg="#DBEAFE",  # Light blue background
-            height=36
-        )
-        # Don't pack yet - will be shown/hidden by _update_last_approved_banner()
-
-        self.last_approved_label = tk.Label(
-            self.last_approved_banner,
-            text="📋 Data shown: Last approved",
-            fg="#1E40AF",  # Dark blue text
-            bg="#DBEAFE",
-            font=("Segoe UI Semibold", 11),
-            anchor="w"
-        )
-        self.last_approved_label.pack(side="left", padx=15, pady=8)
 
         # ====================================================================
         # STATUS BAR - Bottom of window
