@@ -454,21 +454,6 @@ class TrendPopup(tk.Toplevel):
 
         self._update_view_buttons()
 
-        # Tenor selector - Dark pill style
-        tenor_frame = tk.Frame(header_inner, bg=self.DARK_CARD)
-        tenor_frame.pack(side="left", padx=25)
-
-        tk.Label(tenor_frame, text="Tenor", fg=self.DARK_MUTED, bg=self.DARK_CARD,
-                font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
-
-        self._tenor_var = tk.StringVar(master=self, value="3m")
-        self._tenor_dropdown = ttk.Combobox(tenor_frame, textvariable=self._tenor_var,
-                                           values=["1W", "1M", "2M", "3M", "6M"],
-                                           state="readonly", width=6, font=("Segoe UI", 10))
-        self._tenor_dropdown.pack(side="left")
-        self._tenor_dropdown.set("3M")
-        self._tenor_dropdown.bind("<<ComboboxSelected>>", self._on_tenor_change)
-
         # Source toggles - Dark pill buttons
         source_frame = tk.Frame(header_inner, bg=self.DARK_CARD)
         source_frame.pack(side="left", padx=20)
@@ -698,7 +683,9 @@ class TrendPopup(tk.Toplevel):
         for widget in self._table_scroll_frame.winfo_children():
             widget.destroy()
 
-        tenor = self._tenor_var.get().lower()
+        # Get first selected tenor from buttons (default to 3m)
+        selected_tenors = [t for t, var in self._tenor_vars.items() if var.get()]
+        tenor = selected_tenors[0] if selected_tenors else '3m'
 
         # Build a merged dataset by date
         date_map = {}  # date -> {swedbank: rate, fixing: rate}
@@ -792,11 +779,6 @@ class TrendPopup(tk.Toplevel):
             else:
                 btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
-    def _on_tenor_change(self, event=None):
-        """Handle tenor dropdown change - rebuild table for new tenor."""
-        if self._data_loaded:
-            self._populate_table()
-
     def _on_source_change(self, event=None):
         """Handle source checkbox change."""
         show_contrib = self._show_contrib_var.get()
@@ -868,6 +850,9 @@ class TrendPopup(tk.Toplevel):
                     btn.config(fg=self.DARK_MUTED, bg=self.DARK_CARD_2)
 
             self._redraw_chart()
+            # Also update table when tenor changes
+            if self._data_loaded:
+                self._populate_table()
 
     def _update_range_buttons(self):
         """Update visual state of range buttons."""
