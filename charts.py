@@ -449,8 +449,8 @@ class TrendPopup(ctk.CTkToplevel):
         source_frame = ctk.CTkFrame(header_inner, fg_color="transparent")
         source_frame.pack(side="left", padx=30)
 
-        self._show_contrib_var = ctk.BooleanVar(value=True)
-        self._show_fixing_var = ctk.BooleanVar(value=True)
+        self._show_contrib_var = tk.BooleanVar(master=self, value=True)
+        self._show_fixing_var = tk.BooleanVar(master=self, value=True)
 
         # Swedbank switch
         ctk.CTkLabel(source_frame, text="Swedbank", text_color=self.SWEDBANK_ORANGE,
@@ -587,7 +587,7 @@ class TrendPopup(ctk.CTkToplevel):
             '6m': '#FBBF24'
         }
         for tenor in ['1m', '2m', '3m', '6m']:
-            var = ctk.BooleanVar(value=(tenor == '3m'))
+            var = tk.BooleanVar(master=self, value=(tenor == '3m'))
             self._tenor_vars[tenor] = var
             color = tenor_colors.get(tenor, self.DARK_TEXT)
             is_selected = (tenor == '3m')
