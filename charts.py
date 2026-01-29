@@ -434,20 +434,20 @@ class TrendPopup(tk.Toplevel):
         toggle_inner.pack()
 
         self._view_btns = {}
-        # Chart button with line icon
-        chart_btn = tk.Button(toggle_inner, text="▁▂▃▅ Chart",
+        # Chart button
+        chart_btn = tk.Button(toggle_inner, text="Chart",
                              command=lambda: self._switch_view("chart"),
                              font=("Segoe UI", 10, "bold"),
-                             relief="flat", bd=0, padx=18, pady=7, cursor="hand2",
+                             relief="flat", bd=0, padx=20, pady=7, cursor="hand2",
                              highlightthickness=0)
         chart_btn.pack(side="left")
         self._view_btns["chart"] = chart_btn
 
-        # Table button with grid icon
-        table_btn = tk.Button(toggle_inner, text="▦ Table",
+        # Table button
+        table_btn = tk.Button(toggle_inner, text="Table",
                              command=lambda: self._switch_view("table"),
                              font=("Segoe UI", 10, "bold"),
-                             relief="flat", bd=0, padx=18, pady=7, cursor="hand2",
+                             relief="flat", bd=0, padx=20, pady=7, cursor="hand2",
                              highlightthickness=0)
         table_btn.pack(side="left")
         self._view_btns["table"] = table_btn
