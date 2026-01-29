@@ -1463,21 +1463,17 @@ class NiborTerminalCTK(ctk.CTk):
                 ConnectionStatusIndicator.WARNING, {"Message": "Mock mode (no blpapi)"}
             )
 
-        # Check Excel file availability
+        # Check Excel file availability using dynamic file lookup
         try:
-            if self.excel_engine and self.excel_engine.file_path:
-                from pathlib import Path
-                if Path(self.excel_engine.file_path).exists():
-                    self.connection_panel.set_excel_status(
-                        ConnectionStatusIndicator.CONNECTED, {"File": "Ready"}
-                    )
-                else:
-                    self.connection_panel.set_excel_status(
-                        ConnectionStatusIndicator.ERROR, {"Message": "File not found"}
-                    )
+            from nibor_file_manager import get_nibor_file_path
+            nibor_file = get_nibor_file_path()
+            if nibor_file and nibor_file.exists():
+                self.connection_panel.set_excel_status(
+                    ConnectionStatusIndicator.CONNECTED, {"File": nibor_file.name}
+                )
             else:
                 self.connection_panel.set_excel_status(
-                    ConnectionStatusIndicator.WARNING, {"Message": "Not configured"}
+                    ConnectionStatusIndicator.ERROR, {"Message": "File not found"}
                 )
         except Exception as e:
             self.connection_panel.set_excel_status(
