@@ -2609,7 +2609,7 @@ class DashboardPage(BaseFrame):
                 # NO % sign in spread column
                 cells["spread"].config(text=f"{spread:.2f}")
             if "final" in cells:
-                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
+                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A", fg=THEME["accent"])
 
             # CHG (Change from previous sheet in Excel - AA30-AA33)
             # Nordic Light: green positive with ▲, red negative with ▼, gray near-zero with —
@@ -3464,8 +3464,8 @@ class DashboardPage(BaseFrame):
             if "spread" in cells:
                 cells["spread"].config(text=f"{spread:.2f}%")
             if "final" in cells:
-                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A")
-            
+                cells["final"].config(text=f"{final_rate:.2f}%" if final_rate else "N/A", fg=THEME["accent"])
+
             self.app.funding_calc_data[tenor_key] = {
                 'eur_impl': eur_impl, 'usd_impl': usd_impl, 'nok_cm': nok_cm,
                 'eur_spot': eur_data.get('spot'), 'eur_pips': eur_data.get('pips'),
