@@ -846,7 +846,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Placed on branding_header directly for better positioning
         self._branding_clock_analog = AnalogClock(
             branding_header,
-            diameter=120,
+            diameter=105,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
             tick_color=THEME["text_muted"],
