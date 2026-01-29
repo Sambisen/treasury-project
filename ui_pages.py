@@ -3825,7 +3825,7 @@ class BackupNiborPage(tk.Frame):
     TENORS = ["1M", "2M", "3M", "6M"]
 
     def __init__(self, master, app):
-        super().__init__(master, bg="white")
+        super().__init__(master, bg=THEME["bg_main"])
         self.app = app
         self._all_entries = {}
         self._result_labels = {}
@@ -3843,16 +3843,16 @@ class BackupNiborPage(tk.Frame):
         self.grid_columnconfigure(0, weight=1)
 
         # Main container - centered with max width
-        main_container = tk.Frame(self, bg="white")
+        main_container = tk.Frame(self, bg=THEME["bg_main"])
         main_container.grid(row=0, column=0, padx=pad, pady=pad)
 
         # ================================================================
         # HEADER
         # ================================================================
-        header = tk.Frame(main_container, bg="white")
+        header = tk.Frame(main_container, bg=THEME["bg_main"])
         header.pack(pady=(0, 12))
 
-        tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg="white",
+        tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg=THEME["bg_main"],
                  font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack()
 
         # ================================================================
