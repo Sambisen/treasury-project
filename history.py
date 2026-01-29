@@ -17,13 +17,22 @@ from config import DEVELOPMENT_MODE, NIBOR_FIXING_TICKERS, get_logger
 log = get_logger("history")
 
 # ============================================================================
-# OVERRIDE: Force history file location (PROD) to the user-specified path
+# Dynamic history file location based on current user's OneDrive
 # ============================================================================
-NIBOR_LOG_FILE_OVERRIDE = Path(
-    r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Nibor logg\nibor_log.json"
-)
+def _get_nibor_log_path() -> Path:
+    """Get the NIBOR log file path dynamically based on current user."""
+    user_home = Path.home()
+    onedrive_path = user_home / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents"
 
-# History directory derived from the override file
+    if onedrive_path.exists():
+        return onedrive_path / "Referensräntor" / "Nibor" / "Nibor logg" / "nibor_log.json"
+    else:
+        # Fallback to local data folder
+        return Path(__file__).resolve().parent / "data" / "nibor_log.json"
+
+NIBOR_LOG_FILE_OVERRIDE = _get_nibor_log_path()
+
+# History directory derived from the log file
 HISTORY_DIR = NIBOR_LOG_FILE_OVERRIDE.parent
 
 
