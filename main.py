@@ -846,7 +846,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Placed before the orange accent line, as requested.
         self._branding_clock_analog = AnalogClock(
             branding_inner,
-            diameter=95,
+            diameter=105,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
             tick_color=THEME["text_muted"],
@@ -854,15 +854,15 @@ class NiborTerminalCTK(ctk.CTk):
             second_hand_color=THEME["accent"],
         )
         # Pin to top-right corner of the branding banner.
-        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=6, anchor="ne")
+        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=2, anchor="ne")
 
         tk.Label(
             title_container,
             text="Nibor reference rate",
-            font=("Segoe UI Semibold", 22),
+            font=("Segoe UI Semibold", 26),
             fg=THEME["text"],
             bg=BRANDING_BG
-        ).pack()
+        ).pack(anchor="center")
 
         # Second line: cursive/italic-style
         # Note: "Segoe Script" exists on most Windows installs. Falls back to Segoe UI Italic.
@@ -874,10 +874,10 @@ class NiborTerminalCTK(ctk.CTk):
         tk.Label(
             title_container,
             text="6 eyes Terminal",
-            font=cursive_font,
+            font=("Segoe Script", 18),
             fg=THEME["text"],
             bg=BRANDING_BG
-        ).pack(pady=(2, 0))
+        ).pack(anchor="center", pady=(2, 0))
 
         # Accent line below branding header
         accent_line = tk.Frame(self, bg=SWEDBANK_ORANGE, height=3)
@@ -1103,20 +1103,16 @@ class NiborTerminalCTK(ctk.CTk):
             "indicator": SIDEBAR_INDICATOR,
         }
 
-        # Premium header with icon
+        # Premium header
         header_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
-        header_frame.pack(fill="x", padx=20, pady=(20, 16))
-        
-        ctk.CTkLabel(header_frame, text="⚡",
-                    text_color=SIDEBAR_INDICATOR,
-                    font=("Segoe UI", 20)).pack(side="left", padx=(0, 8))
-        
+        header_frame.pack(fill="x", padx=20, pady=(16, 12))
+
         ctk.CTkLabel(header_frame, text="COMMAND CENTER",
                     text_color=SIDEBAR_TEXT,
-                    font=("Segoe UI Semibold", 11, "bold")).pack(side="left")
+                    font=("Segoe UI Semibold", 14, "bold")).pack(side="left")
 
         # Subtle divider after header
-        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=(0, 20))
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=(0, 12))
 
         # Navigation buttons with modern styling
         self.PAGES_CONFIG = [
@@ -1142,9 +1138,9 @@ class NiborTerminalCTK(ctk.CTk):
                 font=("Segoe UI", 13),
                 anchor="w",
                 corner_radius=10,
-                height=46
+                height=38
             )
-            btn.pack(fill="x", padx=12, pady=3)
+            btn.pack(fill="x", padx=12, pady=2)
 
             self._nav_buttons[page_key] = {
                 "btn": btn,
@@ -1156,15 +1152,15 @@ class NiborTerminalCTK(ctk.CTk):
             }
 
         # Spacer before Quick Access
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=20).pack(fill="x")
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=8).pack(fill="x")
 
         # Divider with subtle line
-        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=12)
+        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=8)
 
         # Quick Access section header
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
                     text_color=SIDEBAR_MUTED,
-                    font=("Segoe UI Semibold", 10)).pack(anchor="w", padx=20, pady=(8, 12))
+                    font=("Segoe UI Semibold", 14)).pack(anchor="w", padx=20, pady=(6, 8))
 
         # History folder button
         history_btn = ctk.CTkButton(
@@ -1177,9 +1173,9 @@ class NiborTerminalCTK(ctk.CTk):
             font=("Segoe UI", 13),
             anchor="w",
             corner_radius=10,
-            height=42
+            height=36
         )
-        history_btn.pack(fill="x", padx=12, pady=3)
+        history_btn.pack(fill="x", padx=12, pady=2)
 
         # GRSS folder button
         grss_btn = ctk.CTkButton(
@@ -1192,9 +1188,9 @@ class NiborTerminalCTK(ctk.CTk):
             font=("Segoe UI", 13),
             anchor="w",
             corner_radius=10,
-            height=42
+            height=36
         )
-        grss_btn.pack(fill="x", padx=12, pady=3)
+        grss_btn.pack(fill="x", padx=12, pady=2)
 
         # Push credit to bottom with spacer
         ctk.CTkFrame(sidebar, fg_color="transparent").pack(fill="both", expand=True)
