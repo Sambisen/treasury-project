@@ -1173,10 +1173,10 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=SIDEBAR_HOVER,
             text_color=SIDEBAR_TEXT,
-            font=("Segoe UI", 13),
+            font=("Segoe UI", 15),
             anchor="w",
             corner_radius=10,
-            height=36
+            height=40
         )
         history_btn.pack(fill="x", padx=12, pady=2)
 
@@ -1188,10 +1188,10 @@ class NiborTerminalCTK(ctk.CTk):
             fg_color="transparent",
             hover_color=SIDEBAR_HOVER,
             text_color=SIDEBAR_TEXT,
-            font=("Segoe UI", 13),
+            font=("Segoe UI", 15),
             anchor="w",
             corner_radius=10,
-            height=36
+            height=40
         )
         grss_btn.pack(fill="x", padx=12, pady=2)
 
