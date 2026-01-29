@@ -3836,7 +3836,7 @@ class BackupNiborPage(tk.Frame):
 
     def _build_ui(self):
         """Build the calculator UI."""
-        pad = 16
+        pad = 32
 
         # Center wrapper
         self.grid_rowconfigure(0, weight=1)
@@ -3850,10 +3850,10 @@ class BackupNiborPage(tk.Frame):
         # HEADER
         # ================================================================
         header = tk.Frame(main_container, bg=THEME["bg_main"])
-        header.pack(pady=(0, 12))
+        header.pack(pady=(0, 20))
 
         tk.Label(header, text="BACKUP NIBOR CALCULATOR", fg=THEME["text"], bg=THEME["bg_main"],
-                 font=("Segoe UI", CURRENT_MODE["h2"], "bold")).pack()
+                 font=("Segoe UI", 22, "bold")).pack()
 
         # ================================================================
         # SINGLE CARD WITH ALL INPUTS
@@ -3862,67 +3862,67 @@ class BackupNiborPage(tk.Frame):
         card.pack(fill="x")
 
         # Accent bar top
-        tk.Frame(card, bg=THEME["accent"], height=3).pack(fill="x")
+        tk.Frame(card, bg=THEME["accent"], height=4).pack(fill="x")
 
-        card_content = tk.Frame(card, bg=THEME["bg_card"], padx=20, pady=16)
+        card_content = tk.Frame(card, bg=THEME["bg_card"], padx=32, pady=24)
         card_content.pack(fill="x")
 
         # --- ROW 1: SPOTS + WEIGHTS ---
         row1 = tk.Frame(card_content, bg=THEME["bg_card"])
-        row1.pack(fill="x", pady=(0, 12))
+        row1.pack(fill="x", pady=(0, 16))
 
         # SPOTS
         tk.Label(row1, text="SPOTS", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 9)).pack(side="left")
+                 font=("Segoe UI Semibold", 11)).pack(side="left")
 
         tk.Label(row1, text="EURNOK", fg=THEME["text"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(side="left", padx=(16, 4))
-        eur_spot = tk.Entry(row1, width=10, font=("Consolas", 11), bg=THEME["bg_card_2"],
+                 font=("Segoe UI", 12)).pack(side="left", padx=(20, 6))
+        eur_spot = tk.Entry(row1, width=12, font=("Consolas", 13), bg=THEME["bg_card_2"],
                            fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-        eur_spot.pack(side="left", ipady=3)
+        eur_spot.pack(side="left", ipady=5)
         self._all_entries["eur_spot"] = eur_spot
 
         tk.Label(row1, text="USDNOK", fg=THEME["text"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(side="left", padx=(16, 4))
-        usd_spot = tk.Entry(row1, width=10, font=("Consolas", 11), bg=THEME["bg_card_2"],
+                 font=("Segoe UI", 12)).pack(side="left", padx=(20, 6))
+        usd_spot = tk.Entry(row1, width=12, font=("Consolas", 13), bg=THEME["bg_card_2"],
                            fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-        usd_spot.pack(side="left", ipady=3)
+        usd_spot.pack(side="left", ipady=5)
         self._all_entries["usd_spot"] = usd_spot
 
         # Separator
-        tk.Frame(row1, bg=THEME["border"], width=1, height=24).pack(side="left", padx=24)
+        tk.Frame(row1, bg=THEME["border"], width=1, height=32).pack(side="left", padx=32)
 
         # WEIGHTS
         tk.Label(row1, text="WEIGHTS", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 9)).pack(side="left")
+                 font=("Segoe UI Semibold", 11)).pack(side="left")
 
         tk.Label(row1, text="EUR", fg=THEME["text"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(side="left", padx=(16, 4))
-        eur_weight = tk.Entry(row1, width=5, font=("Consolas", 11), bg=THEME["bg_card_2"],
+                 font=("Segoe UI", 12)).pack(side="left", padx=(20, 6))
+        eur_weight = tk.Entry(row1, width=6, font=("Consolas", 13), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-        eur_weight.pack(side="left", ipady=3)
+        eur_weight.pack(side="left", ipady=5)
         tk.Label(row1, text="%", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 9)).pack(side="left", padx=(2, 12))
+                 font=("Segoe UI", 11)).pack(side="left", padx=(4, 16))
         self._all_entries["eur_weight"] = eur_weight
 
         tk.Label(row1, text="USD", fg=THEME["text"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10)).pack(side="left", padx=(0, 4))
-        usd_weight = tk.Entry(row1, width=5, font=("Consolas", 11), bg=THEME["bg_card_2"],
+                 font=("Segoe UI", 12)).pack(side="left", padx=(0, 6))
+        usd_weight = tk.Entry(row1, width=6, font=("Consolas", 13), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-        usd_weight.pack(side="left", ipady=3)
+        usd_weight.pack(side="left", ipady=5)
         tk.Label(row1, text="%", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 9)).pack(side="left", padx=(2, 12))
+                 font=("Segoe UI", 11)).pack(side="left", padx=(4, 16))
         self._all_entries["usd_weight"] = usd_weight
 
         tk.Label(row1, text="NOK 50% (fixed)", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 9)).pack(side="left")
+                 font=("Segoe UI", 11)).pack(side="left")
 
         self._weight_warning = tk.Label(row1, text="", fg=THEME["bad"], bg=THEME["bg_card"],
-                                        font=("Segoe UI", 9))
-        self._weight_warning.pack(side="left", padx=(12, 0))
+                                        font=("Segoe UI", 11))
+        self._weight_warning.pack(side="left", padx=(16, 0))
 
         # Separator line
-        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=12)
+        tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=16)
 
         # --- ROW 2: EUR / USD / NOK INPUTS (3 columns) ---
         inputs_row = tk.Frame(card_content, bg=THEME["bg_card"])
@@ -3935,157 +3935,157 @@ class BackupNiborPage(tk.Frame):
 
         # EUR Column
         eur_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
-        eur_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        eur_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
 
         tk.Label(eur_frame, text="EUR", fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 12)).pack(anchor="w")
+                 font=("Segoe UI Semibold", 14)).pack(anchor="w")
 
         eur_hdr = tk.Frame(eur_frame, bg=THEME["bg_card"])
-        eur_hdr.pack(fill="x", pady=(8, 4))
-        for txt, w in [("", 4), ("Days", 6), ("Pips", 8), ("Rate %", 8)]:
+        eur_hdr.pack(fill="x", pady=(12, 6))
+        for txt, w in [("", 5), ("Days", 7), ("Pips", 9), ("Rate %", 9)]:
             tk.Label(eur_hdr, text=txt, fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Segoe UI", 9), width=w, anchor="w").pack(side="left")
+                     font=("Segoe UI", 11), width=w, anchor="w").pack(side="left")
 
         for tenor in self.TENORS:
             row = tk.Frame(eur_frame, bg=THEME["bg_card"])
-            row.pack(fill="x", pady=2)
+            row.pack(fill="x", pady=4)
             tk.Label(row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
-                     font=("Segoe UI Semibold", 10), width=4, anchor="w").pack(side="left")
-            days_e = tk.Entry(row, width=5, font=("Consolas", 10), bg=THEME["bg_card_2"],
+                     font=("Segoe UI Semibold", 12), width=5, anchor="w").pack(side="left")
+            days_e = tk.Entry(row, width=6, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            days_e.pack(side="left", padx=2, ipady=2)
+            days_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"eur_{tenor}_days"] = days_e
-            pips_e = tk.Entry(row, width=7, font=("Consolas", 10), bg=THEME["bg_card_2"],
+            pips_e = tk.Entry(row, width=8, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            pips_e.pack(side="left", padx=2, ipady=2)
+            pips_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"eur_{tenor}_pips"] = pips_e
-            rate_e = tk.Entry(row, width=7, font=("Consolas", 10), bg=THEME["bg_card_2"],
+            rate_e = tk.Entry(row, width=8, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            rate_e.pack(side="left", padx=2, ipady=2)
+            rate_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"eur_{tenor}_rate"] = rate_e
 
         # USD Column
         usd_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
-        usd_frame.grid(row=0, column=1, sticky="nsew", padx=8)
+        usd_frame.grid(row=0, column=1, sticky="nsew", padx=12)
 
         tk.Label(usd_frame, text="USD", fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 12)).pack(anchor="w")
+                 font=("Segoe UI Semibold", 14)).pack(anchor="w")
 
         usd_hdr = tk.Frame(usd_frame, bg=THEME["bg_card"])
-        usd_hdr.pack(fill="x", pady=(8, 4))
-        for txt, w in [("", 4), ("Days", 6), ("Pips", 8), ("Rate %", 8)]:
+        usd_hdr.pack(fill="x", pady=(12, 6))
+        for txt, w in [("", 5), ("Days", 7), ("Pips", 9), ("Rate %", 9)]:
             tk.Label(usd_hdr, text=txt, fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Segoe UI", 9), width=w, anchor="w").pack(side="left")
+                     font=("Segoe UI", 11), width=w, anchor="w").pack(side="left")
 
         for tenor in self.TENORS:
             row = tk.Frame(usd_frame, bg=THEME["bg_card"])
-            row.pack(fill="x", pady=2)
+            row.pack(fill="x", pady=4)
             tk.Label(row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
-                     font=("Segoe UI Semibold", 10), width=4, anchor="w").pack(side="left")
-            days_e = tk.Entry(row, width=5, font=("Consolas", 10), bg=THEME["bg_card_2"],
+                     font=("Segoe UI Semibold", 12), width=5, anchor="w").pack(side="left")
+            days_e = tk.Entry(row, width=6, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            days_e.pack(side="left", padx=2, ipady=2)
+            days_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"usd_{tenor}_days"] = days_e
-            pips_e = tk.Entry(row, width=7, font=("Consolas", 10), bg=THEME["bg_card_2"],
+            pips_e = tk.Entry(row, width=8, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            pips_e.pack(side="left", padx=2, ipady=2)
+            pips_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"usd_{tenor}_pips"] = pips_e
-            rate_e = tk.Entry(row, width=7, font=("Consolas", 10), bg=THEME["bg_card_2"],
+            rate_e = tk.Entry(row, width=8, font=("Consolas", 12), bg=THEME["bg_card_2"],
                              fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            rate_e.pack(side="left", padx=2, ipady=2)
+            rate_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"usd_{tenor}_rate"] = rate_e
 
         # NOK Column
         nok_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
-        nok_frame.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+        nok_frame.grid(row=0, column=2, sticky="nsew", padx=(12, 0))
 
         tk.Label(nok_frame, text="NOK (ECP)", fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 12)).pack(anchor="w")
+                 font=("Segoe UI Semibold", 14)).pack(anchor="w")
 
         nok_hdr = tk.Frame(nok_frame, bg=THEME["bg_card"])
-        nok_hdr.pack(fill="x", pady=(8, 4))
-        for txt, w in [("", 4), ("Rate %", 8)]:
+        nok_hdr.pack(fill="x", pady=(12, 6))
+        for txt, w in [("", 5), ("Rate %", 9)]:
             tk.Label(nok_hdr, text=txt, fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Segoe UI", 9), width=w, anchor="w").pack(side="left")
+                     font=("Segoe UI", 11), width=w, anchor="w").pack(side="left")
 
         for tenor in self.TENORS:
             row = tk.Frame(nok_frame, bg=THEME["bg_card"])
-            row.pack(fill="x", pady=2)
+            row.pack(fill="x", pady=4)
             tk.Label(row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
-                     font=("Segoe UI Semibold", 10), width=4, anchor="w").pack(side="left")
-            nok_e = tk.Entry(row, width=7, font=("Consolas", 10), bg=THEME["bg_card_2"],
+                     font=("Segoe UI Semibold", 12), width=5, anchor="w").pack(side="left")
+            nok_e = tk.Entry(row, width=8, font=("Consolas", 12), bg=THEME["bg_card_2"],
                             fg=THEME["text"], insertbackground=THEME["text"], relief="flat")
-            nok_e.pack(side="left", padx=2, ipady=2)
+            nok_e.pack(side="left", padx=3, ipady=4)
             self._all_entries[f"nok_{tenor}_rate"] = nok_e
 
-        # Spread Column (fixed 0.20) - minimal gap from NOK
+        # Spread Column (fixed 0.20)
         spread_frame = tk.Frame(inputs_row, bg=THEME["bg_card"])
-        spread_frame.grid(row=0, column=3, sticky="nsew", padx=(0, 0))
+        spread_frame.grid(row=0, column=3, sticky="nsew", padx=(16, 0))
 
         tk.Label(spread_frame, text="SPREAD", fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 12)).pack(anchor="w")
+                 font=("Segoe UI Semibold", 14)).pack(anchor="w")
 
         spread_hdr = tk.Frame(spread_frame, bg=THEME["bg_card"])
-        spread_hdr.pack(fill="x", pady=(8, 4))
+        spread_hdr.pack(fill="x", pady=(12, 6))
         tk.Label(spread_hdr, text="", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 9), width=4, anchor="w").pack(side="left")
+                 font=("Segoe UI", 11), width=5, anchor="w").pack(side="left")
         tk.Label(spread_hdr, text="Fixed", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 9), width=6, anchor="w").pack(side="left")
+                 font=("Segoe UI", 11), width=7, anchor="w").pack(side="left")
 
         for tenor in self.TENORS:
             row = tk.Frame(spread_frame, bg=THEME["bg_card"])
-            row.pack(fill="x", pady=2)
+            row.pack(fill="x", pady=4)
             tk.Label(row, text=tenor, fg=THEME["text"], bg=THEME["bg_card"],
-                     font=("Segoe UI Semibold", 10), width=4, anchor="w").pack(side="left")
+                     font=("Segoe UI Semibold", 12), width=5, anchor="w").pack(side="left")
             tk.Label(row, text="0.20", fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Consolas", 10), width=6, anchor="w").pack(side="left", padx=2)
+                     font=("Consolas", 12), width=7, anchor="w").pack(side="left", padx=3)
 
         # ================================================================
         # RESULTS CARD
         # ================================================================
         results_card = tk.Frame(main_container, bg=THEME["bg_card"])
-        results_card.pack(fill="x", pady=(12, 0))
+        results_card.pack(fill="x", pady=(20, 0))
 
-        tk.Frame(results_card, bg=THEME["accent"], height=3).pack(fill="x")
+        tk.Frame(results_card, bg=THEME["accent"], height=4).pack(fill="x")
 
-        results_content = tk.Frame(results_card, bg=THEME["bg_card"], padx=20, pady=12)
+        results_content = tk.Frame(results_card, bg=THEME["bg_card"], padx=32, pady=20)
         results_content.pack(fill="x")
 
         results_header = tk.Frame(results_content, bg=THEME["bg_card"])
         results_header.pack()
 
         tk.Label(results_header, text="NIBOR RESULT", fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 12)).pack(side="left")
+                 font=("Segoe UI Semibold", 14)).pack(side="left")
 
         # Buttons
         btn_frame = tk.Frame(results_header, bg=THEME["bg_card"])
-        btn_frame.pack(side="left", padx=(16, 0))
+        btn_frame.pack(side="left", padx=(24, 0))
 
         if CTK_AVAILABLE:
             self._calc_btn = ctk.CTkButton(btn_frame, text="CALCULATE", command=self._calculate,
                                           fg_color=THEME["bg_card_2"], text_color=THEME["text_muted"],
-                                          font=("Segoe UI Semibold", 10), height=28, width=90,
-                                          corner_radius=4, state="disabled")
+                                          font=("Segoe UI Semibold", 12), height=36, width=110,
+                                          corner_radius=6, state="disabled")
             self._calc_btn.pack(side="left")
 
             ctk.CTkButton(btn_frame, text="CLEAR", command=self._clear_all,
                          fg_color="transparent", text_color=THEME["text_muted"],
-                         font=("Segoe UI", 9), height=28, width=50,
-                         corner_radius=4, border_width=1,
-                         border_color=THEME["border"]).pack(side="left", padx=(8, 0))
+                         font=("Segoe UI", 11), height=36, width=70,
+                         corner_radius=6, border_width=1,
+                         border_color=THEME["border"]).pack(side="left", padx=(12, 0))
 
         # Results row - centered
         results_row = tk.Frame(results_content, bg=THEME["bg_card"])
-        results_row.pack(pady=(12, 0))
+        results_row.pack(pady=(20, 0))
 
         for tenor in self.TENORS:
             tenor_frame = tk.Frame(results_row, bg=THEME["bg_card"])
-            tenor_frame.pack(side="left", padx=(0, 32))
+            tenor_frame.pack(side="left", padx=(0, 48))
 
             tk.Label(tenor_frame, text=tenor, fg=THEME["text_muted"], bg=THEME["bg_card"],
-                     font=("Segoe UI", 10)).pack()
+                     font=("Segoe UI", 12)).pack()
             lbl = tk.Label(tenor_frame, text="—", fg=THEME["text"], bg=THEME["bg_card"],
-                          font=("Consolas", 16, "bold"))
+                          font=("Consolas", 20, "bold"))
             lbl.pack()
             self._result_labels[tenor] = lbl
 
