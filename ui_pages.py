@@ -3350,6 +3350,12 @@ class DashboardPage(BaseFrame):
 
     def _get_chg_tooltip(self, tenor_key):
         """Get previous NIBOR rate and date for CHG tooltip (from Excel second-to-last sheet)."""
+        # Only show tooltip if calculation has been performed
+        calc_data = getattr(self.app, 'funding_calc_data', {})
+        tenor_data = calc_data.get(tenor_key, {})
+        if not tenor_data.get('final_rate'):
+            return None  # No calculation done yet
+
         # Check if excel engine is available
         if not hasattr(self.app, 'excel_engine') or self.app.excel_engine is None:
             return None
