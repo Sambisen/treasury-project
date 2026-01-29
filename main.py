@@ -820,7 +820,7 @@ class NiborTerminalCTK(ctk.CTk):
         SWEDBANK_ORANGE = THEME["accent"]
 
         # Taller branding header to make room for the larger analog clock.
-        branding_header = tk.Frame(self, bg=BRANDING_BG, height=120)
+        branding_header = tk.Frame(self, bg=BRANDING_BG, height=130)
         branding_header.pack(fill="x")
         branding_header.pack_propagate(False)  # Fixed height
 
@@ -1304,9 +1304,9 @@ class NiborTerminalCTK(ctk.CTk):
             log.info(f"Loading logo from: {logo_path}")
             if logo_path.exists():
                 logo_img = Image.open(logo_path)
-                # Resize to 90px height, maintain aspect ratio
+                # Resize to 105px height, maintain aspect ratio
                 aspect = logo_img.width / logo_img.height
-                new_height = 90
+                new_height = 105
                 new_width = int(new_height * aspect)
                 logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
