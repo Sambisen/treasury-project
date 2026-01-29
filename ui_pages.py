@@ -599,9 +599,9 @@ class DashboardPage(BaseFrame):
                 def handler(e):
                     check = self.validation_checks[check_id]
                     if check["status"] is True:
-                        bg = "#E8F5E9"
+                        bg = "#0d2818"
                     elif check["status"] is False:
-                        bg = "#FFEBEE"
+                        bg = "#2a1215"
                     else:
                         bg = THEME["chip"]
                     frame.config(bg=bg)
@@ -938,12 +938,12 @@ class DashboardPage(BaseFrame):
             status_icon = "✔"
             status_text = "ALL CHECKS PASSED"
             status_color = THEME["success"]
-            header_bg = "#E8F5E9"
+            header_bg = "#0d2818"
         elif status is False:
             status_icon = "✖"
             status_text = "VALIDATION FAILED"
             status_color = THEME["danger"]
-            header_bg = "#FFEBEE"
+            header_bg = "#2a1215"
         else:
             status_icon = "—"
             status_text = "PENDING"
@@ -2006,12 +2006,12 @@ class DashboardPage(BaseFrame):
             # Green success
             icon.config(text="✔", fg=THEME["success"])
             label.config(fg=THEME["success"])
-            bg = "#E8F5E9"
+            bg = "#0d2818"
         elif status is False:
             # Red failure
             icon.config(text="✖", fg=THEME["danger"])
             label.config(fg=THEME["danger"])
-            bg = "#FFEBEE"
+            bg = "#2a1215"
         else:
             # Pending
             icon.config(text="—", fg=THEME["text_muted"])
@@ -2788,7 +2788,7 @@ class DashboardPage(BaseFrame):
 
                 if all_matched and match_details['criteria']:
                     # Matched - Green pill with checkmark icon (Nordic Light)
-                    matched_bg = "#E8F5E9"  # Light green bg
+                    matched_bg = "#0d2818"  # Light green bg
                     matched_fg = THEME["success"]  # #1E8E3E
                     if is_ctk_widget:
                         badge.configure(fg_color=matched_bg)
@@ -2801,7 +2801,7 @@ class DashboardPage(BaseFrame):
                     self._stop_blink(lbl)
                 elif errors:
                     # Failed - Red pill with cross icon (Nordic Light)
-                    failed_bg = "#FFEBEE"  # Light red bg
+                    failed_bg = "#2a1215"  # Light red bg
                     failed_fg = THEME["danger"]  # #D93025
                     if is_ctk_widget:
                         badge.configure(fg_color=failed_bg)
