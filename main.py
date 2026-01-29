@@ -154,6 +154,9 @@ class NiborTerminalCTK(ctk.CTk):
         # Start gate check timer
         self._check_validation_gate()
 
+        # Check connection status at startup
+        self.after(500, self._check_initial_connections)
+
         # Set up window close handler for system tray
         self.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
@@ -1377,12 +1380,12 @@ class NiborTerminalCTK(ctk.CTk):
         """Build the status bar at the bottom of the window."""
         from config import APP_VERSION
 
-        status_bar = ctk.CTkFrame(self, fg_color=THEME["bg_nav"], height=36, corner_radius=0)
+        status_bar = ctk.CTkFrame(self, fg_color=THEME["bg_main"], height=36, corner_radius=0)
         status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
 
         # Left side - connection status panel (still uses tk for compatibility)
-        self.connection_panel = ConnectionStatusPanel(status_bar, bg=THEME["bg_nav"])
+        self.connection_panel = ConnectionStatusPanel(status_bar, bg=THEME["bg_main"])
         self.connection_panel.pack(side="left", padx=15, pady=4)
 
         # Right side - version and user
@@ -1447,6 +1450,39 @@ class NiborTerminalCTK(ctk.CTk):
 
         # Update data freshness timestamp
         self.connection_panel.set_data_time()
+
+    def _check_initial_connections(self):
+        """Check Bloomberg and Excel connection status at startup."""
+        # Check Bloomberg availability
+        if blpapi:
+            self.connection_panel.set_bloomberg_status(
+                ConnectionStatusIndicator.CONNECTED, {"API": "blpapi ready"}
+            )
+        else:
+            self.connection_panel.set_bloomberg_status(
+                ConnectionStatusIndicator.WARNING, {"Message": "Mock mode (no blpapi)"}
+            )
+
+        # Check Excel file availability
+        try:
+            if self.excel_engine and self.excel_engine.file_path:
+                from pathlib import Path
+                if Path(self.excel_engine.file_path).exists():
+                    self.connection_panel.set_excel_status(
+                        ConnectionStatusIndicator.CONNECTED, {"File": "Ready"}
+                    )
+                else:
+                    self.connection_panel.set_excel_status(
+                        ConnectionStatusIndicator.ERROR, {"Message": "File not found"}
+                    )
+            else:
+                self.connection_panel.set_excel_status(
+                    ConnectionStatusIndicator.WARNING, {"Message": "Not configured"}
+                )
+        except Exception as e:
+            self.connection_panel.set_excel_status(
+                ConnectionStatusIndicator.ERROR, {"Message": str(e)[:30]}
+            )
 
     def _show_about_dialog(self):
         """Show the About dialog with modern CTk styling."""
