@@ -1300,7 +1300,9 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _load_branding_logo(self):
         """Load branding logo after window is fully initialized."""
-        logo_path = Path(r"C:\Users\p901sbf\OneDrive - Swedbank\GroupTreasury-ShortTermFunding - Documents\Referensräntor\Nibor\Bilder\Picture1.png")
+        # Build dynamic path based on current user's OneDrive
+        user_home = Path.home()
+        logo_path = user_home / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents" / "Referensräntor" / "Nibor" / "Bilder" / "Picture1.png"
 
         try:
             log.info(f"Loading logo from: {logo_path}")
