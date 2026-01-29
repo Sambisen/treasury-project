@@ -724,6 +724,13 @@ class NiborTerminalCTK(ctk.CTk):
         if "dashboard" in self._pages:
             self._pages["dashboard"].set_loading(True)
 
+        # Show/hide DEV warning banner based on new environment
+        if hasattr(self, 'dev_warning_banner'):
+            if new_dev_mode:
+                self.dev_warning_banner.pack(fill="x", padx=CURRENT_MODE["hpad"], pady=(4, 0))
+            else:
+                self.dev_warning_banner.pack_forget()
+
         # Show toast (no auto-refresh - user can click button manually)
         self.toast.info(f"Switched to {new_env} mode – Press Calculate to reload data")
 
@@ -839,7 +846,7 @@ class NiborTerminalCTK(ctk.CTk):
         # Placed before the orange accent line, as requested.
         self._branding_clock_analog = AnalogClock(
             branding_inner,
-            diameter=120,
+            diameter=95,
             bg=BRANDING_BG,
             ring_color=THEME["border"],
             tick_color=THEME["text_muted"],
@@ -1019,25 +1026,27 @@ class NiborTerminalCTK(ctk.CTk):
         self.bind("<Configure>", lambda e: self.after(50, self._align_branding_clock_to_fixing_chip), add="+")
 
         # ====================================================================
-        # DEV WARNING BANNER - Only shown in DEV mode
+        # DEV WARNING BANNER - Created always, shown only in DEV mode
         # ====================================================================
-        if is_dev_mode():
-            self.dev_warning_banner = tk.Frame(
-                self,
-                bg="#FEF3C7",  # Light yellow/amber background
-                height=36
-            )
-            self.dev_warning_banner.pack(fill="x", padx=hpad, pady=(4, 0))
-            self.dev_warning_banner.pack_propagate(False)
+        self.dev_warning_banner = tk.Frame(
+            self,
+            bg="#FEF3C7",  # Light yellow/amber background
+            height=36
+        )
+        self.dev_warning_banner.pack_propagate(False)
 
-            tk.Label(
-                self.dev_warning_banner,
-                text="⚠️  DEV MODE",
-                fg="#92400E",  # Dark amber text
-                bg="#FEF3C7",
-                font=("Segoe UI Semibold", 11),
-                anchor="w"
-            ).pack(side="left", padx=15, pady=8)
+        tk.Label(
+            self.dev_warning_banner,
+            text="⚠️  DEV MODE",
+            fg="#92400E",  # Dark amber text
+            bg="#FEF3C7",
+            font=("Segoe UI Semibold", 11),
+            anchor="w"
+        ).pack(side="left", padx=15, pady=8)
+
+        # Only show if in DEV mode
+        if is_dev_mode():
+            self.dev_warning_banner.pack(fill="x", padx=hpad, pady=(4, 0))
 
 
         # ====================================================================
@@ -1299,9 +1308,9 @@ class NiborTerminalCTK(ctk.CTk):
             log.info(f"Loading logo from: {logo_path}")
             if logo_path.exists():
                 logo_img = Image.open(logo_path)
-                # Resize to 70px height, maintain aspect ratio
+                # Resize to 90px height, maintain aspect ratio
                 aspect = logo_img.width / logo_img.height
-                new_height = 70
+                new_height = 90
                 new_width = int(new_height * aspect)
                 logo_img = logo_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
