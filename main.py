@@ -1130,18 +1130,18 @@ class NiborTerminalCTK(ctk.CTk):
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
-            # Premium dark sidebar button with orange accent on active
+            # Clean sidebar button - no icons, just text
             btn = ctk.CTkButton(
                 sidebar,
-                text=f"{icon}  {page_name}",
+                text=page_name,
                 command=lambda pk=page_key: self.show_page(pk),
                 fg_color="transparent",
                 hover_color=SIDEBAR_HOVER,
                 text_color=SIDEBAR_TEXT,
-                font=("Segoe UI", 13),
+                font=("Segoe UI", 15),
                 anchor="w",
                 corner_radius=10,
-                height=38
+                height=40
             )
             btn.pack(fill="x", padx=12, pady=2)
 
@@ -1701,14 +1701,14 @@ class NiborTerminalCTK(ctk.CTk):
                     btn.configure(
                         text_color=self._sidebar_colors["indicator"],  # Orange text
                         fg_color=self._sidebar_colors["active"],
-                        font=("Segoe UI Semibold", 13)
+                        font=("Segoe UI Semibold", 15)
                     )
                 else:
                     # Inactive state: Light text, transparent background
                     btn.configure(
                         text_color=self._sidebar_colors["text"],
                         fg_color="transparent",
-                        font=("Segoe UI", 13)
+                        font=("Segoe UI", 15)
                     )
                 # Force button to redraw
                 btn.update_idletasks()
