@@ -597,13 +597,8 @@ class DashboardPage(BaseFrame):
 
             def make_hover_leave(frame, check_id):
                 def handler(e):
-                    check = self.validation_checks[check_id]
-                    if check["status"] is True:
-                        bg = "#0d2818"
-                    elif check["status"] is False:
-                        bg = "#2a1215"
-                    else:
-                        bg = THEME["chip"]
+                    # Always use chip background
+                    bg = THEME["chip"]
                     frame.config(bg=bg)
                     for w in frame.winfo_children():
                         w.config(bg=bg)
@@ -2003,21 +1998,20 @@ class DashboardPage(BaseFrame):
         label = check["label"]
 
         if status is True:
-            # Green success
+            # Green success - only icon and text colored
             icon.config(text="✔", fg=THEME["success"])
             label.config(fg=THEME["success"])
-            bg = "#0d2818"
         elif status is False:
-            # Red failure
+            # Red failure - only icon and text colored
             icon.config(text="✖", fg=THEME["danger"])
             label.config(fg=THEME["danger"])
-            bg = "#2a1215"
         else:
             # Pending
             icon.config(text="—", fg=THEME["text_muted"])
             label.config(fg=THEME["text_muted"])
-            bg = THEME["chip"]
 
+        # Always use chip background
+        bg = THEME["chip"]
         frame.config(bg=bg)
         icon.config(bg=bg)
         label.config(bg=bg)
@@ -2786,46 +2780,45 @@ class DashboardPage(BaseFrame):
                         badge.bind("<Button-1>", lambda e, tk=tenor_key: self._open_drawer_for_tenor(tk))
                 lbl.bind("<Button-1>", lambda e, tk=tenor_key: self._open_drawer_for_tenor(tk))
 
+                # Always use chip background - only text/icon colored
+                chip_bg = THEME["chip"]
                 if all_matched and match_details['criteria']:
-                    # Matched - Green pill with checkmark icon (Nordic Light)
-                    matched_bg = "#0d2818"  # Light green bg
-                    matched_fg = THEME["success"]  # #1E8E3E
+                    # Matched - Green text with checkmark icon
+                    matched_fg = THEME["success"]
                     if is_ctk_widget:
-                        badge.configure(fg_color=matched_bg)
+                        badge.configure(fg_color=chip_bg)
                         lbl.configure(text="✔ Matched", text_color=matched_fg)
                     else:
-                        lbl.config(text="✔ Matched", fg=matched_fg, bg=matched_bg,
+                        lbl.config(text="✔ Matched", fg=matched_fg, bg=chip_bg,
                                   font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
-                            badge.config(bg=matched_bg)
+                            badge.config(bg=chip_bg)
                     self._stop_blink(lbl)
                 elif errors:
-                    # Failed - Red pill with cross icon (Nordic Light)
-                    failed_bg = "#2a1215"  # Light red bg
-                    failed_fg = THEME["danger"]  # #D93025
+                    # Failed - Red text with cross icon
+                    failed_fg = THEME["danger"]
                     if is_ctk_widget:
-                        badge.configure(fg_color=failed_bg)
+                        badge.configure(fg_color=chip_bg)
                         lbl.configure(text="✖ Failed", text_color=failed_fg)
                     else:
-                        lbl.config(text="✖ Failed", fg=failed_fg, bg=failed_bg,
+                        lbl.config(text="✖ Failed", fg=failed_fg, bg=chip_bg,
                                   font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
-                            badge.config(bg=failed_bg)
+                            badge.config(bg=chip_bg)
                     self._start_blink(lbl)
                     for err in errors:
                         alert_messages.append(f"{tenor_key.upper()} Contrib: {err}")
                 else:
                     # Pending - Neutral pill with dash
-                    pending_bg = THEME["chip"]
                     pending_fg = THEME["text_muted"]
                     if is_ctk_widget:
-                        badge.configure(fg_color=pending_bg)
+                        badge.configure(fg_color=chip_bg)
                         lbl.configure(text="—", text_color=pending_fg)
                     else:
-                        lbl.config(text="—", fg=pending_fg, bg=pending_bg,
+                        lbl.config(text="—", fg=pending_fg, bg=chip_bg,
                                   font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
-                            badge.config(bg=pending_bg)
+                            badge.config(bg=chip_bg)
                     self._stop_blink(lbl)
             
             # Store for popup with model information
