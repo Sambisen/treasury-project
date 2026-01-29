@@ -465,7 +465,8 @@ class TrendPopup(ctk.CTkToplevel):
                                               command=self._on_source_change, width=40,
                                               progress_color=self.SWEDBANK_ORANGE,
                                               button_color=self.DARK_TEXT,
-                                              fg_color=self.DARK_CARD_2)
+                                              fg_color=self.DARK_CARD_2,
+                                              font=("Segoe UI", 10))
         self._swedbank_switch.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(source_frame, text="Fixing", text_color=self.FIXING_BLUE,
@@ -474,7 +475,8 @@ class TrendPopup(ctk.CTkToplevel):
                                            command=self._on_source_change, width=40,
                                            progress_color=self.FIXING_BLUE,
                                            button_color=self.DARK_TEXT,
-                                           fg_color=self.DARK_CARD_2)
+                                           fg_color=self.DARK_CARD_2,
+                                           font=("Segoe UI", 10))
         self._fixing_switch.pack(side="left")
 
         # Close button
