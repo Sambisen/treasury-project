@@ -854,7 +854,7 @@ class NiborTerminalCTK(ctk.CTk):
             second_hand_color=THEME["accent"],
         )
         # Pin to top-right corner of the branding banner.
-        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=-10, anchor="ne")
+        self._branding_clock_analog.place(relx=1.0, rely=0.0, x=-6, y=-15, anchor="ne")
 
         tk.Label(
             title_container,
