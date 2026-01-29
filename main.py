@@ -2496,20 +2496,28 @@ if __name__ == "__main__":
         app.deiconify()
         app.update_idletasks()
 
-        # Set window size and position explicitly
+        # Set window size and position explicitly - ensure on-screen
         screen_w = app.winfo_screenwidth()
         screen_h = app.winfo_screenheight()
         win_w, win_h = 1400, 900
-        x = (screen_w - win_w) // 2
-        y = (screen_h - win_h) // 2
-        app.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        x = max(0, (screen_w - win_w) // 2)
+        y = max(0, (screen_h - win_h) // 2)
 
-        # Force to front
+        log.info(f"[Startup] Screen size: {screen_w}x{screen_h}")
+        log.info(f"[Startup] Positioning window at: +{x}+{y}")
+
+        app.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        app.update()
+
+        # Force to front multiple times
         app.lift()
         app.attributes('-topmost', True)
         app.update()
-        app.attributes('-topmost', False)
+        app.after(100, lambda: app.attributes('-topmost', False))
         app.focus_force()
+
+        # Extra: ensure window state is normal (not minimized)
+        app.state('normal')
 
         log.info(f"[Startup] Window geometry: {app.winfo_geometry()}")
         log.info(f"[Startup] Window visible: {app.winfo_viewable()}")
