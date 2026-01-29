@@ -1154,11 +1154,10 @@ class NiborTerminalCTK(ctk.CTk):
                 "active_bg": SIDEBAR_ACTIVE
             }
 
-        # Spacer before Quick Access
-        ctk.CTkFrame(sidebar, fg_color="transparent", height=8).pack(fill="x")
-
-        # Divider with subtle line
-        ctk.CTkFrame(sidebar, fg_color=SIDEBAR_DIVIDER, height=1).pack(fill="x", padx=20, pady=8)
+        # Divider between Command Center and Quick Access
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=12).pack(fill="x")
+        ctk.CTkFrame(sidebar, fg_color="#2A3444", height=1).pack(fill="x", padx=16)
+        ctk.CTkFrame(sidebar, fg_color="transparent", height=12).pack(fill="x")
 
         # Quick Access section header
         ctk.CTkLabel(sidebar, text="QUICK ACCESS",
