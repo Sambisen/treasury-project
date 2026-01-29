@@ -2221,12 +2221,13 @@ class DashboardPage(BaseFrame):
                 pass
             self._compact_drawer = None
 
-        # Get calculation data
+        # Only open drawer if calculation has been performed
         if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
-            self._update_funding_rates_with_validation()
+            log.info(f"[Dashboard] No calculation data for {tenor_key} - run calculation first")
+            return
 
         data = self.app.funding_calc_data.get(tenor_key, {})
-        if not data:
+        if not data or not data.get('final_rate'):
             log.info(f"[Dashboard] No funding data found for {tenor_key}")
             return
 
@@ -3535,12 +3536,13 @@ class DashboardPage(BaseFrame):
         """Open the calculation drawer for a specific tenor."""
         from config import RECON_CELL_MAPPING
 
-        # Auto-update if data not available
+        # Only open drawer if calculation has been performed
         if not hasattr(self.app, 'funding_calc_data') or not self.app.funding_calc_data.get(tenor_key):
-            self._update_funding_rates_with_validation()
+            log.info(f"[Dashboard] No calculation data for {tenor_key} - run calculation first")
+            return
 
         data = self.app.funding_calc_data.get(tenor_key)
-        if not data:
+        if not data or not data.get('final_rate'):
             log.info(f"[Dashboard] No funding data found for {tenor_key}")
             return
 
