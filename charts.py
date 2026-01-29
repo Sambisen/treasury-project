@@ -412,8 +412,16 @@ class TrendPopup(ctk.CTkToplevel):
         y = parent.winfo_rooty() + (parent.winfo_height() - 750) // 2
         self.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-        # Build UI after window is ready
-        self.after(10, self._build_ui)
+        # Build UI after window is fully visible
+        self.after(50, self._safe_build_ui)
+
+    def _safe_build_ui(self):
+        """Ensure window is ready before building UI."""
+        try:
+            self.wait_visibility()
+        except Exception:
+            pass
+        self._build_ui()
 
     def _build_ui(self):
         """Build all UI components after window is initialized."""
@@ -631,12 +639,26 @@ class TrendPopup(ctk.CTkToplevel):
         ctk.CTkLabel(header_frame, text="FIXING", text_color=self.FIXING_BLUE, width=120,
                     font=("Segoe UI", 11, "bold"), anchor="center").pack(side="left", padx=10, pady=12)
 
-        # Scrollable area using CTkScrollableFrame
-        self._table_scroll_frame = ctk.CTkScrollableFrame(self._table_container,
-                                                          fg_color=self.DARK_CARD,
-                                                          scrollbar_button_color=self.DARK_CARD_2,
-                                                          scrollbar_button_hover_color=self.DARK_MUTED)
-        self._table_scroll_frame.pack(fill="both", expand=True, padx=2, pady=2)
+        # Scrollable area using regular tkinter (CTkScrollableFrame has font init issues)
+        scroll_container = tk.Frame(self._table_container, bg=self.DARK_CARD)
+        scroll_container.pack(fill="both", expand=True, padx=2, pady=2)
+
+        canvas = tk.Canvas(scroll_container, bg=self.DARK_CARD, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=canvas.yview)
+        self._table_scroll_frame = tk.Frame(canvas, bg=self.DARK_CARD)
+
+        self._table_scroll_frame.bind("<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=self._table_scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
     def _populate_table(self):
         """Build table with Date | Swedbank | Fixing columns - called once on data load."""
@@ -674,9 +696,9 @@ class TrendPopup(ctk.CTkToplevel):
                     pass
 
         if not date_map:
-            ctk.CTkLabel(self._table_scroll_frame, text="No data available",
-                        text_color=self.DARK_MUTED,
-                        font=("Segoe UI", 14)).pack(pady=60)
+            tk.Label(self._table_scroll_frame, text="No data available",
+                    fg=self.DARK_MUTED, bg=self.DARK_CARD,
+                    font=("Segoe UI", 14)).pack(pady=60)
             return
 
         # Sort by date descending
@@ -690,14 +712,14 @@ class TrendPopup(ctk.CTkToplevel):
             # Subtle alternating rows
             bg_color = self.DARK_CARD if i % 2 == 0 else self.DARK_CARD_2
 
-            row_frame = ctk.CTkFrame(self._table_scroll_frame, fg_color=bg_color, corner_radius=0, height=40)
+            row_frame = tk.Frame(self._table_scroll_frame, bg=bg_color, height=40)
             row_frame.pack(fill="x")
             row_frame.pack_propagate(False)
 
             # Date
             date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)
-            ctk.CTkLabel(row_frame, text=date_str, text_color=self.DARK_TEXT, width=140,
-                        font=("Consolas", 12), anchor="w").pack(side="left", padx=(24, 10))
+            tk.Label(row_frame, text=date_str, fg=self.DARK_TEXT, bg=bg_color, width=16,
+                    font=("Consolas", 12), anchor="w").pack(side="left", padx=(24, 10))
 
             # Swedbank rate
             if swedbank_rate is not None:
@@ -706,8 +728,8 @@ class TrendPopup(ctk.CTkToplevel):
             else:
                 sw_str = "-"
                 sw_color = self.DARK_MUTED
-            ctk.CTkLabel(row_frame, text=sw_str, text_color=sw_color, width=120,
-                        font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
+            tk.Label(row_frame, text=sw_str, fg=sw_color, bg=bg_color, width=14,
+                    font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
 
             # Fixing rate
             if fixing_rate is not None:
@@ -716,8 +738,8 @@ class TrendPopup(ctk.CTkToplevel):
             else:
                 fx_str = "-"
                 fx_color = self.DARK_MUTED
-            ctk.CTkLabel(row_frame, text=fx_str, text_color=fx_color, width=120,
-                        font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
+            tk.Label(row_frame, text=fx_str, fg=fx_color, bg=bg_color, width=14,
+                    font=("Consolas", 12, "bold"), anchor="center").pack(side="left", padx=10)
 
         self._status_label.configure(text=f"Showing {len(sorted_dates)} dates for {tenor.upper()}")
 
