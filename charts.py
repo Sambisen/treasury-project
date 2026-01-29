@@ -364,36 +364,35 @@ class TrendChart(tk.Frame):
 
 
 class TrendPopup(tk.Toplevel):
-    """Popup with trend chart - Light Nordic theme, professional design."""
+    """Popup with trend chart - Professional dark theme matching app design."""
 
-    # Light Nordic color palette - use new theme if available
-    if NORDIC_THEME_AVAILABLE and NORDIC_COLORS:
-        LIGHT_BG = NORDIC_COLORS.BG
-        LIGHT_CARD = NORDIC_COLORS.SURFACE
-        LIGHT_BORDER = NORDIC_COLORS.BORDER
-        LIGHT_TEXT = NORDIC_COLORS.TEXT
-        LIGHT_MUTED = NORDIC_COLORS.TEXT_MUTED
-        LIGHT_ACCENT = NORDIC_COLORS.ACCENT
-        SWEDBANK_ORANGE = NORDIC_COLORS.ACCENT  # Swedbank orange
-        FIXING_BLUE = "#0369A1"  # Sky 700 for fixing (distinct from Swedbank)
-        HOVER_BG = NORDIC_COLORS.SURFACE_HOVER
-    else:
-        # Fallback colors
-        LIGHT_BG = "#F8FAFC"           # Subtle cool gray background
-        LIGHT_CARD = "#FFFFFF"         # Pure white cards
-        LIGHT_BORDER = "#E2E8F0"       # Soft border
-        LIGHT_TEXT = "#1E293B"         # Slate dark text
-        LIGHT_MUTED = "#64748B"        # Slate muted
-        LIGHT_ACCENT = "#0EA5E9"       # Sky blue accent
-        SWEDBANK_ORANGE = "#F97316"    # Vibrant orange
-        FIXING_BLUE = "#0369A1"        # Sky 700 for fixing
-        HOVER_BG = "#F1F5F9"           # Hover background
+    # Professional dark theme colors (Bloomberg/Reuters style)
+    DARK_BG = "#0B1220"            # Main background (matches app)
+    DARK_CARD = "#121C2E"          # Card/panel surface
+    DARK_CARD_2 = "#18243A"        # Secondary surface
+    DARK_BORDER = "#1C2A44"        # Subtle border
+    DARK_TEXT = "#E7ECF3"          # Primary text (light)
+    DARK_MUTED = "#6B7A90"         # Muted text
+    DARK_ACCENT = "#3B82F6"        # Blue accent for UI elements
+    SWEDBANK_ORANGE = "#FF6B00"    # Swedbank orange (primary data)
+    FIXING_BLUE = "#60A5FA"        # Lighter blue for fixing data
+    HOVER_BG = "#1C2A44"           # Hover background
+    GRID_COLOR = "#1C2A44"         # Chart grid lines
+
+    # Tenor colors for multi-line charts (vibrant on dark)
+    TENOR_COLORS_DARK = {
+        '1w': '#A78BFA',  # Purple
+        '1m': '#FF6B00',  # Orange (Swedbank)
+        '2m': '#34D399',  # Green
+        '3m': '#60A5FA',  # Blue
+        '6m': '#FBBF24',  # Yellow
+    }
 
     def __init__(self, parent):
         super().__init__(parent)
         self.title("NIBOR History")
         self.geometry("1200x750")
-        self.configure(bg=self.LIGHT_BG)
+        self.configure(bg=self.DARK_BG)
         self.transient(parent)
         self.minsize(1000, 650)
 
@@ -411,27 +410,27 @@ class TrendPopup(tk.Toplevel):
         self.geometry(f"+{max(0, x)}+{max(0, y)}")
 
         # ==========================
-        # HEADER - Modern clean design
+        # HEADER - Professional dark design
         # ==========================
-        header = tk.Frame(self, bg=self.LIGHT_CARD, highlightthickness=0)
+        header = tk.Frame(self, bg=self.DARK_CARD, highlightthickness=0)
         header.pack(fill="x")
 
-        # Subtle shadow line
-        tk.Frame(self, bg="#E2E8F0", height=1).pack(fill="x")
+        # Subtle border line
+        tk.Frame(self, bg=self.DARK_BORDER, height=1).pack(fill="x")
 
-        header_inner = tk.Frame(header, bg=self.LIGHT_CARD)
+        header_inner = tk.Frame(header, bg=self.DARK_CARD)
         header_inner.pack(fill="x", padx=28, pady=16)
 
         # Title - Clean text only
         tk.Label(header_inner, text="NIBOR HISTORY",
-                fg=self.LIGHT_TEXT, bg=self.LIGHT_CARD,
+                fg=self.DARK_TEXT, bg=self.DARK_CARD,
                 font=("Segoe UI Semibold", 18)).pack(side="left")
 
-        # View toggle - Modern segmented control style
-        toggle_container = tk.Frame(header_inner, bg="#E2E8F0", padx=1, pady=1)
+        # View toggle - Dark segmented control style
+        toggle_container = tk.Frame(header_inner, bg=self.DARK_BORDER, padx=1, pady=1)
         toggle_container.pack(side="left", padx=50)
 
-        toggle_inner = tk.Frame(toggle_container, bg="#F1F5F9")
+        toggle_inner = tk.Frame(toggle_container, bg=self.DARK_CARD_2)
         toggle_inner.pack()
 
         self._view_btns = {}
@@ -455,11 +454,11 @@ class TrendPopup(tk.Toplevel):
 
         self._update_view_buttons()
 
-        # Tenor selector - Compact pill style
-        tenor_frame = tk.Frame(header_inner, bg=self.LIGHT_CARD)
+        # Tenor selector - Dark pill style
+        tenor_frame = tk.Frame(header_inner, bg=self.DARK_CARD)
         tenor_frame.pack(side="left", padx=25)
 
-        tk.Label(tenor_frame, text="Tenor", fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
+        tk.Label(tenor_frame, text="Tenor", fg=self.DARK_MUTED, bg=self.DARK_CARD,
                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 8))
 
         self._tenor_var = tk.StringVar(master=self, value="3m")
@@ -470,24 +469,24 @@ class TrendPopup(tk.Toplevel):
         self._tenor_dropdown.set("3M")
         self._tenor_dropdown.bind("<<ComboboxSelected>>", self._on_tenor_change)
 
-        # Source toggles - Modern pill buttons
-        source_frame = tk.Frame(header_inner, bg=self.LIGHT_CARD)
+        # Source toggles - Dark pill buttons
+        source_frame = tk.Frame(header_inner, bg=self.DARK_CARD)
         source_frame.pack(side="left", padx=20)
 
         self._show_contrib_var = tk.BooleanVar(master=self, value=True)
         self._show_fixing_var = tk.BooleanVar(master=self, value=True)
 
-        # Swedbank toggle
+        # Swedbank toggle - Dark with orange accent
         self._swedbank_btn = tk.Label(source_frame, text="● Swedbank",
-                                     fg=self.SWEDBANK_ORANGE, bg="#FFF7ED",
+                                     fg=self.SWEDBANK_ORANGE, bg="#2D1A0A",
                                      font=("Segoe UI", 10, "bold"),
                                      padx=12, pady=5, cursor="hand2")
         self._swedbank_btn.pack(side="left", padx=3)
         self._swedbank_btn.bind("<Button-1>", lambda e: self._toggle_source("swedbank"))
 
-        # Fixing toggle
+        # Fixing toggle - Dark with blue accent
         self._fixing_btn = tk.Label(source_frame, text="● Fixing",
-                                   fg=self.FIXING_BLUE, bg="#E0F2FE",
+                                   fg=self.FIXING_BLUE, bg="#0D1B2A",
                                    font=("Segoe UI", 10, "bold"),
                                    padx=12, pady=5, cursor="hand2")
         self._fixing_btn.pack(side="left", padx=3)
@@ -495,34 +494,34 @@ class TrendPopup(tk.Toplevel):
 
         # Close button - Clean circle
         close_btn = tk.Label(header_inner, text="×", font=("Segoe UI", 22, "bold"),
-                            fg="#94A3B8", bg=self.LIGHT_CARD, cursor="hand2")
+                            fg=self.DARK_MUTED, bg=self.DARK_CARD, cursor="hand2")
         close_btn.pack(side="right")
         close_btn.bind("<Button-1>", lambda e: self.destroy())
         close_btn.bind("<Enter>", lambda e: close_btn.config(fg="#EF4444"))
-        close_btn.bind("<Leave>", lambda e: close_btn.config(fg="#94A3B8"))
+        close_btn.bind("<Leave>", lambda e: close_btn.config(fg=self.DARK_MUTED))
 
         # ==========================
         # CONTENT AREA - Use grid for instant view switching
         # ==========================
-        self._content_frame = tk.Frame(self, bg=self.LIGHT_BG)
+        self._content_frame = tk.Frame(self, bg=self.DARK_BG)
         self._content_frame.pack(fill="both", expand=True, padx=28, pady=20)
         self._content_frame.grid_rowconfigure(0, weight=1)
         self._content_frame.grid_columnconfigure(0, weight=1)
 
         # Chart view - show loading first
-        self._chart_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
+        self._chart_frame = tk.Frame(self._content_frame, bg=self.DARK_BG)
         self.chart = None
         self._chart_initialized = False
 
         # Loading indicator (shown while chart initializes)
-        self._loading_frame = tk.Frame(self._chart_frame, bg=self.LIGHT_CARD)
+        self._loading_frame = tk.Frame(self._chart_frame, bg=self.DARK_CARD)
         self._loading_frame.pack(fill="both", expand=True)
         tk.Label(self._loading_frame, text="Loading...",
-                fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
+                fg=self.DARK_MUTED, bg=self.DARK_CARD,
                 font=("Segoe UI", 11)).pack(expand=True)
 
         # Table view - create structure only (fast)
-        self._table_frame = tk.Frame(self._content_frame, bg=self.LIGHT_BG)
+        self._table_frame = tk.Frame(self._content_frame, bg=self.DARK_BG)
         self._create_rates_table()
 
         # Place both in same grid cell - use tkraise for instant switching
@@ -531,23 +530,23 @@ class TrendPopup(tk.Toplevel):
         self._chart_frame.tkraise()  # Show chart by default
 
         # ==========================
-        # FOOTER - Minimal
+        # FOOTER - Minimal dark
         # ==========================
-        tk.Frame(self, bg="#E2E8F0", height=1).pack(fill="x", side="bottom")
-        footer = tk.Frame(self, bg=self.LIGHT_CARD)
+        tk.Frame(self, bg=self.DARK_BORDER, height=1).pack(fill="x", side="bottom")
+        footer = tk.Frame(self, bg=self.DARK_CARD)
         footer.pack(fill="x", side="bottom")
 
-        footer_inner = tk.Frame(footer, bg=self.LIGHT_CARD)
+        footer_inner = tk.Frame(footer, bg=self.DARK_CARD)
         footer_inner.pack(fill="x", padx=28, pady=10)
 
         self._status_label = tk.Label(footer_inner, text="Loading...",
-                                     fg=self.LIGHT_MUTED, bg=self.LIGHT_CARD,
+                                     fg=self.DARK_MUTED, bg=self.DARK_CARD,
                                      font=("Segoe UI", 9))
         self._status_label.pack(side="left")
 
         # Hover info
         self._hover_label = tk.Label(footer_inner, text="",
-                                    fg=self.LIGHT_ACCENT, bg=self.LIGHT_CARD,
+                                    fg=self.SWEDBANK_ORANGE, bg=self.DARK_CARD,
                                     font=("Segoe UI Semibold", 10))
         self._hover_label.pack(side="right")
 
@@ -566,40 +565,40 @@ class TrendPopup(tk.Toplevel):
             new_val = not self._show_contrib_var.get()
             self._show_contrib_var.set(new_val)
             if new_val:
-                self._swedbank_btn.config(bg="#FFF7ED", fg=self.SWEDBANK_ORANGE)
+                self._swedbank_btn.config(bg="#2D1A0A", fg=self.SWEDBANK_ORANGE)
             else:
-                self._swedbank_btn.config(bg="#F1F5F9", fg="#94A3B8")
+                self._swedbank_btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
         else:
             new_val = not self._show_fixing_var.get()
             self._show_fixing_var.set(new_val)
             if new_val:
-                self._fixing_btn.config(bg="#E0F2FE", fg=self.FIXING_BLUE)
+                self._fixing_btn.config(bg="#0D1B2A", fg=self.FIXING_BLUE)
             else:
-                self._fixing_btn.config(bg="#F1F5F9", fg="#94A3B8")
+                self._fixing_btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
         self._on_source_change()
 
     def _setup_light_chart(self):
-        """Create a custom light-themed matplotlib chart with hover support."""
+        """Create a professional dark-themed matplotlib chart with hover support."""
         if not MATPLOTLIB_AVAILABLE:
             tk.Label(self._chart_frame, text="Matplotlib not installed",
-                    fg=self.LIGHT_MUTED, bg=self.LIGHT_BG).pack(pady=40)
+                    fg=self.DARK_MUTED, bg=self.DARK_BG).pack(pady=40)
             return
 
-        # Chart container - Clean card style
-        chart_container = tk.Frame(self._chart_frame, bg=self.LIGHT_CARD,
-                                  highlightthickness=1, highlightbackground="#E2E8F0")
+        # Chart container - Dark card style
+        chart_container = tk.Frame(self._chart_frame, bg=self.DARK_CARD,
+                                  highlightthickness=1, highlightbackground=self.DARK_BORDER)
         chart_container.pack(fill="both", expand=True)
 
         # Controls bar inside chart
-        controls = tk.Frame(chart_container, bg=self.LIGHT_CARD)
+        controls = tk.Frame(chart_container, bg=self.DARK_CARD)
         controls.pack(fill="x", padx=24, pady=(16, 8))
 
-        # Time range - Segmented control style
-        range_container = tk.Frame(controls, bg="#F1F5F9", padx=1, pady=1)
+        # Time range - Dark segmented control style
+        range_container = tk.Frame(controls, bg=self.DARK_BORDER, padx=1, pady=1)
         range_container.pack(side="left")
 
-        range_inner = tk.Frame(range_container, bg="#F1F5F9")
+        range_inner = tk.Frame(range_container, bg=self.DARK_CARD_2)
         range_inner.pack()
 
         self._range_var = tk.StringVar(master=self, value="3M")
@@ -615,36 +614,37 @@ class TrendPopup(tk.Toplevel):
 
         self._update_range_buttons()
 
-        # Tenor pills - Modern tag style
-        tenor_frame = tk.Frame(controls, bg=self.LIGHT_CARD)
+        # Tenor pills - Dark tag style with vibrant colors
+        tenor_frame = tk.Frame(controls, bg=self.DARK_CARD)
         tenor_frame.pack(side="right")
 
         self._tenor_vars = {}
         self._tenor_btns = {}
+        # Dark theme tenor colors: (fg_active, bg_active)
         tenor_colors = {
-            '1m': ('#EF4444', '#FEF2F2'),  # Red
-            '2m': ('#10B981', '#ECFDF5'),  # Green
-            '3m': ('#3B82F6', '#EFF6FF'),  # Blue
-            '6m': ('#F59E0B', '#FFFBEB')   # Amber
+            '1m': ('#FF6B00', '#2D1A0A'),  # Orange (Swedbank)
+            '2m': ('#34D399', '#0D2818'),  # Green
+            '3m': ('#60A5FA', '#0D1B2A'),  # Blue
+            '6m': ('#FBBF24', '#2D2406')   # Yellow
         }
         for tenor in ['1m', '2m', '3m', '6m']:
             var = tk.BooleanVar(master=self, value=(tenor == '3m'))
             self._tenor_vars[tenor] = var
-            fg_color, bg_color = tenor_colors.get(tenor, (self.LIGHT_TEXT, "#F1F5F9"))
+            fg_color, bg_color = tenor_colors.get(tenor, (self.DARK_TEXT, self.DARK_CARD_2))
 
             btn = tk.Label(tenor_frame, text=tenor.upper(),
-                          fg=fg_color if tenor == '3m' else "#94A3B8",
-                          bg=bg_color if tenor == '3m' else "#F1F5F9",
+                          fg=fg_color if tenor == '3m' else self.DARK_MUTED,
+                          bg=bg_color if tenor == '3m' else self.DARK_CARD_2,
                           font=("Segoe UI", 9, "bold"),
                           padx=10, pady=4, cursor="hand2")
             btn.pack(side="left", padx=2)
             btn.bind("<Button-1>", lambda e, t=tenor: self._toggle_tenor(t))
             self._tenor_btns[tenor] = btn
 
-        # Matplotlib figure - Optimized for speed
-        self.fig = Figure(figsize=(8, 3.5), dpi=72, facecolor=self.LIGHT_CARD)
+        # Matplotlib figure - Dark theme
+        self.fig = Figure(figsize=(8, 3.5), dpi=72, facecolor=self.DARK_CARD)
         self.ax = self.fig.add_subplot(111)
-        self._style_light_axes()
+        self._style_dark_axes()
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=chart_container)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=15, pady=(5, 15))
@@ -654,30 +654,30 @@ class TrendPopup(tk.Toplevel):
 
     def _create_rates_table(self):
         """Create the scrollable rates table - Pre-built for speed."""
-        # Table container - Clean card
-        self._table_container = tk.Frame(self._table_frame, bg=self.LIGHT_CARD,
-                                  highlightthickness=1, highlightbackground="#E2E8F0")
+        # Table container - Dark card
+        self._table_container = tk.Frame(self._table_frame, bg=self.DARK_CARD,
+                                  highlightthickness=1, highlightbackground=self.DARK_BORDER)
         self._table_container.pack(fill="both", expand=True)
 
-        # Header row - Date | Swedbank | Fixing
-        header_frame = tk.Frame(self._table_container, bg="#F8FAFC")
+        # Header row - Date | Swedbank | Fixing (dark)
+        header_frame = tk.Frame(self._table_container, bg=self.DARK_CARD_2)
         header_frame.pack(fill="x")
 
         # Fixed width columns
-        tk.Label(header_frame, text="DATE", fg="#64748B", bg="#F8FAFC",
+        tk.Label(header_frame, text="DATE", fg=self.DARK_MUTED, bg=self.DARK_CARD_2,
                 font=("Segoe UI", 9, "bold"), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=12)
-        tk.Label(header_frame, text="SWEDBANK", fg=self.SWEDBANK_ORANGE, bg="#F8FAFC",
+        tk.Label(header_frame, text="SWEDBANK", fg=self.SWEDBANK_ORANGE, bg=self.DARK_CARD_2,
                 font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
-        tk.Label(header_frame, text="FIXING", fg=self.FIXING_BLUE, bg="#F8FAFC",
+        tk.Label(header_frame, text="FIXING", fg=self.FIXING_BLUE, bg=self.DARK_CARD_2,
                 font=("Segoe UI", 9, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=12)
 
         # Separator line
-        tk.Frame(self._table_container, bg="#E2E8F0", height=1).pack(fill="x")
+        tk.Frame(self._table_container, bg=self.DARK_BORDER, height=1).pack(fill="x")
 
         # Scrollable area
-        self._table_canvas = tk.Canvas(self._table_container, bg=self.LIGHT_CARD, highlightthickness=0)
+        self._table_canvas = tk.Canvas(self._table_container, bg=self.DARK_CARD, highlightthickness=0)
         scrollbar = ttk.Scrollbar(self._table_container, orient="vertical", command=self._table_canvas.yview)
-        self._table_scroll_frame = tk.Frame(self._table_canvas, bg=self.LIGHT_CARD)
+        self._table_scroll_frame = tk.Frame(self._table_canvas, bg=self.DARK_CARD)
 
         self._table_scroll_frame.bind("<Configure>",
             lambda e: self._table_canvas.configure(scrollregion=self._table_canvas.bbox("all")))
@@ -726,10 +726,10 @@ class TrendPopup(tk.Toplevel):
                     pass
 
         if not date_map:
-            empty_frame = tk.Frame(self._table_scroll_frame, bg=self.LIGHT_CARD)
+            empty_frame = tk.Frame(self._table_scroll_frame, bg=self.DARK_CARD)
             empty_frame.pack(fill="x", pady=60)
             tk.Label(empty_frame, text="No data available",
-                    fg="#94A3B8", bg=self.LIGHT_CARD,
+                    fg=self.DARK_MUTED, bg=self.DARK_CARD,
                     font=("Segoe UI", 12)).pack()
             return
 
@@ -741,15 +741,15 @@ class TrendPopup(tk.Toplevel):
             swedbank_rate = data['swedbank']
             fixing_rate = data['fixing']
 
-            # Subtle alternating rows
-            bg_color = self.LIGHT_CARD if i % 2 == 0 else "#FAFBFC"
+            # Subtle alternating rows (dark theme)
+            bg_color = self.DARK_CARD if i % 2 == 0 else self.DARK_CARD_2
 
             row_frame = tk.Frame(self._table_scroll_frame, bg=bg_color)
             row_frame.pack(fill="x")
 
             # Date
             date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, 'strftime') else str(dt)
-            tk.Label(row_frame, text=date_str, fg=self.LIGHT_TEXT, bg=bg_color,
+            tk.Label(row_frame, text=date_str, fg=self.DARK_TEXT, bg=bg_color,
                     font=("Consolas", 10), width=14, anchor="w").pack(side="left", padx=(24, 10), pady=8)
 
             # Swedbank rate
@@ -758,7 +758,7 @@ class TrendPopup(tk.Toplevel):
                 sw_color = self.SWEDBANK_ORANGE
             else:
                 sw_str = "-"
-                sw_color = "#CBD5E1"
+                sw_color = self.DARK_MUTED
             tk.Label(row_frame, text=sw_str, fg=sw_color, bg=bg_color,
                     font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
@@ -768,7 +768,7 @@ class TrendPopup(tk.Toplevel):
                 fx_color = self.FIXING_BLUE
             else:
                 fx_str = "-"
-                fx_color = "#CBD5E1"
+                fx_color = self.DARK_MUTED
             tk.Label(row_frame, text=fx_str, fg=fx_color, bg=bg_color,
                     font=("Consolas", 10, "bold"), width=12, anchor="center").pack(side="left", padx=10, pady=8)
 
@@ -788,9 +788,9 @@ class TrendPopup(tk.Toplevel):
         """Update visual state of view toggle buttons."""
         for view_name, btn in self._view_btns.items():
             if view_name == self._current_view:
-                btn.config(bg=self.LIGHT_CARD, fg=self.LIGHT_ACCENT)
+                btn.config(bg=self.DARK_CARD, fg=self.SWEDBANK_ORANGE)
             else:
-                btn.config(bg="#F1F5F9", fg=self.LIGHT_MUTED)
+                btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
     def _on_tenor_change(self, event=None):
         """Handle tenor dropdown change - rebuild table for new tenor."""
@@ -827,16 +827,16 @@ class TrendPopup(tk.Toplevel):
         # Update our custom chart
         self._redraw_chart()
 
-    def _style_light_axes(self):
-        """Apply light Nordic theme to chart axes."""
-        self.ax.set_facecolor(self.LIGHT_CARD)
-        self.ax.tick_params(axis='x', colors=self.LIGHT_TEXT, labelsize=9)
-        self.ax.tick_params(axis='y', colors=self.LIGHT_TEXT, labelsize=9)
+    def _style_dark_axes(self):
+        """Apply professional dark theme to chart axes."""
+        self.ax.set_facecolor(self.DARK_CARD)
+        self.ax.tick_params(axis='x', colors=self.DARK_TEXT, labelsize=9)
+        self.ax.tick_params(axis='y', colors=self.DARK_TEXT, labelsize=9)
         for spine in self.ax.spines.values():
-            spine.set_color(self.LIGHT_BORDER)
+            spine.set_color(self.DARK_BORDER)
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
-        self.ax.grid(True, alpha=0.4, color=self.LIGHT_BORDER, linestyle='-', linewidth=0.5)
+        self.ax.grid(True, alpha=0.3, color=self.GRID_COLOR, linestyle='-', linewidth=0.5)
 
     def _set_range(self, range_val):
         """Handle range button click."""
@@ -851,20 +851,21 @@ class TrendPopup(tk.Toplevel):
             new_val = not var.get()
             var.set(new_val)
 
+            # Dark theme tenor colors: (fg_active, bg_active)
             tenor_colors = {
-                '1m': ('#EF4444', '#FEF2F2'),
-                '2m': ('#10B981', '#ECFDF5'),
-                '3m': ('#3B82F6', '#EFF6FF'),
-                '6m': ('#F59E0B', '#FFFBEB')
+                '1m': ('#FF6B00', '#2D1A0A'),  # Orange (Swedbank)
+                '2m': ('#34D399', '#0D2818'),  # Green
+                '3m': ('#60A5FA', '#0D1B2A'),  # Blue
+                '6m': ('#FBBF24', '#2D2406')   # Yellow
             }
-            fg_color, bg_color = tenor_colors.get(tenor, ("#64748B", "#F1F5F9"))
+            fg_color, bg_color = tenor_colors.get(tenor, (self.DARK_TEXT, self.DARK_CARD_2))
 
             btn = self._tenor_btns.get(tenor)
             if btn:
                 if new_val:
                     btn.config(fg=fg_color, bg=bg_color)
                 else:
-                    btn.config(fg="#94A3B8", bg="#F1F5F9")
+                    btn.config(fg=self.DARK_MUTED, bg=self.DARK_CARD_2)
 
             self._redraw_chart()
 
@@ -873,17 +874,17 @@ class TrendPopup(tk.Toplevel):
         current = self._range_var.get()
         for label, btn in self._range_btns.items():
             if label == current:
-                btn.config(bg=self.LIGHT_CARD, fg=self.LIGHT_ACCENT)
+                btn.config(bg=self.SWEDBANK_ORANGE, fg="white")
             else:
-                btn.config(bg="#F1F5F9", fg=self.LIGHT_MUTED)
+                btn.config(bg=self.DARK_CARD_2, fg=self.DARK_MUTED)
 
     def _redraw_chart(self):
-        """Main chart drawing logic with light theme."""
+        """Main chart drawing logic with professional dark theme."""
         if not MATPLOTLIB_AVAILABLE or not hasattr(self, 'ax'):
             return
 
         self.ax.clear()
-        self._style_light_axes()
+        self._style_dark_axes()
 
         # Get current states
         show_contrib = self._show_contrib_var.get()
@@ -898,12 +899,12 @@ class TrendPopup(tk.Toplevel):
             title_parts.append("FIXING")
         title = " + ".join(title_parts) if title_parts else "Select a source"
 
-        self.ax.set_title(title, color=self.LIGHT_TEXT, loc='left', fontsize=11,
+        self.ax.set_title(title, color=self.DARK_TEXT, loc='left', fontsize=11,
                          fontweight='semibold', pad=10)
 
         if not show_contrib and not show_fixing:
             self.ax.text(0.5, 0.5, "Select a source above", ha='center', va='center',
-                        color=self.LIGHT_MUTED, fontsize=12, transform=self.ax.transAxes)
+                        color=self.DARK_MUTED, fontsize=12, transform=self.ax.transAxes)
             self.canvas.draw_idle()
             return
 
@@ -928,7 +929,7 @@ class TrendPopup(tk.Toplevel):
         if not selected_tenors:
             selected_tenors = ['3m']
 
-        # Plot Swedbank data (Orange)
+        # Plot Swedbank data (Orange - vibrant on dark)
         if show_contrib and self._contrib_data:
             plot_data = self._contrib_data if cutoff is None else [d for d in self._contrib_data if d['dt'] >= cutoff]
             if plot_data:
@@ -945,11 +946,11 @@ class TrendPopup(tk.Toplevel):
                     if valid_points:
                         label = f"Swedbank {tenor.upper()}"
                         line, = self.ax.plot(dates, rates, color=self.SWEDBANK_ORANGE,
-                                           linewidth=2, label=label)
+                                           linewidth=2.5, label=label)
                         self._plot_lines.append((line, dates, rates, label, 'Swedbank'))
                         has_lines = True
 
-        # Plot Fixing data (Dark blue)
+        # Plot Fixing data (Light blue - visible on dark)
         if show_fixing and self._fixing_data:
             plot_data = self._fixing_data if cutoff is None else [d for d in self._fixing_data if d['dt'] >= cutoff]
             if plot_data:
@@ -966,13 +967,13 @@ class TrendPopup(tk.Toplevel):
                     if valid_points:
                         label = f"Fixing {tenor.upper()}"
                         line, = self.ax.plot(dates, rates, color=self.FIXING_BLUE,
-                                           linewidth=2, label=label)
+                                           linewidth=2.5, label=label)
                         self._plot_lines.append((line, dates, rates, label, 'Fixing'))
                         has_lines = True
 
         if not has_lines:
             self.ax.text(0.5, 0.5, f"No data for {time_range}", ha='center', va='center',
-                        color=self.LIGHT_MUTED, fontsize=12, transform=self.ax.transAxes)
+                        color=self.DARK_MUTED, fontsize=12, transform=self.ax.transAxes)
             self.canvas.draw_idle()
             return
 
@@ -995,13 +996,14 @@ class TrendPopup(tk.Toplevel):
         self.fig.autofmt_xdate(rotation=30, ha='right')
 
         # Y-axis formatting
-        self.ax.set_ylabel('Rate (%)', color=self.LIGHT_TEXT, fontsize=10)
+        self.ax.set_ylabel('Rate (%)', color=self.DARK_TEXT, fontsize=10)
         self.ax.yaxis.set_major_formatter(lambda x, p: f'{x:.2f}%')
 
-        # Legend - Simple style
+        # Legend - Dark style with good contrast
         if has_lines:
-            self.ax.legend(loc='upper right', fontsize=9, framealpha=0.9,
-                          facecolor=self.LIGHT_CARD, edgecolor=self.LIGHT_BORDER)
+            legend = self.ax.legend(loc='upper right', fontsize=9, framealpha=0.95,
+                          facecolor=self.DARK_CARD_2, edgecolor=self.DARK_BORDER,
+                          labelcolor=self.DARK_TEXT)
 
         self.fig.subplots_adjust(left=0.08, right=0.95, top=0.9, bottom=0.15)
         self.canvas.draw_idle()
