@@ -772,12 +772,14 @@ def get_fixing_table_data(limit: int = 50) -> list[dict]:
 
 def confirm_rates(app) -> tuple[bool, str]:
     """
-    Confirm rates: backfill fixings, save contribution snapshot, and mark as confirmed.
+    Confirm rates: backfill fixings, save contribution snapshot, mark as confirmed,
+    and write confirmation stamp to Excel.
 
     This function:
     1. Backfills NIBOR fixings from Bloomberg
     2. Saves a snapshot with confirmed=True
     3. Updates the history with confirmation metadata
+    4. Writes confirmation stamp to Excel (ALWAYS - idiot-proof)
     """
     from settings import get_app_env
 
@@ -805,7 +807,25 @@ def confirm_rates(app) -> tuple[bool, str]:
             save_history(history)
             log.info(f"[{mode_str}] Snapshot {date_key} marked as confirmed by {user}")
 
+        # ALWAYS write confirmation stamp to Excel (idiot-proof)
+        excel_engine = getattr(app, 'excel_engine', None)
+        excel_stamp_success = False
+        excel_stamp_msg = ""
+
+        if excel_engine and hasattr(excel_engine, 'write_confirmation_stamp'):
+            excel_stamp_success, excel_stamp_msg = excel_engine.write_confirmation_stamp()
+            if excel_stamp_success:
+                log.info(f"[{mode_str}] Excel confirmation stamp written successfully")
+            else:
+                log.warning(f"[{mode_str}] Excel confirmation stamp failed: {excel_stamp_msg}")
+        else:
+            log.warning(f"[{mode_str}] No excel_engine available for confirmation stamp")
+
         msg = f"Rates confirmed and saved for {date_key}"
+        if excel_stamp_success:
+            msg += " (Excel stamp written)"
+        elif excel_stamp_msg:
+            msg += f" (Excel stamp failed: {excel_stamp_msg})"
 
         log.info(f"[{mode_str}] {msg}")
         return True, msg
