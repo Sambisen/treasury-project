@@ -15,7 +15,7 @@ log = get_logger("settings")
 # Default settings
 DEFAULT_SETTINGS = {
     # Data Source Mode
-    "development_mode": True,  # True = TEST files, False = PROD files
+    "development_mode": False,  # True = TEST files, False = PROD files (default: PROD)
 
     # Fixing Time (affects Bloomberg ticker suffix and validation gate)
     "fixing_time": "10:30",  # "10:30" (F043) or "10:00" (F040)
@@ -293,7 +293,7 @@ def get_app_env() -> str:
         return env_var
 
     # Fallback to development_mode setting
-    dev_mode = get_setting("development_mode", True)
+    dev_mode = get_setting("development_mode", False)
     return "DEV" if dev_mode else "PROD"
 
 

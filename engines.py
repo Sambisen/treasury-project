@@ -198,7 +198,7 @@ class ExcelEngine:
 
                 # Get mode for logging
                 from settings import get_setting
-                dev_mode = get_setting("development_mode", True)
+                dev_mode = get_setting("development_mode", False)
                 mode_display = "TEST" if dev_mode else "PROD"
                 log.info(f"[ExcelEngine] Resolved NIBOR file ({mode_display}): {file_path.name}")
                 return file_path, "OK"

@@ -762,7 +762,7 @@ class DashboardPage(BaseFrame):
         """Create Dev/Prod toggle button using CustomTkinter."""
         from settings import get_settings
         settings = get_settings()
-        dev_mode = settings.get("development_mode", True)
+        dev_mode = settings.get("development_mode", False)
 
         # Container frame
         mode_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -790,7 +790,7 @@ class DashboardPage(BaseFrame):
         """Create Dev/Prod toggle button using tkinter."""
         from settings import get_settings
         settings = get_settings()
-        dev_mode = settings.get("development_mode", True)
+        dev_mode = settings.get("development_mode", False)
 
         # Container frame
         mode_frame = tk.Frame(parent, bg=THEME["bg_panel"])
@@ -821,7 +821,7 @@ class DashboardPage(BaseFrame):
         settings = get_settings()
 
         # Get current mode and flip it
-        current_mode = settings.get("development_mode", True)
+        current_mode = settings.get("development_mode", False)
         new_mode = not current_mode
 
         # Save new setting
@@ -846,7 +846,7 @@ class DashboardPage(BaseFrame):
         """Update the mode button color based on current setting."""
         from settings import get_settings
         settings = get_settings()
-        dev_mode = settings.get("development_mode", True)
+        dev_mode = settings.get("development_mode", False)
 
         mode_text = "Dev" if dev_mode else "Prod"
         mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
@@ -861,7 +861,7 @@ class DashboardPage(BaseFrame):
         """Create compact Dev/Prod pill badge in card header (Nordic Light style)."""
         from settings import get_settings
         settings = get_settings()
-        dev_mode = settings.get("development_mode", True)
+        dev_mode = settings.get("development_mode", False)
 
         # Pill badge colors
         mode_text = "Dev" if dev_mode else "Prod"
