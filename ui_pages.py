@@ -225,26 +225,7 @@ class DashboardPage(BaseFrame):
             font=("Segoe UI Semibold", 20)
         ).pack(anchor="w")
 
-        # Center: Fixing Countdown (centered in header)
-        countdown_frame = tk.Frame(header_row, bg=THEME["bg_card"])
-        countdown_frame.pack(side="left", expand=True)
-
-        countdown_chip = tk.Frame(countdown_frame, bg=THEME["chip"],
-                                  highlightthickness=1, highlightbackground=THEME["border"])
-        countdown_chip.pack(anchor="center")
-
-        tk.Label(countdown_chip, text="FIXING", fg=THEME["text_muted"], bg=THEME["chip"],
-                font=("Segoe UI Semibold", 10)).pack(side="left", padx=(12, 6), pady=8)
-
-        self.fixing_countdown_label = tk.Label(countdown_chip, text="--:--:--",
-                                                fg=THEME["text"], bg=THEME["chip"],
-                                                font=("Consolas", 18, "bold"))
-        self.fixing_countdown_label.pack(side="left", pady=8)
-
-        self.fixing_countdown_indicator = tk.Label(countdown_chip, text="",
-                                                   fg=THEME["text_muted"], bg=THEME["chip"],
-                                                   font=("Segoe UI", 10))
-        self.fixing_countdown_indicator.pack(side="left", padx=(8, 12), pady=8)
+        # Dev/Prod badge REMOVED - now in global header (top left)
 
         # Right side: View History link
         if MATPLOTLIB_AVAILABLE and TrendPopup:
