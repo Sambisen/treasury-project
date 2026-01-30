@@ -952,81 +952,10 @@ class NiborTerminalCTK(ctk.CTk):
         header_right = ctk.CTkFrame(global_header, fg_color=header_right_bg)
         header_right.pack(side="right")
 
-        # ====================================================================
-        # HEADER RIGHT - Fixing countdown (analog clock moved to branding banner)
-        # ====================================================================
-        # NOTE:
-        # We intentionally do NOT use fully-transparent CTk widgets here.
-        # In mixed Tk + CTk layouts, "transparent" can resolve to the underlying
-        # default CTk color theme (often light/white) and create a visible white
-        # patch behind the countdown.
-        #
-        # We instead render the countdown as a subtle "chip" that matches the
-        # app's dark fintech theme.
-        clock_container = ctk.CTkFrame(
-            header_right,
-            fg_color=THEME["bg_card"],
-            corner_radius=12,
-            border_width=1,
-            border_color=THEME["border"],
-        )
-        clock_container.pack(side="right", padx=(0, 2), pady=2)
-
-        # Store the chip so we can align the analog clock above it.
-        self._fixing_chip = clock_container
-
-        # In Tkinter fallback, CTkLabel(fg_color="transparent") becomes a Label with no
-        # explicit bg -> defaults to white. Force label bg to match the card.
-        label_bg = THEME["bg_card"] if not CTK_AVAILABLE else "transparent"
-
-        # Separator
-        ctk.CTkLabel(
-            clock_container,
-            text="|",
-            text_color=THEME["text_muted"],
-            fg_color=label_bg,
-            font=("Consolas", 12)
-        ).pack(side="left", padx=8, pady=4)
-
-        # FIXING label
-        ctk.CTkLabel(
-            clock_container,
-            text="FIXING",
-            text_color=THEME["text_muted"],
-            fg_color=label_bg,
-            font=("Segoe UI Semibold", 10)
-        ).pack(side="left", padx=(0, 6), pady=6)
-
-        # Fixing countdown (monospace for stability)
-        self._nibor_fixing_status = ctk.CTkLabel(
-            clock_container,
-            text="--:--:--",
-            text_color=THEME["text"],
-            fg_color=label_bg,
-            font=("Consolas", 16, "bold")
-        )
-        self._nibor_fixing_status.pack(side="left", pady=6)
-
-        # Fixing indicator
-        self._nibor_fixing_indicator = ctk.CTkLabel(
-            clock_container,
-            text="",
-            text_color=THEME["text_muted"],
-            fg_color=label_bg,
-            font=("Segoe UI", 10)
-        )
-        self._nibor_fixing_indicator.pack(side="left", padx=(8, 12), pady=6)
-
-        # Align the analog clock (branding header) so this chip sits centered under it.
-        # This matters more in Tkinter fallback where the chip background is very explicit.
-        self.after(150, self._align_branding_clock_to_fixing_chip)
+        # Fixing countdown moved to DashboardPage (centered under NIBOR RATES title)
 
         # Start the header clock update
         self._update_header_clock()
-
-        # Keep alignment when the window is resized.
-        # (Use a small delay to avoid fighting the geometry manager.)
-        self.bind("<Configure>", lambda e: self.after(50, self._align_branding_clock_to_fixing_chip), add="+")
 
         # ====================================================================
         # DEV WARNING BANNER - Created always, shown only in DEV mode
@@ -1254,50 +1183,6 @@ class NiborTerminalCTK(ctk.CTk):
         if self.PAGES_CONFIG:
             self.show_page(self.PAGES_CONFIG[0][0])
 
-    def _align_branding_clock_to_fixing_chip(self):
-        """Center the FIXING countdown chip under the analog clock.
-
-        The analog clock lives in the branding header (top banner) and the chip lives
-        in the global header row below. We compute absolute coordinates and adjust
-        the analog clock's 'x' offset (anchored NE) so its center aligns with the
-        chip's center.
-        """
-        try:
-            if not getattr(self, "_branding_clock_analog", None):
-                return
-            if not getattr(self, "_fixing_chip", None):
-                return
-
-            # Ensure geometry is computed.
-            self.update_idletasks()
-
-            clock = self._branding_clock_analog
-            chip = self._fixing_chip
-            parent = clock.master  # branding_inner
-
-            if chip.winfo_width() <= 1 or clock.winfo_width() <= 1 or parent.winfo_width() <= 1:
-                return
-
-            chip_center_rootx = chip.winfo_rootx() + (chip.winfo_width() / 2)
-            desired_clock_left_rootx = chip_center_rootx - (clock.winfo_width() / 2)
-
-            parent_rootx = parent.winfo_rootx()
-            desired_clock_left_in_parent = desired_clock_left_rootx - parent_rootx
-            desired_clock_right_in_parent = desired_clock_left_in_parent + clock.winfo_width()
-
-            # Because we place with anchor="ne" at relx=1.0, the right edge is:
-            # parent_width + x_offset. So:
-            # x_offset = desired_right - parent_width
-            x_offset = int(desired_clock_right_in_parent - parent.winfo_width())
-
-            # Clamp a bit so it can't drift wildly (defensive).
-            x_offset = max(-200, min(0, x_offset))
-
-            clock.place_configure(relx=1.0, rely=0.0, x=x_offset, y=6, anchor="ne")
-        except Exception:
-            # Never let a cosmetic alignment break the UI.
-            return
-
     def _load_branding_logo(self):
         """Load branding logo after window is fully initialized."""
         # Build dynamic path based on current user's OneDrive
@@ -1336,7 +1221,20 @@ class NiborTerminalCTK(ctk.CTk):
             except Exception:
                 pass
 
-        # Note: the analog clock is now in the branding header (top-right).
+        # Get countdown labels from DashboardPage
+        countdown_label = None
+        countdown_indicator = None
+        if hasattr(self, 'pages') and "Dashboard" in self.pages:
+            dashboard = self.pages["Dashboard"]
+            if hasattr(dashboard, 'fixing_countdown_label'):
+                countdown_label = dashboard.fixing_countdown_label
+            if hasattr(dashboard, 'fixing_countdown_indicator'):
+                countdown_indicator = dashboard.fixing_countdown_indicator
+
+        if not countdown_label:
+            # Dashboard not ready yet, retry later
+            self.after(1000, self._update_header_clock)
+            return
 
         # NIBOR Fixing window: 11:00 - 11:30 CET (weekdays only)
         hour = now.hour
@@ -1349,8 +1247,8 @@ class NiborTerminalCTK(ctk.CTk):
         fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
 
         if weekday >= 5:  # Weekend
-            self._nibor_fixing_status.configure(text="— — —", text_color=THEME["text_muted"])
-            self._nibor_fixing_indicator.configure(text="Weekend", text_color=THEME["text_muted"])
+            countdown_label.config(text="— — —", fg=THEME["text_muted"])
+            countdown_indicator.config(text="Weekend", fg=THEME["text_muted"])
         elif current_seconds < fixing_start:
             # Before fixing window - countdown to open
             secs_until = fixing_start - current_seconds
@@ -1370,21 +1268,21 @@ class NiborTerminalCTK(ctk.CTk):
                 color = THEME["text"]
                 indicator_text = "until open"
 
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=color)
-            self._nibor_fixing_indicator.configure(text=indicator_text, text_color=color if secs_until <= 1800 else THEME["text_muted"])
+            countdown_label.config(text=countdown_str, fg=color)
+            countdown_indicator.config(text=indicator_text, fg=color if secs_until <= 1800 else THEME["text_muted"])
         elif current_seconds < fixing_end:
             # FIXING WINDOW OPEN - green to indicate active
             secs_left = fixing_end - current_seconds
             mins = secs_left // 60
             secs = secs_left % 60
             countdown_str = f"0:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["good"])
-            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["good"])
+            countdown_label.config(text=countdown_str, fg=THEME["good"])
+            countdown_indicator.config(text="● OPEN", fg=THEME["good"])
         else:
             # After fixing window - closed
-            self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["text_muted"])
+            countdown_label.config(text="CLOSED", fg=THEME["text_muted"])
             closed_msg = "until next week" if weekday == 4 else "until tomorrow"
-            self._nibor_fixing_indicator.configure(text=closed_msg, text_color=THEME["text_muted"])
+            countdown_indicator.config(text=closed_msg, fg=THEME["text_muted"])
 
         # Schedule next update
         self.after(1000, self._update_header_clock)
