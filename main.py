@@ -697,10 +697,23 @@ class NiborTerminalCTK(ctk.CTk):
         """
         Toggle between DEV and PROD environment.
         Updates the header badge and reloads data.
+        DEV mode is restricted to authorized users only.
         """
+        import getpass
+
         current_env = get_app_env()
         new_dev_mode = current_env == "PROD"  # If PROD, switch to DEV (True)
         new_env = "DEV" if new_dev_mode else "PROD"
+
+        # DEV mode restricted to authorized user only
+        AUTHORIZED_DEV_USERS = ["p901sbf"]
+
+        if new_dev_mode:  # Trying to switch TO DEV
+            current_user = getpass.getuser().lower()
+            if current_user not in [u.lower() for u in AUTHORIZED_DEV_USERS]:
+                self.toast.error("DEV mode is restricted to authorized users only")
+                log.warning(f"User '{current_user}' attempted to access DEV mode - denied")
+                return
 
         # Save new setting
         set_setting("development_mode", new_dev_mode, save=True)
