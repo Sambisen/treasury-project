@@ -944,27 +944,33 @@ class NiborTerminalCTK(ctk.CTk):
         )
         self.fixing_control.pack(side="left")
 
-        # Header content container - right side (placeholder for future use)
+        # Header content container - right side
+        # NOTE (fallback mode): In Tkinter fallback, 'transparent' becomes None and
+        # widgets can inherit the system default background (often white). Use an
+        # explicit dark bg when CTK isn't available.
         header_right_bg = THEME["bg_main"] if not CTK_AVAILABLE else "transparent"
         header_right = ctk.CTkFrame(global_header, fg_color=header_right_bg)
         header_right.pack(side="right")
 
         # ====================================================================
-        # HEADER CENTER - Fixing countdown (larger and centered)
+        # HEADER RIGHT - Fixing countdown (analog clock moved to branding banner)
         # ====================================================================
-        header_center_bg = THEME["bg_main"] if not CTK_AVAILABLE else "transparent"
-        header_center = ctk.CTkFrame(global_header, fg_color=header_center_bg)
-        header_center.pack(side="left", expand=True, fill="x")
-
-        # Clock container - centered with larger styling
+        # NOTE:
+        # We intentionally do NOT use fully-transparent CTk widgets here.
+        # In mixed Tk + CTk layouts, "transparent" can resolve to the underlying
+        # default CTk color theme (often light/white) and create a visible white
+        # patch behind the countdown.
+        #
+        # We instead render the countdown as a subtle "chip" that matches the
+        # app's dark fintech theme.
         clock_container = ctk.CTkFrame(
-            header_center,
+            header_right,
             fg_color=THEME["bg_card"],
-            corner_radius=16,
+            corner_radius=12,
             border_width=1,
             border_color=THEME["border"],
         )
-        clock_container.pack(anchor="center", pady=4)
+        clock_container.pack(side="right", padx=(0, 2), pady=2)
 
         # Store the chip so we can align the analog clock above it.
         self._fixing_chip = clock_container
@@ -973,34 +979,43 @@ class NiborTerminalCTK(ctk.CTk):
         # explicit bg -> defaults to white. Force label bg to match the card.
         label_bg = THEME["bg_card"] if not CTK_AVAILABLE else "transparent"
 
-        # FIXING label (larger)
+        # Separator
+        ctk.CTkLabel(
+            clock_container,
+            text="|",
+            text_color=THEME["text_muted"],
+            fg_color=label_bg,
+            font=("Consolas", 12)
+        ).pack(side="left", padx=8, pady=4)
+
+        # FIXING label
         ctk.CTkLabel(
             clock_container,
             text="FIXING",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI Semibold", 11)
-        ).pack(side="left", padx=(16, 8), pady=8)
+            font=("Segoe UI", 9)
+        ).pack(side="left", padx=(0, 6), pady=4)
 
-        # Fixing countdown (larger monospace for stability)
+        # Fixing countdown (monospace for stability)
         self._nibor_fixing_status = ctk.CTkLabel(
             clock_container,
             text="--:--:--",
             text_color=THEME["text"],
             fg_color=label_bg,
-            font=("Consolas", 20, "bold")
+            font=("Consolas", 12)
         )
-        self._nibor_fixing_status.pack(side="left", pady=8)
+        self._nibor_fixing_status.pack(side="left", pady=4)
 
-        # Fixing indicator (larger)
+        # Fixing indicator
         self._nibor_fixing_indicator = ctk.CTkLabel(
             clock_container,
             text="",
             text_color=THEME["text_muted"],
             fg_color=label_bg,
-            font=("Segoe UI", 11)
+            font=("Segoe UI", 9)
         )
-        self._nibor_fixing_indicator.pack(side="left", padx=(10, 16), pady=8)
+        self._nibor_fixing_indicator.pack(side="left", padx=(8, 10), pady=4)
 
         # Align the analog clock (branding header) so this chip sits centered under it.
         # This matters more in Tkinter fallback where the chip background is very explicit.
