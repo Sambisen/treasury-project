@@ -2450,7 +2450,12 @@ if __name__ == "__main__":
     from splash_screen import SplashScreen
     import tkinter as tk
     import sys
+    import getpass
     from pathlib import Path
+
+    # ALWAYS start in PROD mode (reset any saved DEV setting)
+    from settings import set_setting
+    set_setting("development_mode", False, save=True)
 
     # Create hidden root for splash
     _splash_root = tk.Tk()
