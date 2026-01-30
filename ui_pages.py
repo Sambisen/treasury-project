@@ -1059,13 +1059,13 @@ class DashboardPage(BaseFrame):
         implied_failed = [c for c in implied_nok_checks if not c.get("matched")]
         implied_passed = [c for c in implied_nok_checks if c.get("matched")]
 
-        # Professional colors
-        FAIL_HEADER_BG = "#F5F5F5"
-        FAIL_HEADER_FG = "#B71C1C"
-        FAIL_BORDER = "#E0E0E0"
-        PASS_HEADER_BG = "#F5F5F5"
-        PASS_HEADER_FG = "#1B5E20"
-        PASS_BORDER = "#E0E0E0"
+        # Theme-compatible colors for dark mode
+        FAIL_HEADER_BG = "#2a1215"          # Dark red background
+        FAIL_HEADER_FG = THEME["danger"]    # Bright red text
+        FAIL_BORDER = THEME["border"]
+        PASS_HEADER_BG = "#0d2818"          # Dark green background
+        PASS_HEADER_FG = THEME["success"]   # Bright green text
+        PASS_BORDER = THEME["border"]
 
         # Summary bar
         total_failed = len(implied_failed)
@@ -1086,12 +1086,12 @@ class DashboardPage(BaseFrame):
             tk.Label(summary_inner,
                     text=f"{total_failed} failed",
                     font=("Segoe UI", 11),
-                    fg="#B71C1C", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                    fg=THEME["danger"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         tk.Label(summary_inner,
                 text=f"{total_passed} passed",
                 font=("Segoe UI", 11),
-                fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                fg=THEME["success"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         # Scrollable container
         canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
@@ -1148,7 +1148,7 @@ class DashboardPage(BaseFrame):
 
             # Status
             status_text = "OK" if matched else "Fail"
-            status_color = "#1B5E20" if matched else "#B71C1C"
+            status_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=status_text, font=("Segoe UI", 9),
                     fg=status_color, bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1171,7 +1171,7 @@ class DashboardPage(BaseFrame):
 
             # Comparison indicator
             cmp_text = "=" if matched else "!="
-            cmp_color = "#1B5E20" if matched else "#B71C1C"
+            cmp_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=cmp_text, font=("Consolas", 9),
                     fg=cmp_color, bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1189,7 +1189,7 @@ class DashboardPage(BaseFrame):
                 except (ValueError, TypeError):
                     pass
             tk.Label(check_row, text=diff_str, font=("Consolas", 9),
-                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
+                    fg=THEME["danger"], bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
 
         # Helper to create collapsible section
         def create_section(parent, title, items, section_key, header_bg, header_fg, border_color,
@@ -1272,7 +1272,7 @@ class DashboardPage(BaseFrame):
             tk.Label(scroll_frame,
                     text="All Implied NOK checks passed",
                     font=("Segoe UI", 11),
-                    fg="#1B5E20", bg=THEME["bg_panel"]).pack(pady=20)
+                    fg=THEME["success"], bg=THEME["bg_panel"]).pack(pady=20)
 
     def _show_excel_cells_table(self, popup):
         """Show professional Excel Cells validation with Cell Checks and Internal Rates vs ECP sections."""
@@ -1296,13 +1296,13 @@ class DashboardPage(BaseFrame):
         nore_failed = [c for c in nore_checks if not c.get("matched")]
         nore_passed = [c for c in nore_checks if c.get("matched")]
 
-        # Professional muted colors
-        FAIL_HEADER_BG = "#F5F5F5"      # Light gray
-        FAIL_HEADER_FG = "#B71C1C"      # Dark red
-        FAIL_BORDER = "#E0E0E0"         # Gray border
-        PASS_HEADER_BG = "#F5F5F5"      # Light gray
-        PASS_HEADER_FG = "#1B5E20"      # Dark green
-        PASS_BORDER = "#E0E0E0"         # Gray border
+        # Theme-compatible colors for dark mode
+        FAIL_HEADER_BG = "#2a1215"          # Dark red background
+        FAIL_HEADER_FG = THEME["danger"]    # Bright red text
+        FAIL_BORDER = THEME["border"]
+        PASS_HEADER_BG = "#0d2818"          # Dark green background
+        PASS_HEADER_FG = THEME["success"]   # Bright green text
+        PASS_BORDER = THEME["border"]
 
         # Summary bar
         summary_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
@@ -1324,12 +1324,12 @@ class DashboardPage(BaseFrame):
             tk.Label(summary_inner,
                     text=f"{total_failed} failed",
                     font=("Segoe UI", 11),
-                    fg="#B71C1C", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                    fg=THEME["danger"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         tk.Label(summary_inner,
                 text=f"{total_passed} passed",
                 font=("Segoe UI", 11),
-                fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
+                fg=THEME["success"], bg=THEME["bg_card"]).pack(side="left", padx=(20, 0))
 
         # Scrollable container
         canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
@@ -1388,7 +1388,7 @@ class DashboardPage(BaseFrame):
 
             # Status
             status_text = "OK" if matched else "Fail"
-            status_color = "#1B5E20" if matched else "#B71C1C"
+            status_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=status_text, font=("Segoe UI", 9),
                     fg=status_color, bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1415,7 +1415,7 @@ class DashboardPage(BaseFrame):
                 cmp_text = ">=" if matched else "<"
             else:
                 cmp_text = "=" if matched else "!="
-            cmp_color = "#1B5E20" if matched else "#B71C1C"
+            cmp_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=cmp_text, font=("Consolas", 9),
                     fg=cmp_color, bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1434,7 +1434,7 @@ class DashboardPage(BaseFrame):
                 except (ValueError, TypeError):
                     pass
             tk.Label(check_row, text=diff_str, font=("Consolas", 9),
-                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
+                    fg=THEME["danger"], bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
 
         # Helper to create collapsible section
         def create_section(parent, title, items, section_key, header_bg, header_fg, border_color,
@@ -1579,13 +1579,13 @@ class DashboardPage(BaseFrame):
         cell_failed = [c for c in cell_checks if not c.get("matched")]
         cell_passed = [c for c in cell_checks if c.get("matched")]
 
-        # Professional colors
-        FAIL_HEADER_BG = "#F5F5F5"
-        FAIL_HEADER_FG = "#B71C1C"
-        FAIL_BORDER = "#E0E0E0"
-        PASS_HEADER_BG = "#F5F5F5"
-        PASS_HEADER_FG = "#1B5E20"
-        PASS_BORDER = "#E0E0E0"
+        # Theme-compatible colors for dark mode
+        FAIL_HEADER_BG = "#2a1215"          # Dark red background
+        FAIL_HEADER_FG = THEME["danger"]    # Bright red text
+        FAIL_BORDER = THEME["border"]
+        PASS_HEADER_BG = "#0d2818"          # Dark green background
+        PASS_HEADER_FG = THEME["success"]   # Bright green text
+        PASS_BORDER = THEME["border"]
 
         # Summary bar
         summary_frame = tk.Frame(content, bg=THEME["bg_card"], highlightthickness=1, highlightbackground=THEME["border"])
@@ -1603,12 +1603,12 @@ class DashboardPage(BaseFrame):
             tk.Label(summary_inner,
                     text=f"{len(cell_failed)} failed",
                     font=("Segoe UI", 10),
-                    fg="#B71C1C", bg=THEME["bg_card"]).pack(side="left", padx=(16, 0))
+                    fg=THEME["danger"], bg=THEME["bg_card"]).pack(side="left", padx=(16, 0))
 
         tk.Label(summary_inner,
                 text=f"{len(cell_passed)} passed",
                 font=("Segoe UI", 10),
-                fg="#1B5E20", bg=THEME["bg_card"]).pack(side="left", padx=(16, 0))
+                fg=THEME["success"], bg=THEME["bg_card"]).pack(side="left", padx=(16, 0))
 
         # Scrollable container
         canvas = tk.Canvas(content, bg=THEME["bg_panel"], highlightthickness=0)
@@ -1659,7 +1659,7 @@ class DashboardPage(BaseFrame):
             check_row.pack(fill="x")
 
             status_text = "OK" if matched else "Fail"
-            status_color = "#1B5E20" if matched else "#B71C1C"
+            status_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=status_text, font=("Segoe UI", 9),
                     fg=status_color, bg=row_bg, width=COL_WIDTHS[0], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1677,7 +1677,7 @@ class DashboardPage(BaseFrame):
                     fg=THEME["text"], bg=row_bg, width=COL_WIDTHS[4], anchor="center").pack(side="left", padx=2, pady=3)
 
             cmp_text = "=" if matched else "!="
-            cmp_color = "#1B5E20" if matched else "#B71C1C"
+            cmp_color = THEME["success"] if matched else THEME["danger"]
             tk.Label(check_row, text=cmp_text, font=("Consolas", 9),
                     fg=cmp_color, bg=row_bg, width=COL_WIDTHS[5], anchor="center").pack(side="left", padx=2, pady=3)
 
@@ -1693,7 +1693,7 @@ class DashboardPage(BaseFrame):
                 except (ValueError, TypeError):
                     pass
             tk.Label(check_row, text=diff_str, font=("Consolas", 9),
-                    fg="#B71C1C", bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
+                    fg=THEME["danger"], bg=row_bg, width=COL_WIDTHS[7], anchor="center").pack(side="left", padx=2, pady=3)
 
         def create_section(parent, title, items, section_key, header_bg, header_fg, border_color):
             if not items:
@@ -1785,7 +1785,7 @@ class DashboardPage(BaseFrame):
             tk.Label(inner,
                     text="✔  All spreads are within the allowed interval",
                     font=("Segoe UI", 12),
-                    fg="#1B5E20", bg=THEME["bg_card"]).pack()
+                    fg=THEME["success"], bg=THEME["bg_card"]).pack()
 
             # Centered table with interval info
             table_frame = tk.Frame(content, bg=THEME["bg_panel"])
@@ -1835,8 +1835,8 @@ class DashboardPage(BaseFrame):
                     width=12, anchor="center").pack(side="left", padx=8, pady=6)
         else:
             # Show failed spreads with details
-            FAIL_HEADER_BG = "#F5F5F5"
-            FAIL_HEADER_FG = "#B71C1C"
+            FAIL_HEADER_BG = "#2a1215"          # Dark red background
+            FAIL_HEADER_FG = THEME["danger"]    # Bright red text
 
             tk.Label(content,
                     text="Spreads Outside Allowed Interval",
@@ -1917,7 +1917,7 @@ class DashboardPage(BaseFrame):
             tk.Label(inner,
                     text="✔  All tenor days match the Nibor Days file",
                     font=("Segoe UI", 12),
-                    fg="#1B5E20", bg=THEME["bg_card"]).pack()
+                    fg=THEME["success"], bg=THEME["bg_card"]).pack()
 
             tk.Label(inner,
                     text=f"Validated for {today_str}",
@@ -1925,8 +1925,8 @@ class DashboardPage(BaseFrame):
                     fg=THEME["text_muted"], bg=THEME["bg_card"]).pack(pady=(8, 0))
         else:
             # Show failed days
-            FAIL_HEADER_BG = "#F5F5F5"
-            FAIL_HEADER_FG = "#B71C1C"
+            FAIL_HEADER_BG = "#2a1215"          # Dark red background
+            FAIL_HEADER_FG = THEME["danger"]    # Bright red text
 
             from datetime import datetime
             today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1967,7 +1967,7 @@ class DashboardPage(BaseFrame):
                 nibor_str = str(nibor_val) if nibor_val is not None else "—"
 
                 status_text = "OK" if matched else "Fail"
-                status_color = "#1B5E20" if matched else FAIL_HEADER_FG
+                status_color = THEME["success"] if matched else FAIL_HEADER_FG
                 value_color = THEME["text"] if matched else FAIL_HEADER_FG
 
                 tk.Label(row, text=tenor, font=("Segoe UI", 10),
