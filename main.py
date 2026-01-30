@@ -964,13 +964,13 @@ class NiborTerminalCTK(ctk.CTk):
         # We instead render the countdown as a subtle "chip" that matches the
         # app's dark fintech theme.
         clock_container = ctk.CTkFrame(
-            header_right,
+            global_header,
             fg_color=THEME["bg_card"],
             corner_radius=12,
             border_width=1,
             border_color=THEME["border"],
         )
-        clock_container.pack(side="right", padx=(0, 2), pady=2)
+        clock_container.pack(pady=2)
 
         # Store the chip so we can align the analog clock above it.
         self._fixing_chip = clock_container
