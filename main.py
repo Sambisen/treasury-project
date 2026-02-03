@@ -211,6 +211,14 @@ class NiborTerminalCTK(ctk.CTk):
 
         Outside this window (before start OR after end), validation is LOCKED.
         """
+        # NOTE:
+        # The user requested to *disable the gate* in production, because it caused
+        # the main "Run Calculation" button to appear blocked/unreliable.
+        #
+        # We therefore never lock validation/runs based on time.
+        # (Busy-state still disables the button while a run is in progress.)
+        return False
+
         # DEV mode: never locked
         if is_dev_mode():
             return False
@@ -373,30 +381,6 @@ class NiborTerminalCTK(ctk.CTk):
             self.validation_btn.configure(
                 state="disabled",
                 text="⏳ Running..."
-            )
-        elif self._validation_locked and is_prod_mode():
-            # Locked in PROD mode - show why
-            (start_hour, start_min), (end_hour, end_min) = get_gate_window()
-
-            # Get current Stockholm time to determine if before or after window
-            try:
-                stockholm_tz = ZoneInfo(VALIDATION_GATE_TZ)
-                now = datetime.now(stockholm_tz)
-                current_time = now.time()
-                window_start = dt_time(start_hour, start_min, 0)
-
-                if now.weekday() >= 5:
-                    lock_reason = "Weekend"
-                elif current_time < window_start:
-                    lock_reason = f"Opens {start_hour}:{start_min:02d}"
-                else:
-                    lock_reason = f"Closed after {end_hour}:{end_min:02d}"
-            except Exception:
-                lock_reason = f"Window {start_hour}:{start_min:02d}-{end_hour}:{end_min:02d}"
-
-            self.validation_btn.configure(
-                state="disabled",
-                text=f"🔒 {lock_reason} (Stockholm)"
             )
         else:
             # Unlocked - ready to run
@@ -1765,13 +1749,6 @@ class NiborTerminalCTK(ctk.CTk):
         Always fetches new data to ensure fresh results.
         """
         if self._busy:
-            return
-
-        # Check validation gate in PROD mode
-        if self._is_validation_locked() and is_prod_mode():
-            gate_hour, gate_minute = get_gate_time()
-            self.toast.warning(f"Validation locked until {gate_hour}:{gate_minute:02d} (Stockholm)")
-            log.warning("Refresh blocked: validation gate is locked")
             return
 
         self.set_busy(True, text="⏳ FETCHING...")

@@ -292,7 +292,20 @@ class ExcelEngine:
                 temp_path = copy_to_cache_fast(file_path)
                 wb = load_workbook(temp_path, data_only=True, read_only=True)
 
-            sheet_name = wb.sheetnames[-1]
+            # Choose the correct sheet:
+            # - In TEST workbooks, the latest sheet is often the latest YYYY-MM-DD.
+            # - In PROD workbooks, the last worksheet can be an auxiliary sheet
+            #   (e.g. "Sheet2") where the CM cells (M30/R30 etc) may be empty.
+            #
+            # Therefore, prefer the latest date-formatted sheet if present.
+            import re
+            date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+            date_sheets = [name for name in wb.sheetnames if date_pattern.match(str(name))]
+            if date_sheets:
+                sheet_name = sorted(date_sheets)[-1]
+            else:
+                sheet_name = wb.sheetnames[-1]
+
             ws = wb[sheet_name]
 
             recon = {}
