@@ -790,6 +790,19 @@ def confirm_rates(app) -> tuple[bool, str]:
     log.info(f"[{mode_str}] Confirm rates started for {today}")
 
     try:
+        # Safety: if DEV uses PROD workbook, never write confirmation stamp.
+        # (Avoid accidental writes to the production Excel file while testing.)
+        from settings import is_dev_mode, get_setting
+        dev_use_prod_excel = bool(get_setting("dev_use_prod_excel", True))
+
+        if is_dev_mode() and dev_use_prod_excel:
+            msg = (
+                "Confirm is blocked: you are in DEV mode but configured to use the PROD Excel workbook.\n"
+                "Disable 'dev_use_prod_excel' or switch to PROD if you intend to confirm/stamp."
+            )
+            log.warning(msg)
+            return False, msg
+
         engine = getattr(app, 'engine', None)
         saved_count, saved_dates = backfill_fixings(engine, num_dates=5)
 

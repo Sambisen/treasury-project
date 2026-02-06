@@ -297,7 +297,24 @@ def get_nibor_file(mode: str | None = None) -> str:
     # Determine mode from settings if not specified
     if mode is None:
         dev_mode = _get_development_mode()
-        mode = "TEST" if dev_mode else "PROD"
+
+        # Option: In DEV mode, still read the PROD Excel workbook (no _TEST suffix)
+        # This is useful when the TEST workbook is not maintained.
+        dev_use_prod_excel = False
+        try:
+            from settings import get_setting
+            dev_use_prod_excel = bool(get_setting("dev_use_prod_excel", True))
+        except Exception:
+            dev_use_prod_excel = True
+
+        if dev_mode and dev_use_prod_excel:
+            mode = "PROD"
+            log.info(
+                f"[get_nibor_file] DEV mode active but dev_use_prod_excel=True -> using PROD workbook"
+            )
+        else:
+            mode = "TEST" if dev_mode else "PROD"
+
         log.info(f"[get_nibor_file] Using mode from settings: {mode} (development_mode={dev_mode})")
 
     if mode not in ["PROD", "TEST"]:

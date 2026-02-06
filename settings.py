@@ -17,6 +17,12 @@ DEFAULT_SETTINGS = {
     # Data Source Mode
     "development_mode": False,  # True = TEST files, False = PROD files (default: PROD)
 
+    # DEV Excel source
+    # If True, DEV mode will read the SAME NIBOR fixing workbook as PROD (no _TEST suffix).
+    # This is useful when the TEST workbook is not maintained.
+    # NOTE: If enabled, we should avoid writing confirmation stamps while in DEV.
+    "dev_use_prod_excel": True,
+
     # Fixing Time (affects Bloomberg ticker suffix and validation gate)
     "fixing_time": "10:30",  # "10:30" (F043) or "10:00" (F040)
 
