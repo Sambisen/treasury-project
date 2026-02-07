@@ -173,12 +173,9 @@ THEME = {
     "border_focus": "#FF6B35",
     "table_border": "#22314B",
 
-    # Status Colors
-    "good": "#22C55E",
+    # Status Colors (canonical names: success, warning, danger)
     "success": "#22C55E",
     "warning": "#F59E0B",
-    "warn": "#F59E0B",
-    "bad": "#EF4444",
     "danger": "#EF4444",
     "pending": "#F59E0B",
     "yellow": "#FBBF24",

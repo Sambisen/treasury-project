@@ -55,10 +55,12 @@ from ui.components import PremiumEnvBadge, SegmentedControl
 from ui.components.status import AnalogClock
 from history import save_snapshot, get_last_approved, compute_overall_status
 from settings import get_setting, set_setting, get_app_env, is_dev_mode, is_prod_mode
+from validation import ValidationEngine
+from data_manager import DataManager
 from ui_pages import (
     DashboardPage, ReconPage, RulesPage, BloombergPage,
     WeightsPage, AuditLogPage, NiborRoadmapPage, NokImpliedPage,
-    MetaDataPage, NiborDaysPage
+    NiborDaysPage
 )
 
 
@@ -81,9 +83,8 @@ class NiborTerminalCTK(ctk.CTk):
         self.engine = BloombergEngine(cache_ttl_sec=3.0)
         self.excel_engine = ExcelEngine()
 
-        # Register for Excel file change notifications
-        self.excel_engine.on_change(self._on_excel_file_changed)
-        self._excel_change_pending = False
+        # Register for Excel file change notifications (UI handler)
+        self.excel_engine.on_change(self._on_excel_file_changed_ui)
 
         # Toast notification manager
         from toast import ToastManager
@@ -102,26 +103,20 @@ class NiborTerminalCTK(ctk.CTk):
         except ImportError:
             log.warning("System tray not available - pystray not installed")
 
-        self.status_spot = True
-        self.status_fwds = True
-        self.status_ecp = True
-        self.status_days = True
-        self.status_cells = True
+        # Data manager (extracted from main for testability)
+        self.dm = DataManager(
+            excel_engine=self.excel_engine,
+            bbg_engine=self.engine,
+            on_notify=lambda level, msg: getattr(self.toast, level, self.toast.info)(msg),
+            on_safe_after=self._safe_after,
+        )
+        self.excel_engine.on_change(self.dm.on_excel_file_changed)
 
-        self.status_weights = True
-        self.weights_state = "WAIT"
-
-        self.recon_view_mode = "ALL"
-
-        self.current_days_data = {}
-        self.cached_market_data: dict = {}
-        self.cached_excel_data: dict = {}
-        self.active_alerts: list[dict] = []
-
-        self.bbg_last_ok_ts: datetime | None = None
-        self.excel_last_ok_ts: datetime | None = None
-        self.last_bbg_meta: dict = {}
-        self.group_health: dict[str, str] = {}
+        # Validation engine (extracted from main for testability)
+        self.validator = ValidationEngine(
+            excel_engine=self.excel_engine,
+            notify_callback=lambda level, msg: getattr(self.toast, level, self.toast.info)(msg),
+        )
 
         # Store for Dashboard to access
         self.bbg_ok = False
@@ -162,6 +157,122 @@ class NiborTerminalCTK(ctk.CTk):
 
         # No auto-refresh - user must click "Run Calculation" button manually
 
+    # =========================================================================
+    # VALIDATION STATE PROXIES (pages read app.status_spot, etc.)
+    # =========================================================================
+    @property
+    def status_spot(self): return self.validator.status_spot
+    @status_spot.setter
+    def status_spot(self, v): self.validator.status_spot = v
+
+    @property
+    def status_fwds(self): return self.validator.status_fwds
+    @status_fwds.setter
+    def status_fwds(self, v): self.validator.status_fwds = v
+
+    @property
+    def status_ecp(self): return self.validator.status_ecp
+    @status_ecp.setter
+    def status_ecp(self, v): self.validator.status_ecp = v
+
+    @property
+    def status_days(self): return self.validator.status_days
+    @status_days.setter
+    def status_days(self, v): self.validator.status_days = v
+
+    @property
+    def status_cells(self): return self.validator.status_cells
+    @status_cells.setter
+    def status_cells(self, v): self.validator.status_cells = v
+
+    @property
+    def status_weights(self): return self.validator.status_weights
+    @status_weights.setter
+    def status_weights(self, v): self.validator.status_weights = v
+
+    @property
+    def weights_state(self): return self.validator.weights_state
+    @weights_state.setter
+    def weights_state(self, v): self.validator.weights_state = v
+
+    @property
+    def checks_passed(self): return self.validator.checks_passed
+    @checks_passed.setter
+    def checks_passed(self, v): self.validator.checks_passed = v
+
+    @property
+    def checks_total(self): return self.validator.checks_total
+    @checks_total.setter
+    def checks_total(self, v): self.validator.checks_total = v
+
+    @property
+    def recon_view_mode(self): return self.validator.recon_view_mode
+    @recon_view_mode.setter
+    def recon_view_mode(self, v): self.validator.recon_view_mode = v
+
+    @property
+    def active_alerts(self): return self.validator.active_alerts
+    @active_alerts.setter
+    def active_alerts(self, v): self.validator.active_alerts = v
+
+    # =========================================================================
+    # DATA MANAGER STATE PROXIES (pages read app.cached_market_data, etc.)
+    # =========================================================================
+    @property
+    def cached_market_data(self): return self.dm.cached_market_data
+    @cached_market_data.setter
+    def cached_market_data(self, v): self.dm.cached_market_data = v
+
+    @property
+    def cached_excel_data(self): return self.dm.cached_excel_data
+    @cached_excel_data.setter
+    def cached_excel_data(self, v): self.dm.cached_excel_data = v
+
+    @property
+    def current_days_data(self): return self.dm.current_days_data
+    @current_days_data.setter
+    def current_days_data(self, v): self.dm.current_days_data = v
+
+    @property
+    def bbg_ok(self): return self.dm.bbg_ok
+    @bbg_ok.setter
+    def bbg_ok(self, v): self.dm.bbg_ok = v
+
+    @property
+    def excel_ok(self): return self.dm.excel_ok
+    @excel_ok.setter
+    def excel_ok(self, v): self.dm.excel_ok = v
+
+    @property
+    def bbg_last_ok_ts(self): return self.dm.bbg_last_ok_ts
+    @bbg_last_ok_ts.setter
+    def bbg_last_ok_ts(self, v): self.dm.bbg_last_ok_ts = v
+
+    @property
+    def excel_last_ok_ts(self): return self.dm.excel_last_ok_ts
+    @excel_last_ok_ts.setter
+    def excel_last_ok_ts(self, v): self.dm.excel_last_ok_ts = v
+
+    @property
+    def bbg_last_update(self): return self.dm.bbg_last_update
+    @bbg_last_update.setter
+    def bbg_last_update(self, v): self.dm.bbg_last_update = v
+
+    @property
+    def excel_last_update(self): return self.dm.excel_last_update
+    @excel_last_update.setter
+    def excel_last_update(self, v): self.dm.excel_last_update = v
+
+    @property
+    def last_bbg_meta(self): return self.dm.last_bbg_meta
+    @last_bbg_meta.setter
+    def last_bbg_meta(self, v): self.dm.last_bbg_meta = v
+
+    @property
+    def group_health(self): return self.dm.group_health
+    @group_health.setter
+    def group_health(self, v): self.dm.group_health = v
+
     def _setup_keyboard_shortcuts(self):
         """Setup global keyboard shortcuts."""
         # F5 = Refresh
@@ -198,76 +309,18 @@ class NiborTerminalCTK(ctk.CTk):
     # GATED VALIDATION METHODS
     # =========================================================================
 
-    def _is_validation_locked(self) -> bool:
-        """
-        Check if validation is currently locked based on time window.
-
-        In DEV mode: Always unlocked (returns False)
-        In PROD mode: Only unlocked within the validation window
-
-        The validation window is determined by the selected fixing time:
-        - 10:30 fixing (F043): Window 10:30 - 11:30
-        - 10:00 fixing (F040): Window 10:00 - 11:30
-
-        Outside this window (before start OR after end), validation is LOCKED.
-        """
-        # NOTE:
-        # The user requested to *disable the gate* in production, because it caused
-        # the main "Run Calculation" button to appear blocked/unreliable.
-        #
-        # We therefore never lock validation/runs based on time.
-        # (Busy-state still disables the button while a run is in progress.)
-        return False
-
-        # DEV mode: never locked
-        if is_dev_mode():
-            return False
-
-        # Get current Stockholm time
-        try:
-            stockholm_tz = ZoneInfo(VALIDATION_GATE_TZ)
-            now = datetime.now(stockholm_tz)
-        except Exception:
-            # Fallback to local time if timezone fails
-            now = datetime.now()
-            log.warning("Could not get Stockholm time, using local time")
-
-        # Check if weekend (Saturday=5, Sunday=6)
-        if now.weekday() >= 5:
-            return True  # Locked on weekends
-
-        # Get validation window based on selected fixing
-        (start_hour, start_min), (end_hour, end_min) = get_gate_window()
-        window_start = dt_time(start_hour, start_min, 0)
-        window_end = dt_time(end_hour, end_min, 0)
-
-        # Check if current time is within the window
-        current_time = now.time()
-        is_within_window = window_start <= current_time <= window_end
-
-        # Locked if OUTSIDE the window
-        return not is_within_window
-
     def _check_validation_gate(self):
-        """
-        Periodic check of validation gate status.
-        Updates button state and text based on current time.
-        Called every 15 seconds.
-        """
-        was_locked = self._validation_locked
-        self._validation_locked = self._is_validation_locked()
-
-        # Update button state
+        """Periodic check of validation gate status (every 15 seconds)."""
+        is_locked, changed = self.validator.check_gate()
+        self._validation_locked = is_locked
         self._update_validation_button_state()
 
-        # Log if state changed
-        if was_locked != self._validation_locked:
-            state_str = "LOCKED" if self._validation_locked else "UNLOCKED"
+        if changed:
+            state_str = "LOCKED" if is_locked else "UNLOCKED"
             log.info(f"Validation gate changed to: {state_str}")
-            if not self._validation_locked:
-                self.toast.info("Validation unlocked – Ready to run")
+            if not is_locked:
+                self.toast.info("Validation unlocked \u2013 Ready to run")
 
-        # Schedule next check (every 15 seconds)
         self._gate_timer_id = self.after(15000, self._check_validation_gate)
 
     def _setup_validation_tooltip(self):
@@ -664,18 +717,14 @@ class NiborTerminalCTK(ctk.CTk):
         self._check_validation_gate()
 
         # Clear cached data - user must click Calculate to fetch new data
-        self.cached_market_data = {}
-        self.cached_excel_data = {}
-        self.current_days_data = {}
-        self.bbg_ok = False
-        self.excel_ok = False
+        self.dm.clear_cache()
 
         # Clear the NIBOR rates table - show empty state
         if "dashboard" in self._pages:
             self._pages["dashboard"].set_loading(True)
 
         # Show toast - inform user to click Calculate
-        self.toast.info(f"Fixing time: {new_value} CET – Press Calculate to load data")
+        self.toast.info(f"Fixing time: {new_value} CET \u2013 Press Calculate to load data")
 
     def _toggle_environment(self):
         """
@@ -714,11 +763,7 @@ class NiborTerminalCTK(ctk.CTk):
         self._check_validation_gate()
 
         # Clear cached data - user must click Calculate to fetch new data
-        self.cached_market_data = {}
-        self.cached_excel_data = {}
-        self.current_days_data = {}
-        self.bbg_ok = False
-        self.excel_ok = False
+        self.dm.clear_cache()
 
         # Clear the NIBOR rates table - show empty state
         if "dashboard" in self._pages:
@@ -801,23 +846,13 @@ class NiborTerminalCTK(ctk.CTk):
         log.info("Application shutdown complete")
         self.destroy()
 
-    def _on_excel_file_changed(self, file_path):
-        """
-        Called by FileWatcher when Excel file changes.
-
-        Shows a toast notification and sets a pending flag.
-        The user can then click refresh to reload.
-        """
-        log.info(f"[Main] Excel file changed: {file_path.name}")
-        self._excel_change_pending = True
-
-        # Update connection panel to show "stale" state
+    def _on_excel_file_changed_ui(self, file_path):
+        """UI handler for Excel file changes (connection panel + toast)."""
         try:
             self.connection_panel.set_excel_status(ConnectionStatusIndicator.WARNING)
         except Exception:
             pass
 
-        # Show toast notification (must be on main thread)
         def _show_toast():
             try:
                 self.toast.info(
@@ -883,18 +918,11 @@ class NiborTerminalCTK(ctk.CTk):
             bg=BRANDING_BG
         ).pack(anchor="center")
 
-        # Second line: cursive/italic-style
-        # Note: "Segoe Script" exists on most Windows installs. Falls back to Segoe UI Italic.
-        try:
-            cursive_font = ("Segoe Script", 16)
-        except Exception:
-            cursive_font = ("Segoe UI", 16, "italic")
-
         tk.Label(
             title_container,
             text="6 eyes Terminal",
-            font=("Segoe Script", 18),
-            fg=THEME["text"],
+            font=("Segoe UI", 16),
+            fg=THEME["muted"],
             bg=BRANDING_BG
         ).pack(anchor="center", pady=(2, 0))
 
@@ -1136,13 +1164,12 @@ class NiborTerminalCTK(ctk.CTk):
         # Navigation buttons with modern styling
         self.PAGES_CONFIG = [
             ("dashboard", "📊", "NIBOR Dashboard", DashboardPage),
-            ("meta_data", "📝", "Meta Data", MetaDataPage),
             ("bloomberg", "📡", "Bloomberg", BloombergPage),
             ("nibor_days", "📅", "NIBOR Days", NiborDaysPage),
             ("weights", "⚖️", "Weights", WeightsPage),
             ("rules_logic", "🧮", "Backup NIBOR", RulesPage),
             ("nibor_roadmap", "🔀", "NIBOR Roadmap", NiborRoadmapPage),
-            ("audit_log", "📋", "Audit Log", AuditLogPage),
+            ("audit_log", "📋", "Run History", AuditLogPage),
         ]
 
         for page_key, icon, page_name, _ in self.PAGES_CONFIG:
@@ -1361,8 +1388,15 @@ class NiborTerminalCTK(ctk.CTk):
         weekday = now.weekday()
         current_seconds = hour * 3600 + minute * 60 + second
 
-        fixing_start = 11 * 3600  # 11:00:00
-        fixing_end = 11 * 3600 + 30 * 60  # 11:30:00
+        # Read configured fixing time (e.g. "10:30", "11:00")
+        fixing_time_str = get_setting("fixing_time", "11:00")
+        try:
+            ft_parts = fixing_time_str.split(":")
+            ft_hour, ft_min = int(ft_parts[0]), int(ft_parts[1])
+        except (ValueError, IndexError):
+            ft_hour, ft_min = 11, 0
+        fixing_start = ft_hour * 3600 + ft_min * 60
+        fixing_end = fixing_start + 30 * 60  # 30-minute window
 
         if weekday >= 5:  # Weekend
             self._nibor_fixing_status.configure(text="— — —", text_color=THEME["text_muted"])
@@ -1377,7 +1411,7 @@ class NiborTerminalCTK(ctk.CTk):
 
             # Color changes as it gets closer: normal → orange (30min) → red (10min)
             if secs_until <= 600:  # Last 10 minutes - red/urgent
-                color = THEME["bad"]
+                color = THEME["danger"]
                 indicator_text = "⚠ SOON"
             elif secs_until <= 1800:  # Last 30 minutes - orange/warning
                 color = THEME["accent"]
@@ -1394,8 +1428,8 @@ class NiborTerminalCTK(ctk.CTk):
             mins = secs_left // 60
             secs = secs_left % 60
             countdown_str = f"0:{mins:02d}:{secs:02d}"
-            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["good"])
-            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["good"])
+            self._nibor_fixing_status.configure(text=countdown_str, text_color=THEME["success"])
+            self._nibor_fixing_indicator.configure(text="● OPEN", text_color=THEME["success"])
         else:
             # After fixing window - closed
             self._nibor_fixing_status.configure(text="CLOSED", text_color=THEME["text_muted"])
@@ -1767,24 +1801,25 @@ class NiborTerminalCTK(ctk.CTk):
         if self._busy:
             return
 
-        self.set_busy(True, text="⏳ FETCHING...")
+        self.set_busy(True, text="\u23f3 FETCHING...")
 
-        # Show loading state on dashboard
         if "dashboard" in self._pages:
             self._pages["dashboard"].set_loading(True)
 
-        # No longer showing last approved - we're getting fresh data
         self._showing_last_approved = False
         self._update_last_approved_banner()
 
-        # Set connection indicators to "connecting" state
         self.connection_panel.set_bloomberg_status(ConnectionStatusIndicator.CONNECTING)
         self.connection_panel.set_excel_status(ConnectionStatusIndicator.CONNECTING)
 
         today = datetime.now().strftime("%Y-%m-%d")
-        self.update_days_from_date(today)
+        self.dm.update_days_from_date(today)
 
-        threading.Thread(target=self._worker_refresh_excel_then_bbg, daemon=True).start()
+        threading.Thread(
+            target=self.dm.refresh,
+            args=(self._on_excel_result, self._on_bbg_result),
+            daemon=True,
+        ).start()
 
     def _update_last_approved_banner(self):
         """Show or hide the last approved banner based on current state."""
@@ -1820,155 +1855,40 @@ class NiborTerminalCTK(ctk.CTk):
         except RuntimeError:
             pass  # App is shutting down, ignore
 
-    def _worker_refresh_excel_then_bbg(self):
-        log.info("===== REFRESH DATA WORKER STARTED =====")
-        log.info("Loading Excel data...")
-        excel_ok, excel_msg = self.excel_engine.load_recon_direct()
-        log.info(f"Excel load result: success={excel_ok}, msg={excel_msg}")
+    def _on_excel_result(self, excel_ok: bool, excel_msg: str):
+        """Handle Excel result from DataManager — update UI."""
+        self.dm.apply_excel_result(excel_ok, excel_msg)
 
-        if excel_ok:
-            log.info(f"Excel engine recon_data has {len(self.excel_engine.recon_data)} entries")
-        else:
-            log.error(f"Excel load FAILED: {excel_msg}")
+        # Update connection panel (UI concern)
+        if self.dm.excel_engine.used_cache_fallback and excel_ok:
+            self.connection_panel.set_excel_status(ConnectionStatusIndicator.WARNING)
 
-        self._safe_after(0, self._apply_excel_result, excel_ok, excel_msg)
-
-        # Always call engine.fetch_snapshot - it handles mock mode internally if blpapi unavailable
-        # Use dynamic tickers - F043 for both Dev and Prod mode
-        self.engine.fetch_snapshot(
-            get_all_real_tickers(),
-            lambda d, meta: self._safe_after(0, self._apply_bbg_result, d, meta, None),
-            lambda e: self._safe_after(0, self._apply_bbg_result, {}, {}, str(e)),
-            fields=["PX_LAST", "CHG_NET_1D", "LAST_UPDATE"]
-        )
-
-    def _compute_group_health(self, bbg_meta: dict, market_data: dict) -> dict[str, str]:
-        meta = bbg_meta or {}
-        dur = meta.get("duration_ms", None)
-        from_cache = meta.get("from_cache", False)
-
-        def fmt_group(tickers: list[str]) -> str:
-            if not tickers:
-                return "—"
-            ok = sum(1 for t in set(tickers) if t in market_data and market_data[t] is not None)
-            total = len(set(tickers))
-            if dur is None:
-                return f"BBG {ok}/{total} OK"
-            suffix = "cache" if from_cache else f"{dur}ms"
-            return f"BBG {ok}/{total} OK | {suffix}"
-
-        ms = get_market_structure()
-        spot_tickers = [t for t, _ in ms.get("SPOT RATES", [])]
-        fwd_tickers = [t for g in ("USDNOK FORWARDS", "EURNOK FORWARDS") for t, _ in ms.get(g, [])]
-        cm_tickers = [t for t, _ in ms.get("SWET CM CURVES", [])]
-
-        return {
-            "SPOT": fmt_group(spot_tickers),
-            "FWDS": fmt_group(fwd_tickers),
-            "ECP": "—",
-            "DAYS": "—",
-            "CELLS": "—",
-            "WEIGHTS": "—",
-            "SWETCM": fmt_group(cm_tickers),
-        }
-
-    def _apply_excel_result(self, excel_ok: bool, excel_msg: str):
-        log.debug(f"_apply_excel_result called with excel_ok={excel_ok}, msg={excel_msg}")
-
-        if excel_ok:
-            self.cached_excel_data = dict(self.excel_engine.recon_data)
-            log.info(f"Excel data cached: {len(self.cached_excel_data)} cells")
-
-            # Log sample cells to verify data
-            sample_cells = list(self.cached_excel_data.items())[:5]
-            log.debug(f"Sample cached cells: {sample_cells}")
-
-            self.excel_last_ok_ts = datetime.now()
-            self.excel_ok = True
-            self.excel_last_update = fmt_ts(self.excel_last_ok_ts)
-
-            # Warn user if data was read from a cache copy (file was locked)
-            if self.excel_engine.used_cache_fallback:
-                try:
-                    self.toast.warning(
-                        "Excel file was locked — data read from cache copy.\n"
-                        "Save & close Excel, then press F5 to get fresh data.",
-                        duration=10000
-                    )
-                except Exception:
-                    pass
-        else:
-            self.cached_excel_data = {}
-            self.excel_ok = False
-            log.error("Excel failed, cached_excel_data cleared")
-
-        self.active_alerts = []
-        self.status_spot = True
-        self.status_fwds = True
-        self.status_ecp = True
-        self.status_days = True
-        self.status_cells = True
-        self.status_weights = True
-        self.weights_state = "WAIT"
-
-        _ = self.build_recon_rows(view="ALL")
         self.refresh_ui()
 
-    def _apply_bbg_result(self, bbg_data: dict, bbg_meta: dict, bbg_err: str | None):
-        self.last_bbg_meta = dict(bbg_meta or {})
+    def _on_bbg_result(self, bbg_data: dict, bbg_meta: dict, bbg_err: str | None):
+        """Handle BBG result from DataManager — run validation + update UI."""
+        self.dm.apply_bbg_result(bbg_data, bbg_meta, bbg_err)
 
-        # Accept data from both real Bloomberg and mock engine
-        if bbg_data and not bbg_err:
-            self.cached_market_data = dict(bbg_data)
-            self.bbg_last_ok_ts = datetime.now()
-            self.bbg_ok = True
-            self.bbg_last_update = fmt_ts(self.bbg_last_ok_ts)
-
-            gh = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
-            self.group_health = dict(gh)
-        else:
-            self.cached_market_data = dict(bbg_data) if bbg_data else {}
-            self.bbg_ok = False
-            self.group_health = self._compute_group_health(self.last_bbg_meta, self.cached_market_data)
-
-        self.active_alerts = []
-        self.status_spot = True
-        self.status_fwds = True
-        self.status_ecp = True
-        self.status_days = True
-        self.status_cells = True
-        self.status_weights = True
-        self.weights_state = "WAIT"
-
+        # Run validation with final data
         _ = self.build_recon_rows(view="ALL")
 
         # Update hidden NokImpliedPage to populate impl_calc_data (used by drawer)
         if hasattr(self, '_nok_implied_calc'):
             try:
-                log.debug("Updating NokImpliedPage to populate impl_calc_data...")
                 self._nok_implied_calc.update()
-                log.debug(f"impl_calc_data populated with {len(getattr(self, 'impl_calc_data', {}))} entries")
             except Exception as e:
                 log.error(f"Error updating NokImpliedPage: {e}")
 
         self.set_busy(False)
         self._update_status_bar()
 
-        # Clear loading state before refreshing UI - this runs validation once with final data
         if "dashboard" in self._pages:
             self._pages["dashboard"].set_loading(False)
 
         self.refresh_ui()
 
-        # Show success toast and flash animation
-        if self.bbg_ok and self.excel_ok:
-            self.toast.success("Data refreshed successfully")
-            self._flash_validation_success()
-        elif self.bbg_ok or self.excel_ok:
-            self.toast.warning("Partial data refresh - check connections")
-
         # Auto-save NIBOR fixings from Bloomberg (5 most recent)
-        if self.bbg_ok:
+        if self.dm.bbg_ok:
             try:
                 from history import backfill_fixings
                 saved_count, saved_dates = backfill_fixings(self.engine, num_dates=5)
@@ -1976,6 +1896,7 @@ class NiborTerminalCTK(ctk.CTk):
                     log.info(f"Auto-saved {saved_count} NIBOR fixings: {saved_dates}")
             except Exception as e:
                 log.error(f"Failed to auto-save fixings: {e}")
+                self.toast.warning("Auto-save fixings failed \u2014 check log for details")
 
         # Auto-save snapshot after successful data refresh
         if hasattr(self, 'funding_calc_data') and self.funding_calc_data:
@@ -1984,14 +1905,24 @@ class NiborTerminalCTK(ctk.CTk):
                 log.info(f"Auto-saved snapshot: {date_key}")
             except Exception as e:
                 log.error(f"Failed to auto-save snapshot: {e}")
+                self.toast.warning("Auto-save snapshot failed \u2014 check log for details")
 
         # Compute overall validation status
         overall_status = compute_overall_status(self)
         self._current_validation_ok = (overall_status == "OK")
         log.info(f"Validation complete: overall_status={overall_status}")
 
-        # Update validation button state
         self._update_validation_button_state()
+
+        # Show toast/flash based on validation result
+        if self.dm.bbg_ok and self.dm.excel_ok:
+            if self._current_validation_ok:
+                self.toast.success("Data refreshed \u2014 all checks passed")
+                self._flash_validation_success()
+            else:
+                self.toast.warning("Data refreshed \u2014 validation issues found")
+        elif self.dm.bbg_ok or self.dm.excel_ok:
+            self.toast.warning("Partial data refresh \u2014 check connections")
 
     def refresh_ui(self):
         if self._current_page and self._current_page in self._pages:
@@ -2001,288 +1932,19 @@ class NiborTerminalCTK(ctk.CTk):
                 log.error(f"Error updating page {self._current_page}: {e}")
 
     def update_days_from_date(self, date_str):
-        days_map = self.excel_engine.get_days_for_date(date_str)
-        self.current_days_data = days_map if days_map else {}
+        """Delegate to DataManager (kept for compatibility)."""
+        self.dm.update_days_from_date(date_str)
 
     def build_recon_rows(self, view="ALL"):
-        excel_data = self.cached_excel_data or {}
-        market_data = self.cached_market_data or {}
-
-        rows_out = []
-
-        TOL_SPOT = 0.0005
-        TOL_FWDS = 0.0005
-        TOL_W = 1e-9
-
-        def add_section(title):
-            rows_out.append({"values": [title, "", "", "", "", ""], "style": "section"})
-
-        def add_row(cell, desc, model, market, diff, ok, style_override=None):
-            status = "✔" if ok else "✘"
-            style = style_override if style_override else ("good" if ok and view != "ALL" else ("normal" if ok else "bad"))
-            rows_out.append({"values": [cell, desc, model, market, diff, status], "style": style})
-            return ok
-
-        def collect_market_section(title, filter_prefixes, tol):
-            add_section(title)
-            section_ok = True
-            market_ready = bool(market_data)
-
-            for cell, desc, ticker in get_recon_mapping():
-                if not any(cell.startswith(p) for p in filter_prefixes):
-                    continue
-
-                model_val = excel_data.get(coordinate_to_tuple(cell), None)
-
-                if not market_ready:
-                    add_row(cell, desc, str(model_val), "-", "-", True)
-                    continue
-
-                market_inf = market_data.get(ticker)
-                if not market_inf:
-                    section_ok = False
-                    add_row(cell, desc, str(model_val), "-", "-", False)
-                    if view == "ALL":
-                        self.active_alerts.append({"source": cell, "msg": f"{desc} Missing ticker", "val": "-", "exp": ticker})
-                    continue
-
-                market_val = float(market_inf.get("price", 0.0))
-                mf = safe_float(model_val, 0.0)
-                diff = mf - market_val
-                ok = abs(diff) < tol
-                section_ok = section_ok and ok
-
-                add_row(cell, desc, f"{mf:,.6f}", f"{market_val:,.6f}", f"{diff:+.6f}", ok)
-
-                if view == "ALL" and not ok:
-                    self.active_alerts.append({"source": cell, "msg": f"{desc} Diff", "val": f"{diff:+.6f}", "exp": f"±{tol}"})
-            return section_ok
-
-        if view in ("ALL", "SPOT"):
-            ok_n = collect_market_section("EURNOK SPOT", ["N"], TOL_SPOT)
-            ok_s = collect_market_section("USDNOK SPOT", ["S"], TOL_SPOT)
-            if view == "ALL":
-                self.status_spot = (ok_n and ok_s) if market_data else True
-
-        if view in ("ALL", "FWDS"):
-            ok_o = collect_market_section("EURNOK FORWARDS", ["O"], TOL_FWDS)
-            ok_t = collect_market_section("USDNOK FORWARDS", ["T"], TOL_FWDS)
-            if view == "ALL":
-                self.status_fwds = (ok_o and ok_t) if market_data else True
-
-        if view in ("ALL", "DAYS"):
-            add_section("DAYS VALIDATION")
-            days_ok = True
-            for cell, desc, key in DAYS_MAPPING:
-                model_val = excel_data.get(coordinate_to_tuple(cell), None)
-                ref_val = (self.current_days_data or {}).get(key, None)
-                try:
-                    mi = int(model_val)
-                    ri = int(ref_val)
-                    diff = mi - ri
-                    ok = (diff == 0)
-                    days_ok = days_ok and ok
-                    add_row(cell, desc, str(mi), str(ri), str(diff), ok)
-                    if view == "ALL" and not ok:
-                        self.active_alerts.append({"source": cell, "msg": f"{desc} Mismatch", "val": str(mi), "exp": str(ri)})
-                except Exception:
-                    days_ok = False
-                    add_row(cell, desc, str(model_val), str(ref_val), "-", False)
-                    if view == "ALL":
-                        self.active_alerts.append({"source": cell, "msg": f"{desc} Parse error", "val": str(model_val), "exp": str(ref_val)})
-            if view == "ALL":
-                self.status_days = days_ok
-                self.group_health["DAYS"] = "OK" if days_ok else "CHECK"
-
-        if view in ("ALL", "CELLS"):
-            add_section("EXCEL CONSISTENCY CHECKS")
-            cells_ok = True
-            for rule in RULES_DB:
-                _, top_cell, ref_target, logic, msg = rule
-                val_top = self.excel_engine.get_recon_value(top_cell)
-                val_bot = "-"
-                ok = False
-
-                try:
-                    if logic == "Exakt Match":
-                        val_bot = self.excel_engine.get_recon_value(ref_target)
-                        try:
-                            ok = abs(float(val_top) - float(val_bot)) < 0.000001
-                        except Exception:
-                            ok = (str(val_top).strip() == str(val_bot).strip())
-
-                    elif logic == "Avrundat 2 dec":
-                        val_bot = self.excel_engine.get_recon_value(ref_target)
-                        ok = abs(round(float(val_top), 2) - round(float(val_bot), 2)) < 0.000001
-
-                    elif logic == "Minimum":
-                        val_bot = self.excel_engine.get_recon_value(ref_target)
-                        ok = float(val_top) >= float(val_bot)
-
-                    elif "-" in logic and logic[0].isdigit():
-                        a, b = logic.split("-")
-                        ok = float(a) <= float(val_top) <= float(b)
-                        val_bot = f"Range {logic}"
-
-                    elif "Exakt" in logic:
-                        target = float(logic.split()[1].replace(",", "."))
-                        ok = abs(float(val_top) - target) < 0.000001
-                        val_bot = f"== {target}"
-                except Exception:
-                    ok = False
-
-                cells_ok = cells_ok and ok
-
-                show = (view == "CELLS") or (view == "ALL" and not ok)
-                if show:
-                    add_row(top_cell, msg, str(val_top), str(val_bot), "-", ok)
-
-                if view == "ALL" and not ok:
-                    self.active_alerts.append({"source": top_cell, "msg": msg, "val": str(val_top), "exp": str(val_bot)})
-
-            if view == "ALL":
-                self.status_cells = cells_ok
-                self.group_health["CELLS"] = "OK" if cells_ok else "CHECK"
-
-        if view in ("ALL", "WEIGHTS"):
-            add_section("WEIGHTS — FILE VS MODEL (MONTHLY)")
-
-            today_d = datetime.now().date()
-            bday_idx = business_day_index_in_month(today_d)
-            cal_days = calendar_days_since_month_start(today_d)
-
-            model_date_raw = self.excel_engine.get_recon_value(WEIGHTS_MODEL_CELLS["DATE"])
-            model_date = to_date(model_date_raw)
-
-            model_usd = safe_float(self.excel_engine.get_recon_value(WEIGHTS_MODEL_CELLS["USD"]), None)
-            model_eur = safe_float(self.excel_engine.get_recon_value(WEIGHTS_MODEL_CELLS["EUR"]), None)
-            model_nok = safe_float(self.excel_engine.get_recon_value(WEIGHTS_MODEL_CELLS["NOK"]), None)
-
-            file_ok = bool(self.excel_engine.weights_ok)
-            if not file_ok:
-                self.status_weights = False
-                self.weights_state = "FAIL"
-                self.group_health["WEIGHTS"] = "FAIL | Weights.xlsx not readable"
-
-                add_row("WEIGHTS.xlsx", "Weights file not available", "-", "-", "-", False)
-                if view == "ALL":
-                    self.active_alerts.append({"source": "WEIGHTS.xlsx", "msg": "Weights file missing/unreadable", "val": "-", "exp": str(WEIGHTS_FILE)})
-
-            else:
-                p = self.excel_engine.weights_cells_parsed or {}
-                file_h3 = p.get("H3")
-                file_h4 = p.get("H4")
-                file_h5 = p.get("H5")
-                file_h6 = p.get("H6")
-
-                file_usd = p.get("USD")
-                file_eur = p.get("EUR")
-                file_nok = p.get("NOK")
-
-                dates_to_check = [("H3", file_h3), ("H4", file_h4), ("H5", file_h5), ("H6", file_h6)]
-                date_ok = True
-                for label, dval in dates_to_check:
-                    if label != "H3" and dval is None:
-                        continue
-                    ok = (model_date is not None and dval is not None and model_date == dval)
-                    date_ok = date_ok and ok
-                    add_row(
-                        f"{WEIGHTS_MODEL_CELLS['DATE']} ↔ {label}",
-                        f"Weights effective date ({label} in Weights.xlsx)",
-                        fmt_date(model_date),
-                        fmt_date(dval),
-                        "" if ok else "DIFF",
-                        ok
-                    )
-                    if view == "ALL" and not ok:
-                        self.active_alerts.append({"source": "WEIGHTS DATE", "msg": f"Date mismatch ({label})", "val": fmt_date(model_date), "exp": fmt_date(dval)})
-
-                w_ok = True
-
-                def w_cmp(name, model_val, file_val, model_cell, file_cell):
-                    nonlocal w_ok
-                    if model_val is None or file_val is None:
-                        ok = False
-                        diff = "-"
-                    else:
-                        diffv = float(model_val) - float(file_val)
-                        ok = abs(diffv) <= TOL_W
-                        diff = f"{diffv:+.6f}"
-                    w_ok = w_ok and ok
-                    add_row(
-                        f"{model_cell} ↔ {file_cell}",
-                        f"{name} weight",
-                        "-" if model_val is None else f"{float(model_val):.6f}",
-                        "-" if file_val is None else f"{float(file_val):.6f}",
-                        diff,
-                        ok
-                    )
-                    if view == "ALL" and not ok:
-                        self.active_alerts.append({"source": f"WEIGHTS {name}", "msg": f"{name} weight mismatch", "val": str(model_val), "exp": str(file_val)})
-                    return ok
-
-                w_cmp("USD", model_usd, file_usd, WEIGHTS_MODEL_CELLS["USD"], WEIGHTS_FILE_CELLS["USD"])
-                w_cmp("EUR", model_eur, file_eur, WEIGHTS_MODEL_CELLS["EUR"], WEIGHTS_FILE_CELLS["EUR"])
-                w_cmp("NOK", model_nok, file_nok, WEIGHTS_MODEL_CELLS["NOK"], WEIGHTS_FILE_CELLS["NOK"])
-
-                sum_file = None
-                if file_usd is not None and file_eur is not None and file_nok is not None:
-                    sum_file = float(file_usd) + float(file_eur) + float(file_nok)
-
-                weights_match_ok = bool(date_ok and w_ok)
-                self.status_weights = weights_match_ok
-
-                updated_this_month = False
-                if weights_match_ok and model_date is not None:
-                    updated_this_month = (model_date.year == today_d.year and model_date.month == today_d.month)
-
-                if not weights_match_ok:
-                    self.weights_state = "FAIL"
-                    self.group_health["WEIGHTS"] = "FAIL | Mismatch"
-                else:
-                    if updated_this_month:
-                        self.weights_state = "OK"
-                        sf = "-" if sum_file is None else f"{sum_file:.3f}"
-                        self.group_health["WEIGHTS"] = f"OK | Updated {fmt_date(model_date)} | Sum {sf}"
-                    else:
-                        if bday_idx >= 5:
-                            self.weights_state = "ALERT"
-                            self.group_health["WEIGHTS"] = f"ALERT | Not updated | BDay {bday_idx}/5 | {cal_days} days"
-                            if view == "ALL":
-                                self.active_alerts.append({
-                                    "source": "WEIGHTS",
-                                    "msg": f"ALERT: Weights not updated (BDay {bday_idx}/5)",
-                                    "val": fmt_date(model_date),
-                                    "exp": f"Update required in {today_d.strftime('%Y-%m')}"
-                                })
-                        else:
-                            self.weights_state = "PENDING"
-                            self.group_health["WEIGHTS"] = f"SOON | Update weights | BDay {bday_idx}/5 | {cal_days} days"
-
-        if view == "ALL" and SWET_CM_RECON_MAPPING:
-            add_section("SWET CM (MODEL VS MARKET)")
-            cm_ok = True
-            market_ready = bool(market_data)
-            for cell, desc, ticker in SWET_CM_RECON_MAPPING:
-                model_val = excel_data.get(coordinate_to_tuple(cell), None)
-                if not market_ready:
-                    add_row(cell, desc, str(model_val), "-", "-", True)
-                    continue
-                mi = safe_float(model_val, 0.0)
-                inf = market_data.get(ticker)
-                if not inf:
-                    cm_ok = False
-                    add_row(cell, desc, str(model_val), "-", "-", False)
-                    self.active_alerts.append({"source": cell, "msg": f"{desc} Missing ticker", "val": "-", "exp": ticker})
-                    continue
-                mv = float(inf.get("price", 0.0))
-                diff = mi - mv
-                ok = abs(diff) < 0.0005
-                cm_ok = cm_ok and ok
-                add_row(cell, desc, f"{mi:,.6f}", f"{mv:,.6f}", f"{diff:+.6f}", ok)
-            self.group_health["SWETCM"] = "OK" if cm_ok else "CHECK"
-
-        return rows_out
+        """Delegate to ValidationEngine (kept for page compatibility)."""
+        self.validator.reset_status()
+        return self.validator.build_recon_rows(
+            view=view,
+            excel_data=self.cached_excel_data,
+            market_data=self.cached_market_data,
+            current_days_data=self.current_days_data,
+            group_health=self.group_health,
+        )
 
 
 # ==============================================================================

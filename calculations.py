@@ -25,10 +25,7 @@ def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) ->
     if spot is None or pips is None or base_rate is None:
         return None
 
-    # Check if base_rate is in decimal form (< 1.0) and convert to percentage
-    if base_rate < 1.0 and base_rate > 0:
-        base_rate = base_rate * 100.0
-
+    # base_rate is expected in percentage form (e.g. 3.45 for 3.45%)
     fwd_price = spot + (pips / 10000.0)
     base_factor = 1.0 + (base_rate * days) / 36000.0
 

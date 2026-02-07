@@ -158,7 +158,7 @@ def _read_cells_xlwings(file_path: Path, required_cells: set[tuple[int, int]],
         return recon, cm_rates, sheet_name
 
     except Exception as e:
-        log.debug(f"[xlwings] Failed to read from Excel: {e}")
+        log.warning(f"[xlwings] Failed to read from Excel: {e}")
         return None
 
 
@@ -479,7 +479,8 @@ class ExcelEngine:
                 log.info(f"[ExcelEngine] File changed: {self._last_src.name}")
                 return True
             return False
-        except Exception:
+        except Exception as e:
+            log.warning(f"[ExcelEngine] Error in check_changed: {e}")
             return False
 
     def on_change(self, callback: callable):

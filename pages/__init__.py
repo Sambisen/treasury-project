@@ -10,7 +10,6 @@ from pages.bloomberg_page import BloombergPage
 from pages.nok_implied_page import NokImpliedPage
 from pages.nibor_days_page import NiborDaysPage
 from pages.weights_page import WeightsPage
-from pages.metadata_page import MetaDataPage
 from pages.audit_log_page import AuditLogPage
 from pages.roadmap_page import NiborRoadmapPage
 
@@ -25,7 +24,6 @@ __all__ = [
     'NokImpliedPage',
     'NiborDaysPage',
     'WeightsPage',
-    'MetaDataPage',
     'AuditLogPage',
     'NiborRoadmapPage',
 ]

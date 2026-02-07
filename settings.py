@@ -4,6 +4,7 @@ Handles loading, saving, and accessing user preferences.
 """
 import json
 import os
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -127,12 +128,25 @@ class Settings:
             log.error(f"Failed to load settings: {e}")
 
     def save(self):
-        """Save settings to file."""
+        """Save settings to file using atomic write (temp + rename)."""
         try:
             SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
 
-            with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(self._settings, f, indent=2, ensure_ascii=False)
+            fd, tmp_path = tempfile.mkstemp(
+                suffix=".tmp", prefix="settings_",
+                dir=str(SETTINGS_DIR),
+            )
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    json.dump(self._settings, f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, str(SETTINGS_FILE))
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+
             log.info("Settings saved")
         except Exception as e:
             log.error(f"Failed to save settings: {e}")

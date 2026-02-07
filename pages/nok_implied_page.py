@@ -124,7 +124,7 @@ class NokImpliedPage(tk.Frame):
         # COLLAPSIBLE SECTION 1: Bloomberg CM + Excel Days
         # ============================================================================
         self.section1 = CollapsibleSection(container, "DETALJER: BLOOMBERG CM + EXCEL DAGAR",
-                                           expanded=False, accent_color=THEME["good"])
+                                           expanded=False, accent_color=THEME["success"])
         self.section1.pack(fill="x", padx=pad, pady=(10, 5))
 
         sec1_content = self.section1.content
@@ -160,7 +160,7 @@ class NokImpliedPage(tk.Frame):
         # COLLAPSIBLE SECTION 2: Excel CM + Bloomberg Days
         # ============================================================================
         self.section2 = CollapsibleSection(container, "DETALJER: EXCEL CM + BLOOMBERG DAGAR",
-                                           expanded=False, accent_color=THEME["warn"])
+                                           expanded=False, accent_color=THEME["warning"])
         self.section2.pack(fill="x", padx=pad, pady=(5, pad))
 
         sec2_content = self.section2.content

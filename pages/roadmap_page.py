@@ -19,7 +19,7 @@ class NiborRoadmapPage(tk.Frame):
     DETAILS = {
         "bloomberg": {
             "title": "BLOOMBERG API",
-            "icon": "📡",
+            "icon": "\u25C6",
             "time": "10:30 CET",
             "content": """SOURCE: BFIX (Bloomberg FX Fixings)
 
@@ -49,7 +49,7 @@ DAYS TO MATURITY
         },
         "weights": {
             "title": "WEIGHTS",
-            "icon": "⚖️",
+            "icon": "\u25CE",
             "time": "Monthly (before 10th bank day)",
             "content": """SOURCE: Weights.xlsx
 
@@ -67,7 +67,7 @@ Contracts with maturities less than 30 days are excluded, as these are used for 
         },
         "estimated": {
             "title": "ESTIMATED MARKET RATES",
-            "icon": "📊",
+            "icon": "\u25C8",
             "time": "10:30 CET",
             "content": """SOURCE: Nibor Fixing Workbook (Excel)
 
@@ -85,61 +85,48 @@ Always uses ECP (Euro Commercial Paper) rate."""
     SUMMARIES = {
         "bloomberg": {
             "title": "BLOOMBERG API",
-            "icon": "📡",
+            "icon": "\u25C6",
             "time": "10:30 CET",
-            "lines": [
-                "BFIX rates via",
-                "TWAP of BGN",
-                "prices.",
-                "",
-                "BGN = real-time",
-                "composite FX",
-                "rates.",
-                "",
-                "SPOTS",
-                "USDNOK / EURNOK",
-                "",
-                "FORWARDS + DAYS",
-                "per tenor"
-            ]
+            "description": (
+                "BFIX rates via Time-Weighted Average Price (TWAP) "
+                "of BGN composite FX prices."
+            ),
+            "details": [
+                ("Spots", "USDNOK, EURNOK"),
+                ("Forwards", "1W / 1M / 2M / 3M / 6M per pair"),
+                ("Days", "Maturity days per tenor"),
+            ],
+            "source": "Bloomberg Terminal",
         },
         "weights": {
             "title": "WEIGHTS",
-            "icon": "⚖️",
-            "time": "Monthly",
-            "lines": [
-                "(before 10th",
-                "bank day)",
-                "",
-                "• NOK: 50%",
-                "• USD/EUR: from",
-                "  funding basket",
-                "",
-                "Excl. <30 day",
-                "contracts",
-                "",
-                "Source:",
-                "Weights.xlsx"
-            ]
+            "icon": "\u25CE",
+            "time": "Monthly (before 10th bank day)",
+            "description": (
+                "Funding mix weights updated monthly. "
+                "Contracts with maturities <30 days are excluded."
+            ),
+            "details": [
+                ("NOK", "50% (fixed)"),
+                ("USD", "From prior month funding basket"),
+                ("EUR", "From prior month funding basket"),
+            ],
+            "source": "Weights.xlsx",
         },
         "estimated": {
-            "title": "EST. MARKET",
-            "icon": "📊",
-            "time": "RATES 10:30 CET",
-            "lines": [
-                "",
-                "EUR/USD:",
-                "Swedbank quotes",
-                "+ expert",
-                "judgement",
-                "",
-                "NOK: ECP rate",
-                "",
-                "Source:",
-                "Nibor Fixing",
-                "Workbook"
-            ]
-        }
+            "title": "EST. MARKET RATES",
+            "icon": "\u25C8",
+            "time": "10:30 CET",
+            "description": (
+                "Swedbank committed price quotes on CDs/CPs "
+                "combined with expert judgement on funding costs."
+            ),
+            "details": [
+                ("EUR / USD", "Quotes + expert judgement"),
+                ("NOK", "ECP rate (always)"),
+            ],
+            "source": "Nibor Fixing Workbook",
+        },
     }
 
     def __init__(self, master, app):
@@ -178,9 +165,10 @@ Always uses ECP (Euro Commercial Paper) rate."""
         cards_frame = tk.Frame(content, bg=THEME["bg_panel"])
         cards_frame.pack(fill="x", pady=(0, 0))
 
-        # Equal width columns
+        # Equal width columns, equal height row
         for i in range(3):
             cards_frame.columnconfigure(i, weight=1, uniform="cards")
+        cards_frame.rowconfigure(0, weight=1)
 
         # Create the three cards
         self._create_card(cards_frame, 0, "bloomberg")
@@ -253,54 +241,84 @@ Always uses ECP (Euro Commercial Paper) rate."""
         outer = tk.Frame(parent, bg=THEME["border"], padx=2, pady=2)
         outer.grid(row=0, column=col, padx=10, sticky="nsew")
 
-        # Inner card - use place for vertical centering
+        # Inner card
         inner = tk.Frame(outer, bg=THEME["bg_card"], cursor="hand2")
         inner.pack(fill="both", expand=True)
 
-        # Content wrapper for vertical centering
-        inner.grid_rowconfigure(0, weight=1)
-        inner.grid_rowconfigure(2, weight=1)
-        inner.grid_columnconfigure(0, weight=1)
+        # Content - top-aligned, extra space flows to bottom
+        content = tk.Frame(inner, bg=THEME["bg_card"], padx=24, pady=20)
+        content.pack(fill="both", expand=True)
 
-        # Spacer top
-        tk.Frame(inner, bg=THEME["bg_card"]).grid(row=0, column=0, sticky="nsew")
-
-        # Content in middle - fills width, vertically centered
-        content = tk.Frame(inner, bg=THEME["bg_card"], padx=20, pady=14)
-        content.grid(row=1, column=0, sticky="ew")
-
-        # Header row: icon + title
+        # [1] HEADER: icon + title
         header = tk.Frame(content, bg=THEME["bg_card"])
-        header.pack(fill="x", pady=(0, 4))
+        header.pack(fill="x", pady=(0, 8))
 
         tk.Label(header, text=data["icon"], fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 20)).pack(side="left")
+                 font=("Segoe UI", 22)).pack(side="left")
 
         tk.Label(header, text=data["title"], fg=THEME["text"], bg=THEME["bg_card"],
-                 font=("Segoe UI Semibold", 13)).pack(side="left", padx=(8, 0))
+                 font=("Segoe UI Semibold", 14)).pack(side="left", padx=(10, 0))
 
-        # Time label
-        tk.Label(content, text=data["time"], fg=THEME["accent"], bg=THEME["bg_card"],
-                 font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(0, 10))
+        # [2] TIME BADGE (pill)
+        time_badge = tk.Frame(content, bg=THEME["bg_panel"], padx=10, pady=3)
+        time_badge.pack(anchor="w", pady=(0, 12))
 
-        # Separator line
-        tk.Frame(content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 10))
+        tk.Label(time_badge, text=data["time"], fg=THEME["accent"], bg=THEME["bg_panel"],
+                 font=("Segoe UI Semibold", 9)).pack()
 
-        # Summary lines - left-aligned, fills width
-        for line in data["lines"]:
-            if line == "":
-                tk.Frame(content, bg=THEME["bg_card"], height=6).pack(fill="x")
-            else:
-                tk.Label(content, text=line, fg=THEME["muted"], bg=THEME["bg_card"],
-                         font=("Segoe UI", 10), anchor="w").pack(fill="x")
+        # [3] SEPARATOR
+        tk.Frame(content, bg=THEME["border"], height=1).pack(fill="x", pady=(0, 12))
 
-        # Spacer bottom
-        tk.Frame(inner, bg=THEME["bg_card"]).grid(row=2, column=0, sticky="nsew")
+        # [4] DESCRIPTION (wrapping paragraph)
+        desc_label = tk.Label(
+            content, text=data["description"],
+            fg=THEME["text_muted"], bg=THEME["bg_card"],
+            font=("Segoe UI", 11), wraplength=1,
+            justify="left", anchor="nw",
+        )
+        desc_label.pack(fill="x", pady=(0, 14))
+
+        # Dynamic wraplength based on card width
+        def _update_wrap(event, lbl=desc_label):
+            new_width = event.width - 48
+            if new_width > 50:
+                lbl.configure(wraplength=new_width)
+        content.bind("<Configure>", _update_wrap)
+
+        # [5] DETAILS (bullet key-value list)
+        details_frame = tk.Frame(content, bg=THEME["bg_card"])
+        details_frame.pack(fill="x", pady=(0, 14))
+
+        for label_text, value_text in data["details"]:
+            row = tk.Frame(details_frame, bg=THEME["bg_card"])
+            row.pack(fill="x", pady=2)
+
+            tk.Label(row, text="\u2022", fg=THEME["accent"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
+
+            tk.Label(row, text=label_text, fg=THEME["text"], bg=THEME["bg_card"],
+                     font=("Segoe UI Semibold", 10), anchor="w").pack(side="left")
+
+            tk.Label(row, text=" \u2014 ", fg=THEME["muted2"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 10)).pack(side="left")
+
+            tk.Label(row, text=value_text, fg=THEME["muted"], bg=THEME["bg_card"],
+                     font=("Segoe UI", 10), anchor="w").pack(side="left")
+
+        # [6] SOURCE FOOTER
+        src_frame = tk.Frame(content, bg=THEME["bg_card"])
+        src_frame.pack(fill="x", anchor="w")
+
+        tk.Label(src_frame, text="\u25B8", fg=THEME["muted2"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 4))
+
+        tk.Label(src_frame, text=data["source"], fg=THEME["muted2"], bg=THEME["bg_card"],
+                 font=("Segoe UI", 9), anchor="w").pack(side="left")
 
         # Store references
         self._card_frames[key] = {"outer": outer, "inner": inner, "content": content}
 
-        # Bind events to all widgets recursively
+        # Bind hover/click to all widgets recursively
         def bind_all(w):
             w.bind("<Enter>", lambda e, k=key: self._on_card_enter(k))
             w.bind("<Leave>", lambda e, k=key: self._on_card_leave(k))

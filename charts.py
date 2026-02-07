@@ -1203,7 +1203,7 @@ class ComparisonView(tk.Toplevel):
             diff = val2 - val1
             if is_pct: diff_str = f"{diff*100:+.2f}%"
             else: diff_str = f"{diff:+.4f}"
-            diff_color = THEME["good"] if diff >= 0 else THEME["bad"]
+            diff_color = THEME["success"] if diff >= 0 else THEME["danger"]
         else:
             diff_str = "-"
             diff_color = THEME["muted"]

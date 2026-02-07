@@ -70,7 +70,7 @@ class NiborButtonTK(tk.Button):
             activebg = THEME["accent_hover"]
             activefg = THEME["bg_panel"]
         elif variant == "danger":
-            bg = THEME["bad"]
+            bg = THEME["danger"]
             fg = THEME["bg_panel"]
             activebg = "#EF4444"
             activefg = THEME["bg_panel"]
@@ -107,7 +107,7 @@ class NiborButtonCTK(ctk.CTkButton):
             hover_color = THEME["accent_hover"]
             text_color = THEME["bg_panel"]
         elif variant == "danger":
-            fg_color = THEME["bad"]
+            fg_color = THEME["danger"]
             hover_color = "#FF5252"
             text_color = THEME["bg_panel"]
         else:
@@ -215,7 +215,7 @@ class SourceCardTK(tk.Frame):
         self.lbl_status = tk.Label(
             right,
             text="OFFLINE",
-            fg=THEME["bad"],
+            fg=THEME["danger"],
             bg=THEME["bg_card"],
             font=("Segoe UI", CURRENT_MODE["body"], "bold"),
         )
@@ -232,9 +232,9 @@ class SourceCardTK(tk.Frame):
 
     def set_status(self, ok: bool, last_updated: datetime | None, detail_text: str | None = None):
         if ok:
-            self.lbl_status.configure(text="CONNECTED", fg=THEME["good"])
+            self.lbl_status.configure(text="CONNECTED", fg=THEME["success"])
         else:
-            self.lbl_status.configure(text="OFFLINE", fg=THEME["bad"])
+            self.lbl_status.configure(text="OFFLINE", fg=THEME["danger"])
         if detail_text:
             self.lbl_updated.configure(text=detail_text)
         else:
@@ -355,8 +355,8 @@ class DataTableTree(tk.Frame):
             self.tree.column(col, width=int(self.col_widths[i]), anchor="center", stretch=False)
 
         self.tree.tag_configure("section", background=THEME["bg_card_2"], foreground=THEME["accent"])
-        self.tree.tag_configure("bad", background="#FEE2E2", foreground=THEME["bad"])
-        self.tree.tag_configure("good", background="#DCFCE7", foreground=THEME["good"])
+        self.tree.tag_configure("bad", background="#FEE2E2", foreground=THEME["danger"])
+        self.tree.tag_configure("good", background="#DCFCE7", foreground=THEME["success"])
         self.tree.tag_configure("warn", background="#FEF3C7", foreground=THEME["warning"])
         self.tree.tag_configure("yellow", background="#FEF3C7", foreground=THEME["warning"])
         self.tree.tag_configure("normal_even", background=THEME["row_even"], foreground=THEME["text"])
@@ -457,8 +457,8 @@ class ConnectionStatusIndicator(tk.Frame):
         colors = {
             self.DISCONNECTED: {"dot": THEME["muted"], "text": "--", "bg": THEME["bg_card"]},
             self.CONNECTING: {"dot": THEME["warning"], "text": "...", "bg": THEME["bg_card_2"]},
-            self.CONNECTED: {"dot": THEME["good"], "text": "OK", "bg": "#DCFCE7"},
-            self.ERROR: {"dot": THEME["bad"], "text": "ERR", "bg": "#FEE2E2"},
+            self.CONNECTED: {"dot": THEME["success"], "text": "OK", "bg": "#DCFCE7"},
+            self.ERROR: {"dot": THEME["danger"], "text": "ERR", "bg": "#FEE2E2"},
             self.STALE: {"dot": THEME["warning"], "text": "OLD", "bg": "#FEF3C7"},
         }
         style = colors.get(status, colors[self.DISCONNECTED])
@@ -509,9 +509,9 @@ class ConnectionStatusIndicator(tk.Frame):
         header.pack(fill="x", padx=20, pady=(15, 10))
 
         status_colors = {
-            self.CONNECTED: THEME["good"],
+            self.CONNECTED: THEME["success"],
             self.CONNECTING: THEME["warning"],
-            self.ERROR: THEME["bad"],
+            self.ERROR: THEME["danger"],
             self.STALE: THEME["warning"],
             self.DISCONNECTED: THEME["muted"],
         }
@@ -825,13 +825,13 @@ class ConnectionStatusPanel(tk.Frame):
             ago = (datetime.now() - self._data_time).seconds
             if ago < 60:
                 ago_text = f"({ago}s ago)"
-                color = THEME["good"] if ago < 30 else THEME["muted"]
+                color = THEME["success"] if ago < 30 else THEME["muted"]
             elif ago < 300:
                 ago_text = f"({ago // 60}m ago)"
                 color = THEME["warning"]
             else:
                 ago_text = f"({ago // 60}m ago)"
-                color = THEME["bad"]
+                color = THEME["danger"]
 
             self._freshness_ago.config(text=ago_text, fg=color)
 

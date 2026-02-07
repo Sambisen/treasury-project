@@ -109,7 +109,7 @@ class BackupNiborPage(tk.Frame):
         tk.Label(row1, text="NOK 50% (fixed)", fg=THEME["text_muted"], bg=THEME["bg_card"],
                  font=("Segoe UI", 11)).pack(side="left")
 
-        self._weight_warning = tk.Label(row1, text="", fg=THEME["bad"], bg=THEME["bg_card"],
+        self._weight_warning = tk.Label(row1, text="", fg=THEME["danger"], bg=THEME["bg_card"],
                                         font=("Segoe UI", 11))
         self._weight_warning.pack(side="left", padx=(16, 0))
 
@@ -371,15 +371,15 @@ class BackupNiborPage(tk.Frame):
                     if nibor_rate is not None:
                         nibor_with_spread = nibor_rate + spread
                         self._result_labels[tenor].configure(text=f"{nibor_with_spread:.4f}%",
-                                                            fg=THEME["good"])
+                                                            fg=THEME["success"])
                     else:
-                        self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+                        self._result_labels[tenor].configure(text="Error", fg=THEME["danger"])
                 else:
-                    self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+                    self._result_labels[tenor].configure(text="Error", fg=THEME["danger"])
 
             except (ValueError, KeyError) as e:
                 log.error(f"Calculation error for {tenor}: {e}")
-                self._result_labels[tenor].configure(text="Error", fg=THEME["bad"])
+                self._result_labels[tenor].configure(text="Error", fg=THEME["danger"])
 
         self.app.toast.success("Calculation complete")
 

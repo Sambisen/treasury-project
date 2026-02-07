@@ -449,7 +449,7 @@ class Icons:
     CROSS: str = "\u2717"          # ✗ Cross
     WARNING_ICON: str = "\u26A0"   # ⚠ Warning
     INFO_ICON: str = "\u2139"      # ℹ Info
-    ERROR_ICON: str = "\u2716"     # ✖ Error
+    ERROR_ICON: str = "\u2715"     # ✕ Error
 
     # Actions
     EDIT: str = "\u270E"           # ✎ Edit

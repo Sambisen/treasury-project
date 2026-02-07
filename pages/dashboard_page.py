@@ -438,7 +438,7 @@ class DashboardPage(BaseFrame):
             self.funding_cells[tenor["key"]] = cells
 
         # ====================================================================
-        # VALIDATION CHECKS BAR - 6 check categories with ✔/✖ status
+        # VALIDATION CHECKS BAR - 6 check categories with ✓/✕ status
         # ====================================================================
         tk.Frame(card_content, bg=THEME["border"], height=1).pack(fill="x", pady=(20, 0))
 
@@ -469,11 +469,11 @@ class DashboardPage(BaseFrame):
             badge_frame = tk.Frame(checks_bar, bg=THEME["chip"], cursor="hand2")
             badge_frame.pack(side="left", padx=(0, 8))
 
-            # Status icon (✔ or ✖)
+            # Status icon (✓ or ✕) — slightly larger than label for emphasis
             status_icon = tk.Label(badge_frame, text="—",
                                    fg=THEME["text_muted"],
                                    bg=THEME["chip"],
-                                   font=("Segoe UI", 13))
+                                   font=("Segoe UI", 14))
             status_icon.pack(side="left", padx=(8, 4), pady=6)
 
             # Label
@@ -584,6 +584,12 @@ class DashboardPage(BaseFrame):
         """Handle Confirm rates button click."""
         from history import confirm_rates
 
+        # Guard against double-click while confirmation is in progress
+        if getattr(self, '_confirming', False):
+            log.debug("[Dashboard] Confirm already in progress, ignoring click")
+            return
+        self._confirming = True
+
         log.info("[Dashboard] Confirm rates button clicked")
 
         # Set loading state on action bar
@@ -598,6 +604,7 @@ class DashboardPage(BaseFrame):
 
                 # Update UI on main thread
                 def update_ui():
+                    self._confirming = False
                     if self.action_bar:
                         self.action_bar.set_loading(False)
                         if success:
@@ -620,6 +627,7 @@ class DashboardPage(BaseFrame):
 
             except Exception as e:
                 def show_error():
+                    self._confirming = False
                     if self.action_bar:
                         self.action_bar.set_loading(False)
                     else:
@@ -676,7 +684,7 @@ class DashboardPage(BaseFrame):
 
         # Mode indicator/button - cleaner design
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["success"]  # Orange for Dev, Green for Prod
 
         self._mode_btn = ctk.CTkButton(
             mode_frame,
@@ -704,7 +712,7 @@ class DashboardPage(BaseFrame):
 
         # Mode indicator/button - cleaner pill design
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["success"]  # Orange for Dev, Green for Prod
 
         self._mode_btn = tk.Label(
             mode_frame,
@@ -755,7 +763,7 @@ class DashboardPage(BaseFrame):
         dev_mode = settings.get("development_mode", False)
 
         mode_text = "Dev" if dev_mode else "Prod"
-        mode_color = THEME["warning"] if dev_mode else THEME["good"]  # Orange for Dev, Green for Prod
+        mode_color = THEME["warning"] if dev_mode else THEME["success"]  # Orange for Dev, Green for Prod
 
         if hasattr(self, '_mode_btn'):
             if CTK_AVAILABLE and isinstance(self._mode_btn, ctk.CTkButton):
@@ -839,12 +847,12 @@ class DashboardPage(BaseFrame):
 
         status = check.get("status")
         if status is True:
-            status_icon = "✔"
+            status_icon = "✓"
             status_text = "ALL CHECKS PASSED"
             status_color = THEME["success"]
             header_bg = "#0d2818"
         elif status is False:
-            status_icon = "✖"
+            status_icon = "✕"
             status_text = "VALIDATION FAILED"
             status_color = THEME["danger"]
             header_bg = "#2a1215"
@@ -1689,7 +1697,7 @@ class DashboardPage(BaseFrame):
             inner.pack(padx=20, pady=20)
 
             tk.Label(inner,
-                    text="✔  All spreads are within the allowed interval",
+                    text="✓  All spreads are within the allowed interval",
                     font=("Segoe UI", 12),
                     fg=THEME["success"], bg=THEME["bg_card"]).pack()
 
@@ -1821,7 +1829,7 @@ class DashboardPage(BaseFrame):
             inner.pack(padx=30, pady=25)
 
             tk.Label(inner,
-                    text="✔  All tenor days match the Nibor Days file",
+                    text="✓  All tenor days match the Nibor Days file",
                     font=("Segoe UI", 12),
                     fg=THEME["success"], bg=THEME["bg_card"]).pack()
 
@@ -1908,11 +1916,11 @@ class DashboardPage(BaseFrame):
 
         if status is True:
             # Green success - only icon and text colored
-            icon.config(text="✔", fg=THEME["success"])
+            icon.config(text="✓", fg=THEME["success"])
             label.config(fg=THEME["success"])
         elif status is False:
             # Red failure - only icon and text colored
-            icon.config(text="✖", fg=THEME["danger"])
+            icon.config(text="✕", fg=THEME["danger"])
             label.config(fg=THEME["danger"])
         else:
             # Pending
@@ -2003,8 +2011,8 @@ class DashboardPage(BaseFrame):
         header_frame = tk.Frame(popup, bg=THEME["bg_card"])
         header_frame.pack(fill="x", padx=0, pady=0)
 
-        status_color = THEME["good"] if data.get('all_matched') else THEME["bad"]
-        status_text = "✔ ALL MATCHED" if data.get('all_matched') else "✖ MISMATCH FOUND"
+        status_color = THEME["success"] if data.get('all_matched') else THEME["danger"]
+        status_text = "✓ ALL MATCHED" if data.get('all_matched') else "✕ MISMATCH FOUND"
 
         tk.Label(header_frame,
                 text=f"NIBOR Contribution Match - {data['tenor']}",
@@ -2050,8 +2058,8 @@ class DashboardPage(BaseFrame):
 
             # Status indicator
             match_status = criterion.get('matched', False)
-            status_icon = "✔" if match_status else "✖"
-            status_fg = THEME["good"] if match_status else THEME["bad"]
+            status_icon = "✓" if match_status else "✕"
+            status_fg = THEME["success"] if match_status else THEME["danger"]
 
             # Header row
             header_row = tk.Frame(card, bg=THEME["bg_card"])
@@ -2157,21 +2165,21 @@ class DashboardPage(BaseFrame):
         s = (state or "WAIT").upper()
 
         if s == "OK":
-            card._icon.configure(text="●", fg=THEME["good"])
-            card._status.configure(text="OK", fg=THEME["good"])
-            card.configure(highlightbackground=THEME["good"])
+            card._icon.configure(text="●", fg=THEME["success"])
+            card._status.configure(text="OK", fg=THEME["success"])
+            card.configure(highlightbackground=THEME["success"])
         elif s == "PENDING":
             card._icon.configure(text="●", fg=THEME["yellow"])
             card._status.configure(text="PENDING", fg=THEME["yellow"])
             card.configure(highlightbackground=THEME["yellow"])
         elif s == "ALERT":
-            card._icon.configure(text="●", fg=THEME["warn"])
-            card._status.configure(text="ALERT", fg=THEME["warn"])
-            card.configure(highlightbackground=THEME["warn"])
+            card._icon.configure(text="●", fg=THEME["warning"])
+            card._status.configure(text="ALERT", fg=THEME["warning"])
+            card.configure(highlightbackground=THEME["warning"])
         elif s == "FAIL":
-            card._icon.configure(text="●", fg=THEME["bad"])
-            card._status.configure(text="ERROR", fg=THEME["bad"])
-            card.configure(highlightbackground=THEME["bad"])
+            card._icon.configure(text="●", fg=THEME["danger"])
+            card._status.configure(text="ERROR", fg=THEME["danger"])
+            card.configure(highlightbackground=THEME["danger"])
         else:
             card._icon.configure(text="●", fg=THEME["muted2"])
             card._status.configure(text="WAITING...", fg=THEME["text"])
@@ -2312,12 +2320,12 @@ class DashboardPage(BaseFrame):
 
             # Pill badge colors
             if is_ok:
-                icon = "✔"
-                text_color = THEME["good"]  # Green
+                icon = "✓"
+                text_color = THEME["success"]  # Green
                 bg_color = "#DCFCE7"    # Light green bg
             else:
-                icon = "✖"
-                text_color = THEME["bad"]  # Red
+                icon = "✕"
+                text_color = THEME["danger"]  # Red
                 bg_color = "#FEE2E2"    # Light red bg
 
             # Create pill-shaped badge
@@ -2347,8 +2355,8 @@ class DashboardPage(BaseFrame):
         
         # Update summary
         total = len(statuses)
-        color = THEME["good"] if ok_count == total else (
-            THEME["warning"] if ok_count > total // 2 else THEME["bad"]
+        color = THEME["success"] if ok_count == total else (
+            THEME["warning"] if ok_count > total // 2 else THEME["danger"]
         )
         if CTK_AVAILABLE:
             self.status_summary_lbl.configure(
@@ -2365,20 +2373,20 @@ class DashboardPage(BaseFrame):
         """Update Excel and Bloomberg connection status in top-right cards."""
         # Excel
         if hasattr(self.app, 'excel_ok') and self.app.excel_ok:
-            self.excel_conn_lbl.config(text="CONNECTED", fg=THEME["good"])
+            self.excel_conn_lbl.config(text="CONNECTED", fg=THEME["success"])
             if hasattr(self.app, 'excel_last_update'):
                 self.excel_time_lbl.config(text=f"Last updated: {self.app.excel_last_update}")
         else:
-            self.excel_conn_lbl.config(text="DISCONNECTED", fg=THEME["bad"])
+            self.excel_conn_lbl.config(text="DISCONNECTED", fg=THEME["danger"])
             self.excel_time_lbl.config(text="Last updated: --")
         
         # Bloomberg
         if hasattr(self.app, 'bbg_ok') and self.app.bbg_ok:
-            self.bbg_conn_lbl.config(text="CONNECTED", fg=THEME["good"])
+            self.bbg_conn_lbl.config(text="CONNECTED", fg=THEME["success"])
             if hasattr(self.app, 'bbg_last_update'):
                 self.bbg_time_lbl.config(text=f"Last updated: {self.app.bbg_last_update}")
         else:
-            self.bbg_conn_lbl.config(text="DISCONNECTED", fg=THEME["bad"])
+            self.bbg_conn_lbl.config(text="DISCONNECTED", fg=THEME["danger"])
             self.bbg_time_lbl.config(text="Last updated: --")
     
     def _update_alerts_count(self):
@@ -2408,12 +2416,12 @@ class DashboardPage(BaseFrame):
         if alert_count > 0:
             self.alerts_count_lbl.config(
                 text=f"● ALERTS ({alert_count})",
-                fg=THEME["bad"]
+                fg=THEME["danger"]
             )
         else:
             self.alerts_count_lbl.config(
                 text="● ALL OK",
-                fg=THEME["good"]
+                fg=THEME["success"]
             )
     
     def _start_blink(self, widget):
@@ -2704,9 +2712,9 @@ class DashboardPage(BaseFrame):
                     matched_fg = THEME["success"]
                     if is_ctk_widget:
                         badge.configure(fg_color=chip_bg)
-                        lbl.configure(text="✔ Matched", text_color=matched_fg)
+                        lbl.configure(text="✓ Matched", text_color=matched_fg)
                     else:
-                        lbl.config(text="✔ Matched", fg=matched_fg, bg=chip_bg,
+                        lbl.config(text="✓ Matched", fg=matched_fg, bg=chip_bg,
                                   font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
                             badge.config(bg=chip_bg)
@@ -2716,9 +2724,9 @@ class DashboardPage(BaseFrame):
                     failed_fg = THEME["danger"]
                     if is_ctk_widget:
                         badge.configure(fg_color=chip_bg)
-                        lbl.configure(text="✖ Failed", text_color=failed_fg)
+                        lbl.configure(text="✕ Failed", text_color=failed_fg)
                     else:
-                        lbl.config(text="✖ Failed", fg=failed_fg, bg=chip_bg,
+                        lbl.config(text="✕ Failed", fg=failed_fg, bg=chip_bg,
                                   font=("Segoe UI", 12), padx=14, pady=5)
                         if badge:
                             badge.config(bg=chip_bg)
@@ -2945,8 +2953,8 @@ class DashboardPage(BaseFrame):
                                 "decimals": decimals
                             })
                             bloomberg_failed.append(f"{tenor_key.upper()} {label}: {gui_rounded} ≠ {excel_rounded}")
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as e:
+                        log.debug(f"Float parse failed for {label} in {tenor_key}: gui={gui_value}, excel={excel_value}: {e}")
 
                 # Store ALL checks for Excel Cells popup
                 self._excel_cells_details.append({

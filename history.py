@@ -7,6 +7,7 @@ import json
 import os
 import getpass
 import platform
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -64,7 +65,8 @@ def get_user_info():
         user = getpass.getuser()
         machine = platform.node()
         return user, machine
-    except Exception:
+    except Exception as e:
+        log.warning(f"Failed to get user info: {e}")
         return "unknown", "unknown"
 
 
@@ -90,19 +92,41 @@ def load_history() -> dict:
         return {}
 
 
-def save_history(history: dict):
-    """Save history to JSON file."""
+def save_history(history: dict) -> bool:
+    """Save history to JSON file using atomic write (temp + rename).
+
+    Returns:
+        True if save succeeded, False otherwise.
+    """
     ensure_history_dir()
     history_file = get_history_file_path()
 
     mode_str = "TEST" if DEVELOPMENT_MODE else "PROD"
 
     try:
-        with open(history_file, 'w', encoding='utf-8') as f:
-            json.dump(history, f, indent=2, ensure_ascii=False, default=str)
+        # Write to temp file first, then rename for crash safety
+        fd, tmp_path = tempfile.mkstemp(
+            suffix=".tmp", prefix="nibor_log_",
+            dir=str(history_file.parent),
+        )
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                json.dump(history, f, indent=2, ensure_ascii=False, default=str)
+            # Atomic rename (same filesystem guaranteed by mkstemp dir)
+            os.replace(tmp_path, str(history_file))
+        except Exception:
+            # Clean up temp file on failure
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+
         log.info(f"[{mode_str}] Saved {len(history)} snapshots to: {history_file}")
+        return True
     except Exception as e:
         log.error(f"[{mode_str}] Failed to save history: {e}")
+        return False
 
 
 def compute_overall_status(app) -> str:
@@ -185,11 +209,17 @@ def create_snapshot(app) -> dict:
     env = get_app_env()
     fixing_time = get_setting("fixing_time", "10:30")
 
+    # Check counters
+    checks_passed = getattr(app, 'checks_passed', 0)
+    checks_total = getattr(app, 'checks_total', 0)
+
     snapshot = {
         'timestamp': timestamp,
         'user': user,
         'machine': machine,
         'model': model,
+        'checks_passed': checks_passed,
+        'checks_total': checks_total,
         'rates': rates,
         'weights': weights,
         'market_data': market_data,
@@ -817,7 +847,8 @@ def confirm_rates(app) -> tuple[bool, str]:
             history[date_key]['confirmed_by'] = user
             history[date_key]['confirmed_at'] = datetime.now().isoformat()
             history[date_key]['env'] = env
-            save_history(history)
+            if not save_history(history):
+                return False, "Failed to save confirmation to history file"
             log.info(f"[{mode_str}] Snapshot {date_key} marked as confirmed by {user}")
 
         # ALWAYS write confirmation stamp to Excel (idiot-proof)

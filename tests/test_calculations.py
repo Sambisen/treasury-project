@@ -27,13 +27,14 @@ class TestCalcImpliedYield:
     def test_none_base_rate_returns_none(self):
         assert calc_implied_yield(10.0, 100.0, None, 30) is None
 
-    def test_decimal_base_rate_converted(self):
-        """base_rate < 1.0 should be auto-converted to percentage form."""
+    def test_base_rate_must_be_percentage_form(self):
+        """base_rate must be in percentage form (e.g. 3.65, not 0.0365)."""
         result_decimal = calc_implied_yield(10.0, 100.0, 0.0365, 30)
         result_percent = calc_implied_yield(10.0, 100.0, 3.65, 30)
         assert result_decimal is not None
         assert result_percent is not None
-        assert abs(result_decimal - result_percent) < 0.01
+        # These should NOT be equal — no auto-conversion
+        assert abs(result_decimal - result_percent) > 1.0
 
     def test_zero_pips_returns_base_rate_equivalent(self):
         """With zero pips, implied yield should be close to base_rate."""
