@@ -32,6 +32,14 @@ try:
 except ImportError:
     blpapi = None
 
+# xlwings optional (Windows only — reads from running Excel instance)
+try:
+    import xlwings as xw
+    _HAS_XLWINGS = True
+except ImportError:
+    xw = None
+    _HAS_XLWINGS = False
+
 
 def build_required_cell_set() -> set[tuple[int, int]]:
     """Build set of all required cells for Excel reading."""
@@ -96,6 +104,62 @@ def _open_workbook(file_path: Path, retries: int = 3, delay: float = 0.5, **kwar
     log.warning(f"[_open_workbook] File locked after {retries} retries, using cache copy")
     temp_path = copy_to_cache_fast(file_path)
     return load_workbook(temp_path, **defaults), True
+
+
+def _read_cells_xlwings(file_path: Path, required_cells: set[tuple[int, int]],
+                        cm_mapping: dict[str, str]) -> tuple[dict, dict, str] | None:
+    """Try to read cells directly from a running Excel instance via xlwings.
+
+    Returns (recon_data, cm_rates, sheet_name) on success, or None if
+    xlwings is unavailable or the workbook isn't open in Excel.
+    """
+    if not _HAS_XLWINGS:
+        return None
+
+    try:
+        filename = file_path.name
+        wb = None
+
+        for app in xw.apps:
+            for book in app.books:
+                if book.name == filename:
+                    wb = book
+                    break
+            if wb:
+                break
+
+        if wb is None:
+            log.debug(f"[xlwings] Workbook {filename} not open in Excel")
+            return None
+
+        # Choose the correct sheet (prefer latest date-formatted sheet)
+        import re
+        date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+        date_sheets = [s.name for s in wb.sheets if date_pattern.match(s.name)]
+        if date_sheets:
+            sheet_name = sorted(date_sheets)[-1]
+        else:
+            sheet_name = wb.sheets[-1].name
+
+        ws = wb.sheets[sheet_name]
+
+        # Read required cells (row, col are 1-indexed — xlwings uses the same)
+        recon = {}
+        for (r, c) in required_cells:
+            recon[(r, c)] = ws.range((r, c)).value
+
+        # Read CM rates
+        cm_rates = {}
+        for key, cell_ref in cm_mapping.items():
+            val = ws.range(cell_ref).value
+            cm_rates[key] = safe_float(val, None)
+
+        log.info(f"[xlwings] Read {len(recon)} cells + {len(cm_rates)} CM rates from live Excel ({sheet_name})")
+        return recon, cm_rates, sheet_name
+
+    except Exception as e:
+        log.debug(f"[xlwings] Failed to read from Excel: {e}")
+        return None
 
 
 def _parse_date_cell(cell_value) -> datetime | None:
@@ -332,36 +396,44 @@ class ExcelEngine:
             except Exception:
                 pass
 
-            wb, used_cache = _open_workbook(file_path)
+            # Strategy 1: Try reading directly from running Excel via xlwings
+            #   - Always fresh (reads from Excel's memory, not disk)
+            #   - Works even if file is locked
+            #   - Only available on Windows with Excel open
+            xlw_result = _read_cells_xlwings(file_path, REQUIRED_CELLS, EXCEL_CM_RATES_MAPPING)
 
-            # Choose the correct sheet:
-            # - In TEST workbooks, the latest sheet is often the latest YYYY-MM-DD.
-            # - In PROD workbooks, the last worksheet can be an auxiliary sheet
-            #   (e.g. "Sheet2") where the CM cells (M30/R30 etc) may be empty.
-            #
-            # Therefore, prefer the latest date-formatted sheet if present.
-            import re
-            date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-            date_sheets = [name for name in wb.sheetnames if date_pattern.match(str(name))]
-            if date_sheets:
-                sheet_name = sorted(date_sheets)[-1]
+            if xlw_result is not None:
+                recon, cm_rates, sheet_name = xlw_result
+                used_cache = False
+                read_source = "xlwings"
+                log.info(f"[ExcelEngine.load_recon_direct] Read via xlwings (live Excel, sheet: {sheet_name})")
             else:
-                sheet_name = wb.sheetnames[-1]
-            ws = wb[sheet_name]
+                # Strategy 2: Read from disk via openpyxl (with retry + cache fallback)
+                wb, used_cache = _open_workbook(file_path)
 
-            recon = {}
-            for (r, c) in REQUIRED_CELLS:
-                recon[(r, c)] = ws.cell(row=r, column=c).value
+                # Choose the correct sheet:
+                # Prefer the latest date-formatted sheet if present.
+                import re
+                date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+                date_sheets = [name for name in wb.sheetnames if date_pattern.match(str(name))]
+                if date_sheets:
+                    sheet_name = sorted(date_sheets)[-1]
+                else:
+                    sheet_name = wb.sheetnames[-1]
+                ws = wb[sheet_name]
 
-            # Read Excel CM rates (EUR and USD)
-            log.info(f"[ExcelEngine.load_recon_direct] Reading Excel CM rates from sheet: {sheet_name}")
-            cm_rates = {}
-            for key, cell_ref in EXCEL_CM_RATES_MAPPING.items():
-                val = ws[cell_ref].value
-                cm_rates[key] = safe_float(val, None)
-                log.info(f"[ExcelEngine.load_recon_direct]   {key} ({cell_ref}): raw={val}, parsed={cm_rates[key]}")
+                recon = {}
+                for (r, c) in REQUIRED_CELLS:
+                    recon[(r, c)] = ws.cell(row=r, column=c).value
 
-            wb.close()
+                cm_rates = {}
+                for key, cell_ref in EXCEL_CM_RATES_MAPPING.items():
+                    val = ws[cell_ref].value
+                    cm_rates[key] = safe_float(val, None)
+
+                wb.close()
+                read_source = "cache copy" if used_cache else "openpyxl"
+                log.info(f"[ExcelEngine.load_recon_direct] Read via {read_source} (sheet: {sheet_name})")
 
             self.recon_data = recon
             self.excel_cm_rates = cm_rates
