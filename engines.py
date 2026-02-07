@@ -66,23 +66,36 @@ def build_required_cell_set() -> set[tuple[int, int]]:
 REQUIRED_CELLS = build_required_cell_set()
 
 
-def _open_workbook(file_path: Path, **kwargs):
-    """Open an Excel workbook, falling back to cache copy if file is locked.
+def _open_workbook(file_path: Path, retries: int = 3, delay: float = 0.5, **kwargs):
+    """Open an Excel workbook with retry logic for locked files.
+
+    Retries reading the file directly before falling back to a cache copy.
 
     Args:
         file_path: Path to the Excel file
+        retries: Number of retry attempts when file is locked
+        delay: Seconds to wait between retries
         **kwargs: Additional arguments for load_workbook (e.g. data_only, read_only)
 
     Returns:
-        Opened workbook object
+        Tuple of (workbook, used_cache: bool)
     """
     defaults = {"data_only": True, "read_only": True}
     defaults.update(kwargs)
-    try:
-        return load_workbook(file_path, **defaults)
-    except (PermissionError, OSError):
-        temp_path = copy_to_cache_fast(file_path)
-        return load_workbook(temp_path, **defaults)
+
+    # Try direct read with retries
+    for attempt in range(retries):
+        try:
+            return load_workbook(file_path, **defaults), False
+        except (PermissionError, OSError):
+            if attempt < retries - 1:
+                log.debug(f"[_open_workbook] File locked, retry {attempt + 1}/{retries} in {delay}s...")
+                time.sleep(delay)
+
+    # All retries exhausted — fall back to cache copy
+    log.warning(f"[_open_workbook] File locked after {retries} retries, using cache copy")
+    temp_path = copy_to_cache_fast(file_path)
+    return load_workbook(temp_path, **defaults), True
 
 
 def _parse_date_cell(cell_value) -> datetime | None:
@@ -121,6 +134,7 @@ class ExcelEngine:
         self._last_mtime: float | None = None
         self._last_size: int | None = None
         self._last_hash: str | None = None
+        self.used_cache_fallback: bool = False
 
         # File watcher for automatic change detection
         # Uses quiet period to handle Excel auto-save (waits for file to be stable)
@@ -267,7 +281,7 @@ class ExcelEngine:
                 self.weights_cells_parsed = {}
                 return False
 
-            wb = _open_workbook(WEIGHTS_FILE)
+            wb, _ = _open_workbook(WEIGHTS_FILE)
             ws = wb[wb.sheetnames[0]]
 
             raw = {}
@@ -318,7 +332,7 @@ class ExcelEngine:
             except Exception:
                 pass
 
-            wb = _open_workbook(file_path)
+            wb, used_cache = _open_workbook(file_path)
 
             # Choose the correct sheet:
             # - In TEST workbooks, the latest sheet is often the latest YYYY-MM-DD.
@@ -351,12 +365,25 @@ class ExcelEngine:
 
             self.recon_data = recon
             self.excel_cm_rates = cm_rates
+            self.used_cache_fallback = used_cache
             log.info(f"[ExcelEngine.load_recon_direct] [OK] Excel CM rates loaded: {self.excel_cm_rates}")
+            if used_cache:
+                log.warning("[ExcelEngine.load_recon_direct] Data read from CACHE COPY — file was locked")
             self.last_loaded_ts = datetime.now()
+
+            # Reset file watcher baseline so the next real change is detected
+            if self._last_src and self._file_watcher:
+                try:
+                    self._file_watcher.force_rehash(self._last_src)
+                except Exception:
+                    pass
 
             self.load_weights_file()
 
-            return True, f"{self.current_year_loaded} / {self.current_filename}"
+            source_info = f"{self.current_year_loaded} / {self.current_filename}"
+            if used_cache:
+                source_info += " [CACHE — file was locked, data may be stale]"
+            return True, source_info
         except Exception as e:
             return False, str(e)
 
@@ -518,7 +545,7 @@ class ExcelEngine:
             return None
 
         try:
-            wb = _open_workbook(nibor_file)
+            wb, _ = _open_workbook(nibor_file)
 
             # Find latest sheet (YYYY-MM-DD format)
             date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -580,7 +607,7 @@ class ExcelEngine:
             return None
 
         try:
-            wb = _open_workbook(nibor_file)
+            wb, _ = _open_workbook(nibor_file)
 
             # Find date-formatted sheets (YYYY-MM-DD format)
             date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -634,7 +661,7 @@ class ExcelEngine:
             return None
         
         try:
-            wb = _open_workbook(weights_path)
+            wb, _ = _open_workbook(weights_path)
             ws = wb.active
 
             log.info(f"[ExcelEngine] Sheet: {ws.title}")
@@ -705,7 +732,7 @@ class ExcelEngine:
             return []
         
         try:
-            wb = _open_workbook(weights_path)
+            wb, _ = _open_workbook(weights_path)
             ws = wb.active
 
             log.info(f"[ExcelEngine] Sheet: {ws.title}")

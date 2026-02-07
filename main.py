@@ -1882,10 +1882,21 @@ class NiborTerminalCTK(ctk.CTk):
             # Log sample cells to verify data
             sample_cells = list(self.cached_excel_data.items())[:5]
             log.debug(f"Sample cached cells: {sample_cells}")
-            
+
             self.excel_last_ok_ts = datetime.now()
             self.excel_ok = True
             self.excel_last_update = fmt_ts(self.excel_last_ok_ts)
+
+            # Warn user if data was read from a cache copy (file was locked)
+            if self.excel_engine.used_cache_fallback:
+                try:
+                    self.toast.warning(
+                        "Excel file was locked — data read from cache copy.\n"
+                        "Save & close Excel, then press F5 to get fresh data.",
+                        duration=10000
+                    )
+                except Exception:
+                    pass
         else:
             self.cached_excel_data = {}
             self.excel_ok = False

@@ -2,8 +2,9 @@
 import pytest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch, MagicMock, call
 
-from engines import _parse_date_cell, _parse_weights_row
+from engines import _parse_date_cell, _parse_weights_row, _open_workbook
 
 
 class TestParseDateCell:
@@ -58,3 +59,50 @@ class TestParseWeightsRow:
         result = _parse_weights_row(0.4, 0.35, 0.25)
         total = result["USD"] + result["EUR"] + result["NOK"]
         assert abs(total - 1.0) < 1e-10
+
+
+class TestOpenWorkbook:
+    """Test the workbook opening helper with retry and cache fallback."""
+
+    @patch("engines.load_workbook")
+    def test_direct_read_returns_no_cache_flag(self, mock_load):
+        mock_wb = MagicMock()
+        mock_load.return_value = mock_wb
+        wb, used_cache = _open_workbook(Path("test.xlsx"))
+        assert wb is mock_wb
+        assert used_cache is False
+
+    @patch("engines.time.sleep")
+    @patch("engines.load_workbook")
+    def test_retry_succeeds_on_second_attempt(self, mock_load, mock_sleep):
+        mock_wb = MagicMock()
+        mock_load.side_effect = [PermissionError("locked"), mock_wb]
+        wb, used_cache = _open_workbook(Path("test.xlsx"), retries=3, delay=0.1)
+        assert wb is mock_wb
+        assert used_cache is False
+        mock_sleep.assert_called_once_with(0.1)
+
+    @patch("engines.copy_to_cache_fast")
+    @patch("engines.time.sleep")
+    @patch("engines.load_workbook")
+    def test_falls_back_to_cache_after_all_retries(self, mock_load, mock_sleep, mock_copy):
+        mock_wb = MagicMock()
+        mock_load.side_effect = [
+            PermissionError("locked"),
+            PermissionError("locked"),
+            PermissionError("locked"),
+            mock_wb,  # cache copy succeeds
+        ]
+        mock_copy.return_value = Path("cache.xlsx")
+        wb, used_cache = _open_workbook(Path("test.xlsx"), retries=3, delay=0.1)
+        assert wb is mock_wb
+        assert used_cache is True
+        assert mock_sleep.call_count == 2  # retries 0→1, 1→2 (not before cache)
+        mock_copy.assert_called_once()
+
+    @patch("engines.time.sleep")
+    @patch("engines.load_workbook")
+    def test_no_sleep_on_first_attempt(self, mock_load, mock_sleep):
+        mock_load.return_value = MagicMock()
+        _open_workbook(Path("test.xlsx"))
+        mock_sleep.assert_not_called()
