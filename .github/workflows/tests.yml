@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pytest
-          pip install openpyxl pandas watchdog
+          pip install openpyxl pandas watchdog pillow matplotlib
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
