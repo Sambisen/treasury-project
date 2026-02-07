@@ -773,13 +773,32 @@ class NiborTerminalCTK(ctk.CTk):
             self.iconify()
 
     def _quit_app(self):
-        """Quit the application."""
-        log.info("Application shutting down")
+        """Quit the application with proper cleanup."""
+        log.info("Application shutting down...")
+
+        # Cancel pending timer callbacks
+        if self._gate_timer_id is not None:
+            try:
+                self.after_cancel(self._gate_timer_id)
+            except (ValueError, tk.TclError):
+                pass
+            self._gate_timer_id = None
+
+        # Stop system tray
         if self._tray:
-            self._tray.stop()
+            try:
+                self._tray.stop()
+            except Exception as e:
+                log.warning(f"Error stopping system tray: {e}")
+
         # Stop file watcher
         if hasattr(self, 'excel_engine') and self.excel_engine:
-            self.excel_engine.stop_watching()
+            try:
+                self.excel_engine.stop_watching()
+            except Exception as e:
+                log.warning(f"Error stopping file watcher: {e}")
+
+        log.info("Application shutdown complete")
         self.destroy()
 
     def _on_excel_file_changed(self, file_path):
@@ -906,13 +925,13 @@ class NiborTerminalCTK(ctk.CTk):
             widget.bind("<Button-1>", lambda e: self._toggle_environment())
             try:
                 widget.configure(cursor="hand2")
-            except:
+            except tk.TclError:
                 pass
             for child in widget.winfo_children():
                 child.bind("<Button-1>", lambda e: self._toggle_environment())
                 try:
                     child.configure(cursor="hand2")
-                except:
+                except tk.TclError:
                     pass
 
         # Fixing Time Toggle - Premium Segmented Control (compact)
@@ -1388,8 +1407,6 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _build_status_bar(self):
         """Build the status bar at the bottom of the window."""
-        from config import APP_VERSION
-
         status_bar = ctk.CTkFrame(self, fg_color=THEME["bg_main"], height=36, corner_radius=0)
         status_bar.pack(side="bottom", fill="x")
         status_bar.pack_propagate(False)
@@ -1492,7 +1509,6 @@ class NiborTerminalCTK(ctk.CTk):
 
     def _show_about_dialog(self):
         """Show the About dialog with modern CTk styling."""
-        from config import APP_VERSION
         import getpass
         import platform
 

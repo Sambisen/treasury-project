@@ -4,6 +4,7 @@ Handles loading, saving, and accessing user preferences.
 """
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 from datetime import datetime
@@ -94,14 +95,17 @@ class Settings:
     """
 
     _instance = None
+    _init_lock = threading.Lock()
     _settings: Dict[str, Any] = {}
     _callbacks: Dict[str, list] = {}  # For change notifications
 
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load()
-        return cls._instance
+        with cls._init_lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                cls._instance._lock = threading.Lock()
+                cls._instance._load()
+            return cls._instance
 
     def _load(self):
         """Load settings from file."""
@@ -135,14 +139,16 @@ class Settings:
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a setting value."""
-        return self._settings.get(key, default)
+        with self._lock:
+            return self._settings.get(key, default)
 
     def set(self, key: str, value: Any, save: bool = False):
         """Set a setting value."""
-        old_value = self._settings.get(key)
-        self._settings[key] = value
+        with self._lock:
+            old_value = self._settings.get(key)
+            self._settings[key] = value
 
-        # Notify callbacks
+        # Notify callbacks outside lock to avoid deadlocks
         if key in self._callbacks and old_value != value:
             for callback in self._callbacks[key]:
                 try:
@@ -155,7 +161,8 @@ class Settings:
 
     def get_all(self) -> Dict[str, Any]:
         """Get all settings."""
-        return self._settings.copy()
+        with self._lock:
+            return self._settings.copy()
 
     def reset_to_defaults(self):
         """Reset all settings to defaults."""

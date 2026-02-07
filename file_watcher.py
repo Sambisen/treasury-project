@@ -217,19 +217,20 @@ class FileWatcher:
             # Check if content actually changed (quick hash check)
             old_hash = self._tracked_files[file_path].get("hash")
 
-            # Small delay to let file writes complete
-            time.sleep(0.1)
+        # Small delay to let file writes complete — outside lock to avoid blocking
+        time.sleep(0.1)
 
-            new_hash = compute_file_hash(file_path)
+        new_hash = compute_file_hash(file_path)
 
-            if new_hash is None:
-                log.debug(f"[FileWatcher] Could not hash {file_path.name} - file may be locked")
-                return
+        if new_hash is None:
+            log.debug(f"[FileWatcher] Could not hash {file_path.name} - file may be locked")
+            return
 
-            if new_hash != old_hash:
+        if new_hash != old_hash:
+            with self._lock:
                 # Content changed - mark as pending
                 self._pending_notifications[file_path] = new_hash
-                log.debug(f"[FileWatcher] Change detected in {file_path.name}, waiting for quiet period...")
+            log.debug(f"[FileWatcher] Change detected in {file_path.name}, waiting for quiet period...")
 
     def _check_quiet_periods(self):
         """

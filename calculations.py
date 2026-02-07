@@ -2,6 +2,9 @@
 Calculation functions for Onyx Terminal.
 Separates mathematical logic from GUI code for portability.
 """
+from config import get_logger
+
+log = get_logger("calculations")
 
 
 def calc_implied_yield(spot: float, pips: float, base_rate: float, days: int) -> float | None:
@@ -53,25 +56,24 @@ def calc_funding_rate(eur_implied: float, usd_implied: float, nok_cm: float,
     Returns:
         Weighted funding rate as percentage, or None if calculation fails
     """
-    print(f"\n[calc_funding_rate] CALCULATION:")
-    print(f"  eur={eur_implied}, usd={usd_implied}, nok={nok_cm}")
-    
+    log.debug(f"calc_funding_rate: eur={eur_implied}, usd={usd_implied}, nok={nok_cm}")
+
     if None in [eur_implied, usd_implied, nok_cm]:
-        print(f"[calc_funding_rate] ERROR: None value")
+        log.warning("calc_funding_rate: received None value")
         return None
-    
+
     if not all(k in weights for k in ['EUR', 'USD', 'NOK']):
-        print(f"[calc_funding_rate] ERROR: Missing weights")
+        log.warning("calc_funding_rate: missing weight keys")
         return None
-    
+
     try:
         funding_rate = (
             eur_implied * weights['EUR'] +
             usd_implied * weights['USD'] +
             nok_cm * weights['NOK']
         )
-        print(f"  Result: {funding_rate:.4f}%")
+        log.debug(f"calc_funding_rate result: {funding_rate:.4f}%")
         return funding_rate
-    except Exception as e:
-        print(f"[calc_funding_rate] ERROR: {e}")
+    except (TypeError, ValueError) as e:
+        log.error(f"calc_funding_rate error: {e}")
         return None

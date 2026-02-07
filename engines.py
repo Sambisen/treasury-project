@@ -16,7 +16,9 @@ from config import (
     BASE_HISTORY_PATH, DAY_FILES, RECON_FILE, WEIGHTS_FILE,
     RECON_MAPPING, DAYS_MAPPING, RULES_DB, SWET_CM_RECON_MAPPING,
     WEIGHTS_FILE_CELLS, WEIGHTS_MODEL_CELLS, USE_MOCK_DATA,
-    EXCEL_CM_RATES_MAPPING, RECON_CELL_MAPPING, get_logger
+    EXCEL_CM_RATES_MAPPING, RECON_CELL_MAPPING, get_logger,
+    INTERNAL_BASKET_MAPPING, WEIGHTS_COLS, NIBOR_FIXING_TICKERS,
+    DATA_DIR,
 )
 from nibor_file_manager import get_nibor_file_path, NiborFileManager
 from file_watcher import FileWatcher, compute_file_hash
@@ -62,6 +64,43 @@ def build_required_cell_set() -> set[tuple[int, int]]:
 
 
 REQUIRED_CELLS = build_required_cell_set()
+
+
+def _open_workbook(file_path: Path, **kwargs):
+    """Open an Excel workbook, falling back to cache copy if file is locked.
+
+    Args:
+        file_path: Path to the Excel file
+        **kwargs: Additional arguments for load_workbook (e.g. data_only, read_only)
+
+    Returns:
+        Opened workbook object
+    """
+    defaults = {"data_only": True, "read_only": True}
+    defaults.update(kwargs)
+    try:
+        return load_workbook(file_path, **defaults)
+    except (PermissionError, OSError):
+        temp_path = copy_to_cache_fast(file_path)
+        return load_workbook(temp_path, **defaults)
+
+
+def _parse_date_cell(cell_value) -> datetime | None:
+    """Parse a cell value as a datetime. Returns None on failure."""
+    if isinstance(cell_value, datetime):
+        return cell_value
+    try:
+        return datetime.strptime(str(cell_value), "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_weights_row(usd_val, eur_val, nok_val) -> dict[str, float]:
+    """Parse weight values from a row, with sensible defaults."""
+    usd = float(usd_val) if usd_val is not None else 0.0
+    eur = float(eur_val) if eur_val is not None else 0.0
+    nok = float(nok_val) if nok_val is not None else (1.0 - usd - eur)
+    return {"USD": usd, "EUR": eur, "NOK": nok}
 
 
 class ExcelEngine:
@@ -177,7 +216,7 @@ class ExcelEngine:
             self._day_data_err = err_msg
             self._day_data_ready = True
 
-    def resolve_latest_path(self):
+    def resolve_latest_path(self) -> tuple[Path | None, str]:
         """
         Resolve the latest NIBOR fixing workbook path.
 
@@ -228,13 +267,7 @@ class ExcelEngine:
                 self.weights_cells_parsed = {}
                 return False
 
-            wb = None
-            try:
-                wb = load_workbook(WEIGHTS_FILE, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(WEIGHTS_FILE)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-
+            wb = _open_workbook(WEIGHTS_FILE)
             ws = wb[wb.sheetnames[0]]
 
             raw = {}
@@ -267,7 +300,7 @@ class ExcelEngine:
             self.weights_cells_parsed = {}
             return False
 
-    def load_recon_direct(self):
+    def load_recon_direct(self) -> tuple[bool, str]:
         try:
             file_path, msg = self.resolve_latest_path()
             if not file_path:
@@ -285,12 +318,7 @@ class ExcelEngine:
             except Exception:
                 pass
 
-            wb = None
-            try:
-                wb = load_workbook(file_path, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(file_path)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
+            wb = _open_workbook(file_path)
 
             # Choose the correct sheet:
             # - In TEST workbooks, the latest sheet is often the latest YYYY-MM-DD.
@@ -305,7 +333,6 @@ class ExcelEngine:
                 sheet_name = sorted(date_sheets)[-1]
             else:
                 sheet_name = wb.sheetnames[-1]
-
             ws = wb[sheet_name]
 
             recon = {}
@@ -464,14 +491,14 @@ class ExcelEngine:
         log.info(f"[ExcelEngine.get_future_days_data] [OK] Returning {len(future_df)} rows")
         return future_df
 
-    def get_recon_value(self, cell_ref):
+    def get_recon_value(self, cell_ref: str) -> object | None:
         try:
             row, col = coordinate_to_tuple(cell_ref)
             return self.recon_data.get((row, col), None)
         except Exception:
             return None
 
-    def get_internal_basket_rates(self):
+    def get_internal_basket_rates(self) -> dict[str, float | None] | None:
         """
         Get Internal Basket Rates from latest sheet in Nibor workbook.
         
@@ -479,7 +506,7 @@ class ExcelEngine:
             dict: Rates mapped by tenor key (e.g., 'EUR_1M': 1.94)
             None: If file not found or error
         """
-        from config import INTERNAL_BASKET_MAPPING
+
         import re
 
         # Use dynamic file lookup
@@ -491,42 +518,37 @@ class ExcelEngine:
             return None
 
         try:
-            wb = None
-            try:
-                wb = load_workbook(nibor_file, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(nibor_file)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-            
+            wb = _open_workbook(nibor_file)
+
             # Find latest sheet (YYYY-MM-DD format)
             date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
             date_sheets = [s.title for s in wb.worksheets if date_pattern.match(s.title)]
-            
+
             if not date_sheets:
-                log.info(f"[ExcelEngine] ERROR: No date-formatted sheets found in workbook")
+                log.error("[ExcelEngine] No date-formatted sheets found in workbook")
                 wb.close()
                 return None
-            
+
             latest_sheet_name = sorted(date_sheets)[-1]
             latest_sheet = wb[latest_sheet_name]
-            
+
             log.info(f"[ExcelEngine] Using sheet: {latest_sheet_name}")
-            
+
             # Extract rates from cells
             rates = {}
             for key, cell_addr in INTERNAL_BASKET_MAPPING.items():
                 value = latest_sheet[cell_addr].value
                 rates[key] = safe_float(value, None)
                 log.info(f"[ExcelEngine]   {key} ({cell_addr}): {rates[key]}")
-            
+
             wb.close()
             return rates
 
-        except Exception as e:
-            log.info(f"[ExcelEngine] ERROR loading Internal Basket Rates: {e}")
+        except (PermissionError, OSError, KeyError) as e:
+            log.error(f"[ExcelEngine] Error loading Internal Basket Rates: {e}")
             return None
 
-    def get_previous_sheet_nibor_rates(self):
+    def get_previous_sheet_nibor_rates(self) -> dict | None:
         """
         Get NIBOR rates from the SECOND-TO-LAST sheet in the workbook.
 
@@ -558,13 +580,7 @@ class ExcelEngine:
             return None
 
         try:
-            # Try to load workbook
-            try:
-                wb = load_workbook(nibor_file, data_only=True, read_only=True)
-            except Exception as e:
-                log.info(f"[ExcelEngine] Direct load failed ({e}), trying cache...")
-                temp_path = copy_to_cache_fast(nibor_file)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
+            wb = _open_workbook(nibor_file)
 
             # Find date-formatted sheets (YYYY-MM-DD format)
             date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -597,7 +613,7 @@ class ExcelEngine:
             log.info(f"[ExcelEngine] ERROR loading previous sheet NIBOR rates: {e}")
             return None
 
-    def get_latest_weights(self, weights_path):
+    def get_latest_weights(self, weights_path: Path) -> dict | None:
         """
         Get latest weights from Wheights.xlsx file.
         
@@ -618,88 +634,56 @@ class ExcelEngine:
             return None
         
         try:
-            wb = None
-            try:
-                wb = load_workbook(weights_path, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(weights_path)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-            
-            ws = wb.active  # Use first/active sheet
-            
+            wb = _open_workbook(weights_path)
+            ws = wb.active
+
             log.info(f"[ExcelEngine] Sheet: {ws.title}")
-            
-            # Find all rows with dates
-            from config import WEIGHTS_COLS
-            date_col = WEIGHTS_COLS["Date"]   # Column A
-            usd_col = WEIGHTS_COLS["USD"]     # Column F
-            eur_col = WEIGHTS_COLS["EUR"]     # Column G
-            nok_col = WEIGHTS_COLS["NOK"]     # Column H
-            
+
+
+            date_col = WEIGHTS_COLS["Date"]
+            usd_col = WEIGHTS_COLS["USD"]
+            eur_col = WEIGHTS_COLS["EUR"]
+            nok_col = WEIGHTS_COLS["NOK"]
+
             dated_rows = []
-            
-            # Scan rows starting from row 2 (assume row 1 is header)
+
             for row in range(2, ws.max_row + 1):
-                date_cell = ws.cell(row=row, column=date_col).value
-                
-                if date_cell:
-                    try:
-                        # Try to parse as date
-                        if isinstance(date_cell, datetime):
-                            date_val = date_cell
-                        else:
-                            # Try to parse string
-                            date_val = datetime.strptime(str(date_cell), "%Y-%m-%d")
-                        
-                        dated_rows.append((date_val, row))
-                    except (ValueError, TypeError):
-                        continue
-            
+                date_val = _parse_date_cell(ws.cell(row=row, column=date_col).value)
+                if date_val:
+                    dated_rows.append((date_val, row))
+
             if not dated_rows:
-                log.info(f"[ExcelEngine] [ERROR] No valid dates found in column A")
+                log.error("[ExcelEngine] No valid dates found in column A")
                 wb.close()
                 return None
-            
-            # Sort by date, get latest
+
             dated_rows.sort(reverse=True)
             latest_date, latest_row = dated_rows[0]
-            
+
             log.info(f"[ExcelEngine] Latest date: {latest_date.date()} (row {latest_row})")
-            
-            # Read weights from this row
+
             usd_weight = ws.cell(row=latest_row, column=usd_col).value
             eur_weight = ws.cell(row=latest_row, column=eur_col).value
             nok_weight = ws.cell(row=latest_row, column=nok_col).value
-            
-            log.info(f"[ExcelEngine]   USD (F{latest_row}): {usd_weight}")
-            log.info(f"[ExcelEngine]   EUR (G{latest_row}): {eur_weight}")
-            log.info(f"[ExcelEngine]   NOK (H{latest_row}): {nok_weight}")
-            
+
             try:
-                usd = float(usd_weight) if usd_weight is not None else 0.0
-                eur = float(eur_weight) if eur_weight is not None else 0.0
-                nok = float(nok_weight) if nok_weight is not None else (1.0 - usd - eur)
-                
-                weights = {"USD": usd, "EUR": eur, "NOK": nok, "date": latest_date}
-                
-                log.info(f"[ExcelEngine] Weights: USD={usd:.2%}, EUR={eur:.2%}, NOK={nok:.2%}")
-                log.info(f"[ExcelEngine] Sum check: {usd + eur + nok:.4f} (should be 1.0)")
-                
+                weights = _parse_weights_row(usd_weight, eur_weight, nok_weight)
+                weights["date"] = latest_date
+
+                log.info(f"[ExcelEngine] Weights: USD={weights['USD']:.2%}, EUR={weights['EUR']:.2%}, NOK={weights['NOK']:.2%}")
                 wb.close()
                 return weights
-                
+
             except (ValueError, TypeError) as e:
-                log.info(f"[ExcelEngine] [ERROR] Cannot convert weights to float: {e}")
+                log.error(f"[ExcelEngine] Cannot convert weights to float: {e}")
                 wb.close()
                 return None
-            
+
         except Exception as e:
-            log.info(f"[ExcelEngine] [ERROR] Failed to load weights: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error(f"[ExcelEngine] Failed to load weights: {e}", exc_info=True)
             return None
     
-    def get_all_weights_history(self, weights_path):
+    def get_all_weights_history(self, weights_path: Path) -> list[dict]:
         """
         Get ALL weights history from Wheights.xlsx file.
         
@@ -721,78 +705,49 @@ class ExcelEngine:
             return []
         
         try:
-            wb = None
-            try:
-                wb = load_workbook(weights_path, data_only=True, read_only=True)
-            except Exception:
-                temp_path = copy_to_cache_fast(weights_path)
-                wb = load_workbook(temp_path, data_only=True, read_only=True)
-            
-            ws = wb.active  # Use first/active sheet
-            
+            wb = _open_workbook(weights_path)
+            ws = wb.active
+
             log.info(f"[ExcelEngine] Sheet: {ws.title}")
-            
-            # Get column mappings
-            from config import WEIGHTS_COLS
-            date_col = WEIGHTS_COLS["Date"]   # Column A
-            usd_col = WEIGHTS_COLS["USD"]     # Column F
-            eur_col = WEIGHTS_COLS["EUR"]     # Column G
-            nok_col = WEIGHTS_COLS["NOK"]     # Column H
-            
+
+
+            date_col = WEIGHTS_COLS["Date"]
+            usd_col = WEIGHTS_COLS["USD"]
+            eur_col = WEIGHTS_COLS["EUR"]
+            nok_col = WEIGHTS_COLS["NOK"]
+
             weights_history = []
-            
-            # Scan all rows starting from row 2 (assume row 1 is header)
+
             for row in range(2, ws.max_row + 1):
-                date_cell = ws.cell(row=row, column=date_col).value
-                
-                if not date_cell:
+                date_val = _parse_date_cell(ws.cell(row=row, column=date_col).value)
+                if not date_val:
                     continue
-                
+
                 try:
-                    # Try to parse as date
-                    if isinstance(date_cell, datetime):
-                        date_val = date_cell
-                    else:
-                        # Try to parse string
-                        date_val = datetime.strptime(str(date_cell), "%Y-%m-%d")
-                    
-                    # Read weights from this row
-                    usd_weight = ws.cell(row=row, column=usd_col).value
-                    eur_weight = ws.cell(row=row, column=eur_col).value
-                    nok_weight = ws.cell(row=row, column=nok_col).value
-                    
-                    # Convert to float
-                    usd = float(usd_weight) if usd_weight is not None else 0.0
-                    eur = float(eur_weight) if eur_weight is not None else 0.0
-                    nok = float(nok_weight) if nok_weight is not None else (1.0 - usd - eur)
-                    
-                    weights_history.append({
-                        "date": date_val,
-                        "USD": usd,
-                        "EUR": eur,
-                        "NOK": nok,
-                        "row": row
-                    })
-                    
+                    w = _parse_weights_row(
+                        ws.cell(row=row, column=usd_col).value,
+                        ws.cell(row=row, column=eur_col).value,
+                        ws.cell(row=row, column=nok_col).value,
+                    )
+                    w["date"] = date_val
+                    w["row"] = row
+                    weights_history.append(w)
                 except (ValueError, TypeError) as e:
-                    log.info(f"[ExcelEngine] [WARN] Could not parse row {row}: {e}")
+                    log.warning(f"[ExcelEngine] Could not parse row {row}: {e}")
                     continue
-            
-            # Sort by date (newest first)
+
             weights_history.sort(key=lambda x: x["date"], reverse=True)
-            
+
             log.info(f"[ExcelEngine] Loaded {len(weights_history)} weight entries")
             if weights_history:
                 latest = weights_history[0]
                 log.info(f"[ExcelEngine] Latest: {latest['date'].date()} - USD={latest['USD']:.2%}, EUR={latest['EUR']:.2%}, NOK={latest['NOK']:.2%}")
-            
+
             wb.close()
             return weights_history
-            
+
         except Exception as e:
-            log.info(f"[ExcelEngine] [ERROR] Failed to load weights history: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error(f"[ExcelEngine] Failed to load weights history: {e}", exc_info=True)
             return []
 
     def write_confirmation_stamp(self) -> tuple[bool, str]:
@@ -910,8 +865,6 @@ def _load_mock_defaults_from_excel() -> dict:
     - CM rates (SWET Curncy)
     - Days to maturity (TPSF Curncy) - for DAYS_TO_MTY field
     """
-    from config import DATA_DIR
-
     defaults_file = DATA_DIR / "Implied_NOK_Defaults.xlsx"
 
     # Fallback values if file doesn't exist
@@ -1308,8 +1261,6 @@ class BloombergEngine:
         Returns:
             dict: {date_str: {tenor: rate, ...}, ...}
         """
-        from config import NIBOR_FIXING_TICKERS
-
         log.info(f"[BloombergEngine] fetch_fixing_history called for {num_dates} dates")
         log.info(f"[BloombergEngine] _use_mock={self._use_mock}, _is_ready={self._is_ready}, blpapi={'available' if blpapi else 'None'}")
 

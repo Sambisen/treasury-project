@@ -307,10 +307,13 @@ def _detect_environment() -> tuple[Path, bool]:
     is_windows = platform.system() == "Windows"
 
     if is_windows:
-        onedrive_path = home / "OneDrive - Swedbank"
-        if onedrive_path.exists():
-            base_dir = onedrive_path / "GroupTreasury-ShortTermFunding - Documents"
-            return base_dir, False
+        # Try known OneDrive folder names (handles org name changes)
+        for onedrive_name in ("OneDrive - Swedbank", "OneDrive - Swedbank AB"):
+            onedrive_path = home / onedrive_name
+            if onedrive_path.exists():
+                base_dir = onedrive_path / "GroupTreasury-ShortTermFunding - Documents"
+                if base_dir.exists():
+                    return base_dir, False
         # Fallback for Windows without OneDrive
         app_dir = Path(__file__).resolve().parent
         return app_dir / "data", True
@@ -352,10 +355,23 @@ BASE_HISTORY_PATH = DATA_DIR / "Referensräntor" / "Nibor" / "Historik Nibor"
 NIBOR_LOG_PATH = DATA_DIR / "Stibor"
 STIBOR_GRSS_PATH = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
 
-DAY_FILES = [
-    DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2025.xlsx",
-    DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet" / "Nibor days 2026.xlsx"
-]
+def _discover_day_files() -> list[Path]:
+    """Dynamically discover Nibor days files instead of hardcoding years."""
+    grss_dir = DATA_DIR / "Referensräntor" / "Stibor" / "GRSS Spreadsheet"
+    if not grss_dir.exists():
+        return []
+    files = sorted(grss_dir.glob("Nibor days *.xlsx"))
+    if files:
+        return files
+    # Fallback: current and previous year
+    import datetime
+    current_year = datetime.datetime.now().year
+    return [
+        grss_dir / f"Nibor days {current_year - 1}.xlsx",
+        grss_dir / f"Nibor days {current_year}.xlsx",
+    ]
+
+DAY_FILES = _discover_day_files()
 
 # RECON_FILE: Static fallback path for NIBOR fixing workbook
 # NOTE: Dynamic file lookup is handled by nibor_file_manager.get_nibor_file()

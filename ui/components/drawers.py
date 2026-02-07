@@ -330,7 +330,7 @@ class CompactCalculationDrawer(tk.Toplevel):
             focused = self.focus_get()
             if focused is None or not str(focused).startswith(str(self)):
                 self.close()
-        except:
+        except tk.TclError:
             pass
 
     def close(self):

@@ -690,7 +690,7 @@ if not CTK_AVAILABLE:
                 """Get current value."""
                 try:
                     return self.getvar(self.cget('variable'))
-                except:
+                except (tk.TclError, KeyError):
                     return False
 
             def select(self):

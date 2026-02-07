@@ -62,7 +62,7 @@ class Toast:
         # Transparency
         try:
             self.toast.attributes("-alpha", 0.97)
-        except:
+        except tk.TclError:
             pass
 
         # Main container with padding for shadow effect
@@ -180,13 +180,13 @@ class Toast:
             try:
                 self.toast.geometry(f"+{self.current_x}+{self.final_y}")
                 self.toast.after(10, self._animate_in)
-            except:
+            except tk.TclError:
                 pass
         else:
             self.current_x = self.final_x
             try:
                 self.toast.geometry(f"+{self.final_x}+{self.final_y}")
-            except:
+            except tk.TclError:
                 pass
 
     def close(self):
@@ -202,7 +202,7 @@ class Toast:
             try:
                 self.toast.attributes("-alpha", alpha)
                 self.toast.after(20, lambda: self._fade_out(alpha - 0.1))
-            except:
+            except tk.TclError:
                 self._destroy()
         else:
             self._destroy()
@@ -211,7 +211,7 @@ class Toast:
         """Destroy the toast window."""
         try:
             self.toast.destroy()
-        except:
+        except tk.TclError:
             pass
 
 

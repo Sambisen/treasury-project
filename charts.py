@@ -1015,7 +1015,7 @@ class TrendPopup(tk.Toplevel):
                     if dist < closest_dist:
                         closest_dist = dist
                         closest_info = (d, r, label, source)
-                except:
+                except (TypeError, ValueError):
                     pass
 
         if closest_info and closest_dist < 5:

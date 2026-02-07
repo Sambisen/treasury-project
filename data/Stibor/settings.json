@@ -1,5 +1,6 @@
 {
-  "development_mode": true,
+  "development_mode": false,
+  "fixing_time": "10:30",
   "theme": "dark",
   "accent_color": "red",
   "font_size": "normal",

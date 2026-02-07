@@ -404,7 +404,7 @@ def set_button_disabled(btn: ctk.CTkButton, disabled: bool = True):
         try:
             if btn.cget("border_width") and btn.cget("border_width") > 0:
                 btn.configure(border_color=BUTTON_COLORS.DISABLED_BORDER)
-        except:
+        except (AttributeError, ValueError):
             pass
     else:
         btn.configure(state="normal")

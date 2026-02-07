@@ -22,13 +22,15 @@ log = get_logger("history")
 def _get_nibor_log_path() -> Path:
     """Get the NIBOR log file path dynamically based on current user."""
     user_home = Path.home()
-    onedrive_path = user_home / "OneDrive - Swedbank" / "GroupTreasury-ShortTermFunding - Documents"
 
-    if onedrive_path.exists():
-        return onedrive_path / "Referensräntor" / "Nibor" / "Nibor logg" / "nibor_log.json"
-    else:
-        # Fallback to local data folder
-        return Path(__file__).resolve().parent / "data" / "nibor_log.json"
+    # Try known OneDrive folder names (handles org name changes)
+    for onedrive_name in ("OneDrive - Swedbank", "OneDrive - Swedbank AB"):
+        onedrive_path = user_home / onedrive_name / "GroupTreasury-ShortTermFunding - Documents"
+        if onedrive_path.exists():
+            return onedrive_path / "Referensräntor" / "Nibor" / "Nibor logg" / "nibor_log.json"
+
+    # Fallback to local data folder
+    return Path(__file__).resolve().parent / "data" / "nibor_log.json"
 
 NIBOR_LOG_FILE_OVERRIDE = _get_nibor_log_path()
 
@@ -606,9 +608,7 @@ def fetch_fixings_from_bloomberg(engine, num_dates: int = 3) -> dict:
                 log.warning(f"[{mode_str}] Bloomberg BDH returned empty result")
             return result
         except Exception as e:
-            log.error(f"[{mode_str}] Bloomberg BDH error: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error(f"[{mode_str}] Bloomberg BDH error: {e}", exc_info=True)
             return {}
     else:
         log.warning(f"[{mode_str}] Engine does not have fetch_fixing_history method")

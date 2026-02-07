@@ -105,7 +105,7 @@ class SystemTray:
         if self.icon:
             try:
                 self.icon.stop()
-            except:
+            except Exception:
                 pass
             self.icon = None
 
@@ -114,7 +114,7 @@ class SystemTray:
         if self.icon and TRAY_AVAILABLE:
             try:
                 self.icon.notify(message, title)
-            except:
+            except Exception:
                 pass
 
     def _on_show(self, icon=None, item=None):
